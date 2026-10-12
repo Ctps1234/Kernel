@@ -44,6 +44,13 @@ def canon_value(raw: str | None, phandles: dict[int, str]) -> str:
     return ", ".join(out)
 
 
+def raw_value(raw: str | None) -> str:
+    """Valor sem trocar phandles: so normaliza literais 0x (zeros a esquerda)."""
+    if raw is None:
+        return "<flag>"
+    return re.sub(r"0x([0-9a-fA-F]+)", lambda m: f"0x{int(m.group(1), 16):x}", raw)
+
+
 def index(path: str):
     root = s.parse(open(path, encoding="utf-8").read())
     phandles: dict[int, str] = {}
@@ -58,6 +65,7 @@ def index(path: str):
     collect(root)
     nodes: set[str] = set()
     props: dict[tuple[str, str], str] = {}
+    raws: dict[tuple[str, str], str] = {}
 
     def walk(n, skip):
         if n.parent is not None:
@@ -66,13 +74,14 @@ def index(path: str):
             if p.name in PHANDLE_PROPS:
                 continue
             props[(n.path(), p.name)] = canon_value(p.value, phandles)
+            raws[(n.path(), p.name)] = raw_value(p.value)
         for c in n.children:
             if c.name in INTERNAL or (skip and c.name == "chosen"):
                 continue
             walk(c, skip)
 
     walk(root, skip=False)
-    return nodes, props
+    return nodes, props, raws
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -82,8 +91,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--top", type=int, default=12)
     args = ap.parse_args(argv)
 
-    na, pa = index(args.a)
-    nb, pb = index(args.b)
+    na, pa, ra = index(args.a)
+    nb, pb, rb = index(args.b)
     only_a_nodes = sorted(na - nb)
     only_b_nodes = sorted(nb - na)
     only_a = sorted(set(pa) - set(pb))
@@ -108,8 +117,16 @@ def main(argv: list[str] | None = None) -> int:
          lambda k: f"{k[0]} :: {k[1]}")
     show("propriedades somente no mesclado (amostra):", only_b,
          lambda k: f"{k[0]} :: {k[1]}")
-    show("valor diferente (amostra):", changed,
-         lambda k: f"{k[0]} :: {k[1]}\n      ativo:    {pa[k][:160]}\n      mesclado: {pb[k][:160]}")
+    # Diferenca "so de phandle": valores numericos iguais sem a troca por caminho.
+    phandle_only = [k for k in changed if ra[k] == rb[k]]
+    real = [k for k in changed if ra[k] != rb[k]]
+    print(f"valor diferente: total={len(changed)} "
+          f"(so apos trocar numeros por caminhos de phandle={len(phandle_only)}; "
+          f"valor bruto diferente={len(real)})")
+    show("valor bruto diferente (amostra):", real,
+         lambda k: f"{k[0]} :: {k[1]}\n      ativo:    {ra[k][:160]}\n      mesclado: {rb[k][:160]}")
+    show("so diferente apos troca por phandle (amostra):", phandle_only,
+         lambda k: f"{k[0]} :: {k[1]}")
 
     by_prop = Counter(k[1] for k in only_a + only_b + changed)
     print("nomes de propriedade mais afetados:")
