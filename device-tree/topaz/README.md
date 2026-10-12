@@ -37,9 +37,22 @@ O workflow [`device-tree.yml`](../../.github/workflows/device-tree.yml) executa 
 
 Os itens acima são diferenças esperadas (bootloader/runtime), não erros de conversão.
 
+### Validação dt-schema (run `38280602426`, commit `806c336`)
+
+Job `dt-schema` (com `continue-on-error`), na base fixada `0efd3abd3c356d644ea49f6ed37e9830b78d34e3` com os patches 0001–0011 aplicados:
+
+- **`dt-doc-validate` nos bindings da série: sem erros.** Corrigidos na série: `minItems`/`maxItems` redundantes com `items` (khaje-gcc, -dispcc, -gpucc, -debugcc e bengal), `reg` ausente com `reg-names` (khaje-dispcc, -gpucc, -gcc), `linux,phandle`/`name` sem tipo (pinctrl) e `qcom,set`/`qcom,regulator-type` (enum inteiro) sem tipo (rpm-smd). O `phandle` do pinctrl continua `true`: com `$ref: phandle` o dt-validate falhava com `property has multiple types`.
+- **`dt-mk-schema`: sem erros da série.** Restam só avisos do upstream: `firmware/gunyah-cma-mem.yaml` (não parseia) e `fsl,liodn` em bindings de outros subsistemas (tipos conflitantes).
+- **`dt-validate` do DTB mesclado: executa até o fim**, mas o log lista violações. O job termina com sucesso porque o script só falha se o `dt-validate` retornar erro; a lista abaixo continua pendente:
+  - `bias-disable`: a base tem `bias-disable = <0x0>` (4 bytes); o binding espera flag booleana. O driver lê só a presença, então é divergência de schema, não de funcionamento.
+  - `/` (qcom,khaje): nó `memory` placeholder com `device_type` e `reg` (zeros) não permitidos por `root-node.yaml`. Deve ser preenchido/removido na fase 2.
+  - `aliases`: `phandle` (294) tratado como alias, não é array. Candidato a remoção na fase 2.
+  - `cpu@N`: `qcom,freq-domain` e `qcom,lmh-dcvs` aparecem como bytes. O nó `phandle = <0x5>` existe na base (dispositivo de performance), então a hipótese é limitação do dtschema para propriedades sem binding de CPU (cells desconhecidas), não phandle quebrado. **A confirmar** (ex.: validar com um binding de CPU que declare essas propriedades).
+  - O log completo está no artefato `topaz-dt-schema` do run. Não foi possível contar todas as violações pelas anotações (truncadas).
+
 ### O que ainda **não** foi validado
 
-- **Bindings / DT-schema** (`dt-validate`, `dtbs_check`): não executado. Exige os bindings da base 6.12 com os patches 0001–0011 aplicados.
+- **DT-schema do DTB mesclado**: executado, mas as violações listadas acima ainda não foram corrigidas (fase 2). Bindings da série: sem erros.
 - **Hardware**: nada aqui foi testado no aparelho. Não flashar.
 
 ## Próxima etapa (fase 2 — curadoria)
