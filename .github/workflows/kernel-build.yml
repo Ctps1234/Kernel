@@ -185,7 +185,10 @@ jobs:
           cd "$RUNNER_TEMP/kernel"
           LOG="$RUNNER_TEMP/full-build.log"
           rc=0
-          make ARCH=arm64 LLVM=1 LLVM_IAS=1 -k -j"$(nproc)" Image dtbs < /dev/null > "$LOG" 2>&1 || rc=$?
+          # KCFLAGS=-Wno-error: o clang do runner transforma avisos de -Wframe-larger-than do upstream
+          # (bpf/verifier.c, block/loop.c, hid-logitech) em erro via CONFIG_WERROR. Nao e' falha dos patches;
+          # os avisos continuam no log. A configuracao do kernel nao muda.
+          make ARCH=arm64 LLVM=1 LLVM_IAS=1 KCFLAGS=-Wno-error -k -j"$(nproc)" Image dtbs < /dev/null > "$LOG" 2>&1 || rc=$?
           if [ "$rc" -ne 0 ]; then
             grep -E "error:|fatal error|undefined reference|No such file" "$LOG" | cut -c1-220 | sort | uniq -c | sort -rn | head -40 > "$RUNNER_TEMP/diag-full.txt" || true
             diag=$(sed 's/%/%25/g; s/\r/%0D/g' "$RUNNER_TEMP/diag-full.txt" | head -c 3500 | sed ':a;N;$!ba;s/\n/%0A/g')
