@@ -19,14 +19,27 @@ A conversão do overlay é exata por construção: cada célula `0xffffffff` apo
 2. compila a base com `dtc`;
 3. compila o overlay como plugin com `dtc -@`;
 4. aplica o overlay na base com `fdtoverlay`;
-5. compara o resultado com o FDT ativo de referência (`topaz-live-reference.dts`) e grava um diff informativo.
+5. compara o resultado com o FDT ativo de referência (`topaz-live-reference.dts`) com [`tools/dts_semantic_diff.py`](../../tools/dts_semantic_diff.py), que compara por nó e propriedade e troca phandles por caminhos.
 
-O workflow [`device-tree.yml`](../../.github/workflows/device-tree.yml) executa o script em GitHub Actions e publica os artefatos. Ele não é executado localmente aqui porque o sandbox não tem `dtc` (sem flex/bison).
+O workflow [`device-tree.yml`](../../.github/workflows/device-tree.yml) executa o script em GitHub Actions. O sandbox não tem `dtc` (sem flex/bison), então a validação só existe na CI.
 
-## O que isto **não** valida ainda
+### Resultado (run `38278723796`, commit `d9b850a`)
 
-- **Bindings / DT-schema** (`dt-validate`, `dtbs_check`): ainda não executado. Depende dos bindings da base 6.12 com os patches 0001–0011 aplicados.
-- **Diferenças com o FDT ativo**: o diff é só informativo. Ele inclui nós e propriedades do bootloader e reatribuições de phandle locais ao overlay.
+- Base, overlay (`dtc -@`) e merge (`fdtoverlay`) **compilam e aplicam sem erro**.
+- Comparação semântica com o FDT ativo de referência:
+  - **2136 nós idênticos** nas duas árvores.
+  - Propriedades só no ativo (3): `/memory:ddr_manufacturer_id`, `/memory:ddr_size` e `/soc/xiaomi_touch:get_panel_info`, injetadas pelo bootloader.
+  - Valores brutos diferentes (5):
+    - raiz `model`, `compatible` e `qcom,board-id`. O `fdtoverlay` **não aplica propriedades da raiz do overlay**, só fragments. Logo, a placa precisa definir essas propriedades na fase 2, ou o bootloader precisa injetá-las;
+    - `/memory:reg`: preenchido pelo bootloader com as faixas reais de RAM;
+    - `/firmware/android/fstab/vendor:status`: `ok` na base decompilada e `disabled` no ativo. O overlay não altera esse nó; a diferença vem do ambiente de runtime.
+  - Diferença só após a troca por phandle (1): `qcom,mdss-dsi-on-command` do painel m7. Os valores brutos são idênticos (135 células); a diferença vem do próprio método de comparação, que converte números que coincidem com phandles.
+
+Os itens acima são diferenças esperadas (bootloader/runtime), não erros de conversão.
+
+### O que ainda **não** foi validado
+
+- **Bindings / DT-schema** (`dt-validate`, `dtbs_check`): não executado. Exige os bindings da base 6.12 com os patches 0001–0011 aplicados.
 - **Hardware**: nada aqui foi testado no aparelho. Não flashar.
 
 ## Próxima etapa (fase 2 — curadoria)
