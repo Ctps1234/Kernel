@@ -1,6 +1,6 @@
 # Defconfig do topaz (fragmento sobre o GKI 6.12)
 
-Estado: **rascunho, não validado pela CI ainda.** Nada aqui foi compilado localmente, nem flashado.
+Estado: **fragmento verificado contra o Kconfig 6.12 na CI** (commit `c4ae3ff`, run `38304433851`: 34 de 34 símbolos mantidos como pedidos). Isso prova só que os nomes e as dependências batem; o kernel não foi compilado e nada foi flashado.
 
 ## Arquivos
 
@@ -14,6 +14,11 @@ Cada linha vem de um compatível da DT curada (`device-tree/topaz/`) ou de um s�
 ## O que fica de fora (escopo C)
 
 Display, câmera, áudio, USB, SD/eMMC, carregador, toque, impressão digital, DSP/modem e Wi-Fi/BT. Os mesmos subsistemas saíram da DT curada.
+
+## Correções feitas pela verificação
+
+- `CONFIG_QCOM_CPUFREQ_HW` → `ARM_QCOM_CPUFREQ_HW`; `CONFIG_GPIO_KEYS` → `KEYBOARD_GPIO`; `CONFIG_PINCTRL_SPMI_GPIO` → `PINCTRL_QCOM_SPMI_PMIC` (nomes do Kconfig 6.12).
+- Dependências que o `olddefconfig` exigia: `COMMON_CLK_QCOM` (para `QCOM_CLK_SMD_RPM`), `ARM_SMMU` (para `ARM_SMMU_QCOM`), `PINCTRL_MSM` (bloco `if PINCTRL_MSM` de `Kconfig.msm`, para `PINCTRL_KHAJE`) e `PHY_QCOM_QMP` (bloco `if PHY_QCOM_QMP`, para `PHY_QCOM_QMP_UFS`).
 
 ## Limites conhecidos
 
