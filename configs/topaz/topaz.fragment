@@ -18,12 +18,13 @@ CONFIG_ARCH_QCOM=y
 # Pinctrl, clocks e energia (patches 0002, 0004, 0011)
 CONFIG_PINCTRL_KHAJE=y               # qcom,khaje-pinctrl (0002)
 CONFIG_SM_GCC_6225=y                 # qcom,khaje-gcc (0011)
+CONFIG_COMMON_CLK_QCOM=y             # dependencia dos clocks Qualcomm (0004, 0011)
 CONFIG_QCOM_CLK_SMD_RPM=y            # qcom,rpmcc-khaje: provider RPM-SMD (0004)
 CONFIG_QCOM_SMD_RPM=y                # qcom,rpm-smd
 CONFIG_REGULATOR_QCOM_SMD_RPM=y      # qcom,rpm-smd-regulator(-resource) (0008, 0009)
 CONFIG_QCOM_SMEM=y                   # memoria compartilhada (RPM-SMD, glink)
 CONFIG_QCOM_SCM=y                    # qcom,scm
-CONFIG_QCOM_CPUFREQ_HW=y             # qcom,cpufreq-hw
+CONFIG_ARM_QCOM_CPUFREQ_HW=y         # qcom,cpufreq-hw
 CONFIG_QCOM_MPM=y                    # qcom,mpm-khaje, qcom,mpm
 
 # Interconexao (patch 0007)
@@ -53,9 +54,10 @@ CONFIG_QCOM_SPMI_ADC5=y              # qcom,spmi-adc5
 CONFIG_QCOM_SPMI_ADC_TM5=y           # qcom,spmi-adc-tm5
 
 # IOMMU e memoria
+CONFIG_ARM_SMMU=y                    # dependencia de ARM_SMMU_QCOM
 CONFIG_ARM_SMMU_QCOM=y               # qcom,qsmmu-v500
 
 # Entrada e depuracao de boot
-CONFIG_GPIO_KEYS=y                   # gpio-keys
+CONFIG_KEYBOARD_GPIO=y               # gpio-keys (o simbolo 6.12 se chama KEYBOARD_GPIO)
 CONFIG_PSTORE=y
 CONFIG_PSTORE_RAM=y                  # ramoops (depuracao de panico)
