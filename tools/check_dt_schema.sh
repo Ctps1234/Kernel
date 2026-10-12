@@ -88,4 +88,18 @@ done
 
 summary "## dtschema (bindings da serie + DTB mesclado)" '```' "$(cat "$REPORT")" '```'
 cat "$REPORT"
+
+# Anotacoes do run (visiveis na pagina do run, sem login): inicio de cada log com falha.
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    for log in doc-validate mk-schema dt-validate; do
+        if [ -s "$OUT/$log.log" ] && grep -qiE 'error|fail|Traceback|invalid' "$OUT/$log.log"; then
+            python3 - "$OUT/$log.log" "$log" <<'PY'
+import sys
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()[:2500]
+text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+print(f"::warning title=dtschema {sys.argv[2]}::" + text)
+PY
+        fi
+    done
+fi
 exit "$FAILED"
