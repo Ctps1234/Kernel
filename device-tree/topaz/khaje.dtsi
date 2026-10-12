@@ -1087,7 +1087,7 @@
 				pinctrl-0 = <0x0000011a>;
 				pinctrl-1 = <0x0000011b>;
 				qcom,wrapper-core = <0x00000104>;
-				status = "OK";
+				status = "okay";
 				phandle = <0x00000243>;
 			};
 			qupv3_se0_spi: spi@4a80000 {

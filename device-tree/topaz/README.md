@@ -121,7 +121,7 @@ Isso não prova que a DT compila nem que é válida pelo dt-schema. Essas provas
 Resíduos da curada (172), ainda sem correção nesta fase. São propriedades vendor de nós mantidos, sem binding na base 6.12 ou com tipo divergente:
 
 - `qcom,ufshc` (19), `simple-bus` (19), `qcom,geni-se-qup` (18), `qcom,mpm-khaje` (9), `qcom,rpm-smd-regulator-resource` (6), `qcom,spmi-pmic` (6), `qcom,i2c-geni` (6), `qcom,gpi-dma` (5), `qcom,cpufreq-hw` (3), `qcom,pm6125-gpio` (3), `qcom,scm` (2), `android,vendor` (3), `qcom,wrapper-core` (6).
-- Propriedades: `compatible` (12), `status` (6, valor ainda não auditado), `reg-names`, `#address-cells`/`#size-cells`, `$nodename`, `qcom,iommu-dma`/`dma-addr-pool`, `qcom,affinity`, `cluster-pd*` no psci, `parts`/`dev`/`mnt_flags`/`fsmgr_flags` do fstab, e 1 erro cada em `vibrator_gpio`, `thermal-message`, `interconnect`, `clocks` e `dsi_pll_codes`. O `dsi_pll_codes` (`khaje.dtsi`, linha 1167) fica na curada porque o overlay mantido o referencia por `pll_codes_region` (`topaz-overlay.dtso`, linha 1778); a fragmentação exata ainda precisa ser auditada.
+- Propriedades: `compatible` (12), `status` (o `"OK"` maiúsculo da base em um nó de QUP foi normalizado para `"okay"` nesta rodada; o resto aguarda CI), `reg-names`, `#address-cells`/`#size-cells`, `$nodename`, `qcom,iommu-dma`/`dma-addr-pool`, `qcom,affinity`, `cluster-pd*` no psci, `parts`/`dev`/`mnt_flags`/`fsmgr_flags` do fstab, e 1 erro cada em `vibrator_gpio`, `thermal-message`, `interconnect`, `clocks` e `dsi_pll_codes`. O `dsi_pll_codes` (`khaje.dtsi`, linha 1167) fica na curada porque o overlay mantido o referencia por `pll_codes_region` (`topaz-overlay.dtso`, linha 1778); Além disso, o gerador emite o mesmo nó também em `topaz.dts` (bloco `&soc`, com `label` e `reg` idênticos). O `dtc` faz o merge sem efeito, mas é duplicação do gerador: fica registrada como pendência, não corrigida nesta rodada.
 
 Esses erros não são novos: são o estado do port 6.12 para os nós que a curada mantém. Não há exclusão adicional sem decisão do usuário. Cada grupo precisa de binding próprio (série 0013 em diante) ou de exclusão documentada.
 
@@ -129,7 +129,8 @@ Esses erros não são novos: são o estado do port 6.12 para os nós que a curad
 
 - Decidir se o `dt-schema` vira bloqueante. Hoje é `continue-on-error: true`, então os 172 erros não quebram a CI.
 - Criar bindings para os grupos de maior volume (`qcom,ufshc`, `qcom,geni-se-qup`, `qcom,mpm-khaje`, `qcom,rpm-smd-regulator-resource`), ou excluí-los com registro em `excluidos.txt`.
-- Auditar os 6 erros de `status` que restam na curada e o nó `dsi_pll_codes`, que é a única dependência de display mantida.
+- Conferir na CI o efeito da normalização `"OK"` → `"okay"` nos erros de `status`.
+- Corrigir no gerador a duplicação do `dsi_pll_codes` (`khaje.dtsi` e `topaz.dts`), identificando o fragmento que emite o bloco `&soc`.
 - Decidir o `status` de `/firmware/android/fstab/vendor` (base `ok`, ativo `disabled`) e a origem de `/memory ddr_*`.
 - Integrar os nós mantidos ao kernel: drivers 6.12 e configuração GKI.
 - Hardware: nada aqui foi testado no aparelho. Não flashar.

@@ -147,7 +147,7 @@ EXPECTED = {
 NORMALIZED_FLAGS = {"bias-disable"}
 # Valores de status normalizados: "ok" (legado, aceito pelo Linux) vira "okay" (o unico
 # que o dt-schema aceita). Mesma semantica; a comparacao com o ativo trata os dois iguais.
-NORMALIZED_STATUS = {'"ok"': '"okay"'}
+NORMALIZED_STATUS = {'"ok"': '"okay"', '"OK"': '"okay"'}
 
 
 def norm_value(prop: str, value: str) -> str:
