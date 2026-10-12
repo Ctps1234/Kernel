@@ -137,7 +137,7 @@ index 25ed9f713974..bb9e887127da 100644
 +static int rpm_reg_write(struct qcom_rpm_reg *vreg,
 +			 const struct rpm_regulator_state *old)
 +{
-+	struct rpm_regulator_state current = {
++	struct rpm_regulator_state cur_state = {
 +		.is_enabled = vreg->is_enabled,
 +		.uV = vreg->uV,
 +		.load = vreg->load,
@@ -147,7 +147,7 @@ index 25ed9f713974..bb9e887127da 100644
 +	u32 written = 0;
 +	int ret;
 +
-+	count = rpm_reg_build_req(req, vreg, &current);
++	count = rpm_reg_build_req(req, vreg, &cur_state);
 +	if (!count)
 +		return 0;
 +

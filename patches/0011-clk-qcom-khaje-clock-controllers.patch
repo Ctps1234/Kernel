@@ -129,7 +129,7 @@ new file mode 100644
 index 000000000000..2c245fbb7292
 --- /dev/null
 +++ b/drivers/clk/qcom/gcc-khaje.c
-@@ -0,0 +1,3993 @@
+@@ -0,0 +1,3983 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -1040,7 +1040,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_7,
 +	.freq_tbl = ftbl_gcc_camss_axi_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_camss_axi_clk_src",
 +		.parent_data = gcc_parent_data_7,
@@ -1264,7 +1263,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_8,
 +	.freq_tbl = ftbl_gcc_camss_ope_ahb_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_camss_ope_ahb_clk_src",
 +		.parent_data = gcc_parent_data_8,
@@ -1297,7 +1295,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_8,
 +	.freq_tbl = ftbl_gcc_camss_ope_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_camss_ope_clk_src",
 +		.parent_data = gcc_parent_data_8,
@@ -1344,7 +1341,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_5,
 +	.freq_tbl = ftbl_gcc_camss_tfe_0_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_camss_tfe_0_clk_src",
 +		.parent_data = gcc_parent_data_5,
@@ -1378,7 +1374,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_6,
 +	.freq_tbl = ftbl_gcc_camss_tfe_0_csid_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_camss_tfe_0_csid_clk_src",
 +		.parent_data = gcc_parent_data_6,
@@ -1403,7 +1398,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_5,
 +	.freq_tbl = ftbl_gcc_camss_tfe_0_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_camss_tfe_1_clk_src",
 +		.parent_data = gcc_parent_data_5,
@@ -1428,7 +1422,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_6,
 +	.freq_tbl = ftbl_gcc_camss_tfe_0_csid_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_camss_tfe_1_csid_clk_src",
 +		.parent_data = gcc_parent_data_6,
@@ -1453,7 +1446,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_5,
 +	.freq_tbl = ftbl_gcc_camss_tfe_0_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_camss_tfe_2_clk_src",
 +		.parent_data = gcc_parent_data_5,
@@ -1478,7 +1470,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_6,
 +	.freq_tbl = ftbl_gcc_camss_tfe_0_csid_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_camss_tfe_2_csid_clk_src",
 +		.parent_data = gcc_parent_data_6,
@@ -2143,7 +2134,6 @@ index 000000000000..2c245fbb7292
 +	.hid_width = 5,
 +	.parent_map = gcc_parent_map_17,
 +	.freq_tbl = ftbl_gcc_video_venus_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "gcc_video_venus_clk_src",
 +		.parent_data = gcc_parent_data_17,
@@ -4128,7 +4118,7 @@ new file mode 100644
 index 000000000000..9e96bb9c9be3
 --- /dev/null
 +++ b/drivers/clk/qcom/dispcc-khaje.c
-@@ -0,0 +1,691 @@
+@@ -0,0 +1,689 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -4364,7 +4354,6 @@ index 000000000000..9e96bb9c9be3
 +	.hid_width = 5,
 +	.parent_map = disp_cc_parent_map_1,
 +	.freq_tbl = ftbl_disp_cc_mdss_mdp_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "disp_cc_mdss_mdp_clk_src",
 +		.parent_data = disp_cc_parent_data_1,
@@ -4420,7 +4409,6 @@ index 000000000000..9e96bb9c9be3
 +	.hid_width = 5,
 +	.parent_map = disp_cc_parent_map_1,
 +	.freq_tbl = ftbl_disp_cc_mdss_rot_clk_src,
-+	.enable_safe_config = true,
 +	.clkr.hw.init = &(const struct clk_init_data){
 +		.name = "disp_cc_mdss_rot_clk_src",
 +		.parent_data = disp_cc_parent_data_1,
