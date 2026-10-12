@@ -102,6 +102,32 @@ for log in doc-validate mk-schema dt-validate dt-validate-curated; do
     fi
 done
 
+# Contagem de erros por propriedade (cada erro do dt-validate tem uma linha "from schema").
+# Evita depender do texto truncado das anotacoes do GitHub.
+python3 - "$OUT" | tee "$OUT/erros-por-propriedade.txt" >> "$REPORT" <<'PY'
+import collections, os, re, sys
+out = sys.argv[1]
+for log in ("dt-validate", "dt-validate-curated"):
+    path = os.path.join(out, log + ".log")
+    if not os.path.isfile(path):
+        continue
+    lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    cnt = collections.Counter()
+    total = 0
+    for i, line in enumerate(lines):
+        if not line.startswith("from schema"):
+            continue
+        total += 1
+        prev = lines[i - 1] if i > 0 else line
+        m = re.search(r"\): ([^:]+):", prev)  # "no (compat): propriedade: mensagem"
+        key = m.group(1) if m else re.sub(r"^\S+: ", "", prev)[:80]
+        cnt[key] += 1
+    print("")
+    print(f"--- {log}: {total} erro(s) por propriedade")
+    for key, n in cnt.most_common(40):
+        print(f"  {n:4d}  {key}")
+PY
+
 summary "## dtschema (bindings da serie + DTB mesclado)" '```' "$(cat "$REPORT")" '```'
 cat "$REPORT"
 
@@ -117,5 +143,13 @@ print(f"::warning title=dtschema {sys.argv[2]}::" + text)
 PY
         fi
     done
+    if [ -s "$OUT/erros-por-propriedade.txt" ]; then
+        python3 - "$OUT/erros-por-propriedade.txt" <<'PY'
+import sys
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()[:2500]
+text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+print("::notice title=dtschema erros por propriedade::" + text)
+PY
+    fi
 fi
 exit "$FAILED"
