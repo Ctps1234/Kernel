@@ -83,7 +83,12 @@ python3 "$ROOT/tools/dts_diff_summary.py" "$OUT/live.dts" "$OUT/merged.dts" --to
     > "$OUT/live-vs-merged.summary.txt" 2>&1 || true
 cat "$OUT/live-vs-merged.summary.txt"
 if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    echo "::notice title=DT topaz merge::diff bruto ${DIFFLINES:-0} linhas; ver resumo no log do job"
+    python3 - "$OUT/live-vs-merged.summary.txt" <<'PY'
+import sys
+text = open(sys.argv[1], encoding="utf-8").read()
+text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+print("::notice title=DT topaz diff vs FDT ativo::" + text)
+PY
     summary '```' "$(cat "$OUT/live-vs-merged.summary.txt")" '```'
 fi
 
