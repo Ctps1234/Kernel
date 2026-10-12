@@ -39,7 +39,7 @@ jobs:
       - name: Instalar toolchain (clang/LLVM, como a GKI)
         run: |
           sudo apt-get update
-          sudo apt-get install -y flex bison bc libssl-dev libelf-dev clang lld llvm python3
+          sudo apt-get install -y flex bison bc libssl-dev libelf-dev clang lld llvm python3 libdw-dev dwarves
 
       - name: Obter a base 6.12 fixada (arvore completa, sem historico)
         run: |
@@ -149,7 +149,7 @@ jobs:
       - name: Instalar toolchain (clang/LLVM, como a GKI)
         run: |
           sudo apt-get update
-          sudo apt-get install -y flex bison bc libssl-dev libelf-dev clang lld llvm python3
+          sudo apt-get install -y flex bison bc libssl-dev libelf-dev clang lld llvm python3 libdw-dev dwarves
 
       - name: Obter a base 6.12 fixada (arvore completa, sem historico)
         run: |
