@@ -84,14 +84,16 @@ jobs:
           if [ "$rc" -ne 0 ]; then
             # Erros reais: diagnosticos do compilador/linker ou linhas "Error N" do make, com 6 linhas antes.
             grep -v -E "HDRINST|headers_install" "$LOG" > "$RUNNER_TEMP/log-sem-ruido.txt"
-            grep -n -E "error:|Error [0-9]|fatal error|No such file|undefined reference|\*\*\* " "$RUNNER_TEMP/log-sem-ruido.txt" | head -3 | cut -d: -f1 > "$RUNNER_TEMP/first-errs.txt" || true
+            # Ignora flags (-Werror), checagens sha1 do prepare e linhas de comando; pega as ULTIMAS ocorrencias (o erro real fica no fim).
+            grep -n -E "error:|Error [0-9]|fatal error|No such file|undefined reference|\*\*\* " "$RUNNER_TEMP/log-sem-ruido.txt" \
+              | grep -v -E "Werror|sha1sum|CHKSHA|^[0-9]+:  clang|^[0-9]+:# " | tail -n 3 | cut -d: -f1 > "$RUNNER_TEMP/first-errs.txt" || true
             : > "$RUNNER_TEMP/ctx.txt"
             while read -r n; do
-              s=$((n > 8 ? n - 8 : 1))
-              sed -n "${s},$((n + 2))p" "$RUNNER_TEMP/log-sem-ruido.txt" | cut -c1-240 >> "$RUNNER_TEMP/ctx.txt"
+              s=$((n > 10 ? n - 10 : 1))
+              sed -n "${s},$((n + 1))p" "$RUNNER_TEMP/log-sem-ruido.txt" | cut -c1-200 >> "$RUNNER_TEMP/ctx.txt"
               echo "---" >> "$RUNNER_TEMP/ctx.txt"
             done < "$RUNNER_TEMP/first-errs.txt"
-            ctx=$(sed 's/%/%25/g; s/\r/%0D/g' "$RUNNER_TEMP/ctx.txt" | head -c 3500 | sed ':a;N;$!ba;s/\n/%0A/g')
+            ctx=$(sed 's/%/%25/g; s/\r/%0D/g' "$RUNNER_TEMP/ctx.txt" | tail -c 3500 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=build parcial rc=$rc (erros e contexto)::$ctx"
           fi
           exit "$rc"
