@@ -7,14 +7,12 @@ on:
   push:
     paths:
       - "device-tree/**"
-      - "tools/symbolize_overlay.py"
-      - "tools/validate_dt.sh"
+      - "tools/**"
       - ".github/workflows/device-tree.yml"
   pull_request:
     paths:
       - "device-tree/**"
-      - "tools/symbolize_overlay.py"
-      - "tools/validate_dt.sh"
+      - "tools/**"
   workflow_dispatch:
 
 permissions:
