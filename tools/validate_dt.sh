@@ -79,17 +79,18 @@ diff -u "$OUT/live.dts" "$OUT/merged.dts" > "$OUT/live-vs-merged.diff" 2>/dev/nu
 DIFFLINES=$(grep -c '^[-+][^-+]' "$OUT/live-vs-merged.diff" 2>/dev/null || true)
 echo "linhas de diff com o FDT ativo (informativo): ${DIFFLINES:-0}"
 summary "- diff informativo com o FDT ativo: ${DIFFLINES:-0} linhas"
-python3 "$ROOT/tools/dts_diff_summary.py" "$OUT/live.dts" "$OUT/merged.dts" --top 12 \
-    > "$OUT/live-vs-merged.summary.txt" 2>&1 || true
-cat "$OUT/live-vs-merged.summary.txt"
+python3 "$ROOT/tools/dts_semantic_diff.py" "$OUT/live.dts" "$OUT/merged.dts" --top 10 \
+    > "$OUT/live-vs-merged.semantic.txt" 2>&1 || true
+cat "$OUT/live-vs-merged.semantic.txt"
 if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    python3 - "$OUT/live-vs-merged.summary.txt" <<'PY'
+    # Anotacao do run (visivel na pagina do run): primeiros 3000 caracteres do resumo.
+    python3 - "$OUT/live-vs-merged.semantic.txt" <<'PY'
 import sys
-text = open(sys.argv[1], encoding="utf-8").read()
+text = open(sys.argv[1], encoding="utf-8").read()[:3000]
 text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-print("::notice title=DT topaz diff vs FDT ativo::" + text)
+print("::notice title=DT topaz diff semantico vs FDT ativo::" + text)
 PY
-    summary '```' "$(cat "$OUT/live-vs-merged.summary.txt")" '```'
+    summary '```' "$(cat "$OUT/live-vs-merged.semantic.txt")" '```'
 fi
 
 if [ "$FAILED" -ne 0 ]; then
