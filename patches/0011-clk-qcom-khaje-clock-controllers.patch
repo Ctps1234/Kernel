@@ -129,7 +129,7 @@ new file mode 100644
 index 000000000000..2c245fbb7292
 --- /dev/null
 +++ b/drivers/clk/qcom/gcc-khaje.c
-@@ -0,0 +1,3992 @@
+@@ -0,0 +1,3993 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -140,6 +140,7 @@ index 000000000000..2c245fbb7292
 +#include <linux/err.h>
 +#include <linux/kernel.h>
 +#include <linux/module.h>
++#include <linux/platform_device.h>
 +#include <linux/of_device.h>
 +#include <linux/of.h>
 +#include <linux/regmap.h>
@@ -4127,7 +4128,7 @@ new file mode 100644
 index 000000000000..9e96bb9c9be3
 --- /dev/null
 +++ b/drivers/clk/qcom/dispcc-khaje.c
-@@ -0,0 +1,690 @@
+@@ -0,0 +1,691 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -4138,6 +4139,7 @@ index 000000000000..9e96bb9c9be3
 +#include <linux/err.h>
 +#include <linux/kernel.h>
 +#include <linux/module.h>
++#include <linux/platform_device.h>
 +#include <linux/of_device.h>
 +#include <linux/of.h>
 +#include <linux/regmap.h>
@@ -4823,7 +4825,7 @@ new file mode 100644
 index 000000000000..4cafe6caa1c8
 --- /dev/null
 +++ b/drivers/clk/qcom/gpucc-khaje.c
-@@ -0,0 +1,542 @@
+@@ -0,0 +1,543 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -4834,6 +4836,7 @@ index 000000000000..4cafe6caa1c8
 +#include <linux/err.h>
 +#include <linux/kernel.h>
 +#include <linux/module.h>
++#include <linux/platform_device.h>
 +#include <linux/of_device.h>
 +#include <linux/of.h>
 +#include <linux/regmap.h>

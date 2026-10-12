@@ -76,7 +76,7 @@ jobs:
           echo "simbolos NEW restantes apos olddefconfig: $(grep -c '(NEW)' "$RUNNER_TEMP/olddefconfig.log" || true)"
           make $MAKEARGS V=1 -j"$(nproc)" prepare < /dev/null > "$LOG" 2>&1 || rc=$?
           if [ "$rc" -eq 0 ]; then
-            make $MAKEARGS V=1 -j"$(nproc)" \
+            make $MAKEARGS V=1 -k -j"$(nproc)" \
                 drivers/clk/qcom/ drivers/interconnect/qcom/ drivers/pinctrl/qcom/ \
                 drivers/phy/qualcomm/ drivers/regulator/ \
                 >> "$LOG" 2>&1 || rc=$?
