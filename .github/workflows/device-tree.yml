@@ -1,0 +1,46 @@
+name: device-tree
+
+# Valida a DT topaz (base Khaje + overlay topaz) com dtc/fdtoverlay.
+# Nao compila kernel nem gera imagem de boot.
+
+on:
+  push:
+    paths:
+      - "device-tree/**"
+      - "tools/symbolize_overlay.py"
+      - "tools/validate_dt.sh"
+      - ".github/workflows/device-tree.yml"
+  pull_request:
+    paths:
+      - "device-tree/**"
+      - "tools/symbolize_overlay.py"
+      - "tools/validate_dt.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile-and-merge:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dtc e fdtoverlay
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y device-tree-compiler
+          dtc --version
+          fdtoverlay --version || true
+
+      - name: Validar base + overlay + merge
+        run: bash tools/validate_dt.sh "$RUNNER_TEMP/topaz-dt"
+
+      - name: Publicar artefatos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: topaz-dt-validate
+          path: ${{ runner.temp }}/topaz-dt
+          if-no-files-found: warn
+          retention-days: 14
