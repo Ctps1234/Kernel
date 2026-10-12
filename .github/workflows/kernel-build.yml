@@ -70,7 +70,11 @@ jobs:
           MAKEARGS="ARCH=arm64 LLVM=1 LLVM_IAS=1"
           rc=0
           LOG="$RUNNER_TEMP/partial-build.log"
-          make $MAKEARGS V=1 -j"$(nproc)" prepare > "$LOG" 2>&1 || rc=$?
+          # Sem terminal: resolve simbolos novos por padrao (olddefconfig) antes do prepare,
+          # senao o syncconfig pergunta interativamente e morre com "Error in reading or end of file".
+          make $MAKEARGS olddefconfig > "$RUNNER_TEMP/olddefconfig.log" 2>&1 || rc=$?
+          echo "simbolos NEW restantes apos olddefconfig: $(grep -c '(NEW)' "$RUNNER_TEMP/olddefconfig.log" || true)"
+          make $MAKEARGS V=1 -j"$(nproc)" prepare < /dev/null > "$LOG" 2>&1 || rc=$?
           if [ "$rc" -eq 0 ]; then
             make $MAKEARGS V=1 -j"$(nproc)" \
                 drivers/clk/qcom/ drivers/interconnect/qcom/ drivers/pinctrl/qcom/ \
