@@ -159,6 +159,18 @@ jobs:
           bash tools/check_defconfig.sh "$RUNNER_TEMP/kernel" \
               configs/topaz/topaz.fragment "$RUNNER_TEMP/defconfig"
 
+      - name: Anotar o relatorio do defconfig (legivel na pagina do job)
+        if: always()
+        run: |
+          f="$RUNNER_TEMP/defconfig/defconfig-report.txt"
+          if [ -f "$f" ]; then
+            tr '\n' ' ' < "$f" | sed 's/  */ /g' | fold -w 900 | head -6 | while IFS= read -r l; do
+              echo "::notice title=defconfig::$l"
+            done
+          else
+            echo "::error title=defconfig::relatorio ausente"
+          fi
+
       - name: Resumo do defconfig
         if: always()
         run: |
