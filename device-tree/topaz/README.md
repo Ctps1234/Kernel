@@ -89,7 +89,19 @@ Isso não prova que a DT compila nem que é válida pelo dt-schema. Essas provas
 - `compile-and-merge`: `tools/compile_curated_dt.sh` regenera a DT curada, exige que os arquivos versionados sejam idênticos à saída do gerador (geração determinística) e compila `topaz.dts` com `cpp` + `dtc`. A DT curada e o DTB entram no artefato `topaz-dt-validate`.
 - `dt-schema`: valida o DTB curado com o mesmo schema processado do DTB mesclado (log `dt-validate-curated.log`).
 
-Resultado da CI desta fase: **pendente** (ainda não executado para este commit).
+Resultado da CI desta fase (run [`38283896478`](https://github.com/Ctps1234/Kernel/actions/runs/38283896478), commit `28887c0`):
+
+- `compile-and-merge` e `dt-schema`: **success** (o job `dt-schema` segue `continue-on-error`).
+- Verificação da DT curada gerada: idêntica aos arquivos versionados; `cpp` + `dtc` sem erro.
+- `dt-validate` do DTB curado: **1529 erros** (mesclado: 2761). Principais categorias no DTB curado:
+  - `status = "ok"` (38): dt-schema aceita só `okay`/`disabled`/`reserved`/`fail`/`fail-needs-probe`. Linux aceita `ok`, mas a DT curada ainda não normalizou.
+  - Propriedades vendor sem binding na base 6.12 (ficam como bytes): `rgltr-*` (36), `cci-master` (12), `gpio-req-tbl-*` (33), `gpio-no-mux` (11), `clock-rates` e `clock-cntl-level` (18), `qcom,lpi-gpios`, `qcom,codec-*` e `timing@0: qcom,mdss-dsi-*` (DSI do painel).
+  - `qcom,freq-domain` (8) e `qcom,lmh-dcvs` (8) em `cpu@N`: a base 6.12 não documenta essas propriedades em `cpus.yaml`, então o `dt-validate` não decodifica o phandle. A conversão está correta (`&label` no fonte, valor numérico no DTB).
+  - `compatible` (16), `status` (15), `'ranges' is a required property` (7), `$nodename` (7): precisam de revisão caso a caso.
+- Os erros de `mk-schema` que aparecem no log são da base (`fsl,liodn`, `gunyah-cma-mem`), não da DT topaz.
+- A contagem por propriedade agora é publicada como anotação `notice` (`dtschema erros por propriedade`), porque a anotação do log completo é truncada na página do run.
+
+Nada disso bloqueia a CI. Corrigir os erros exige decidir entre bindings novos (série de patches) e reduzir ainda mais a DT curada (ver próxima etapa).
 
 ## Próxima etapa (fase 2, continuação)
 
