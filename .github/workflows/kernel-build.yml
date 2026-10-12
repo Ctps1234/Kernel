@@ -69,20 +69,21 @@ jobs:
           cd "$RUNNER_TEMP/kernel"
           MAKEARGS="ARCH=arm64 LLVM=1 LLVM_IAS=1"
           rc=0
-          make $MAKEARGS -j"$(nproc)" prepare > "$RUNNER_TEMP/partial-build.log" 2>&1 || rc=$?
+          LOG="$RUNNER_TEMP/partial-build.log"
+          make $MAKEARGS V=1 -j"$(nproc)" prepare > "$LOG" 2>&1 || rc=$?
           if [ "$rc" -eq 0 ]; then
-            make $MAKEARGS -j"$(nproc)" \
+            make $MAKEARGS V=1 -j"$(nproc)" \
                 drivers/clk/qcom/ drivers/interconnect/qcom/ drivers/pinctrl/qcom/ \
                 drivers/phy/qualcomm/ drivers/regulator/ \
-                >> "$RUNNER_TEMP/partial-build.log" 2>&1 || rc=$?
+                >> "$LOG" 2>&1 || rc=$?
           fi
           if [ "$rc" -ne 0 ]; then
-            echo "::error title=build parcial::make falhou (rc=$rc). Erros e final do log:"
-            { grep -n -i -E "error|\*\*\*|fatal|no rule|undefined" "$RUNNER_TEMP/partial-build.log" | head -40; echo "--- final ---"; tail -n 30 "$RUNNER_TEMP/partial-build.log"; } \
-              | while IFS= read -r l; do
-                  l=$(printf '%s' "$l" | sed 's/%/%25/g; s/\r/%0D/g')
-                  echo "::error title=make::$l"
-                done
+            first=$(grep -n -i -m1 -E "error|\*\*\*|fatal" "$LOG" | cut -d: -f1)
+            first=${first:-1}
+            start=$((first > 40 ? first - 40 : 1))
+            ctx=$(sed -n "${start},$((first + 6))p" "$LOG" | cut -c1-200 | sed 's/%/%25/g; s/\r/%0D/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=build parcial rc=$rc (contexto da 1a falha, linhas $start-$((first + 6)))::$ctx"
+            tail -n 5 "$LOG" | sed 's/%/%25/g' | while IFS= read -r l; do echo "::error title=make-final::$l"; done
           fi
           exit "$rc"
 
