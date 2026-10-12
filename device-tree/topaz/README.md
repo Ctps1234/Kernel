@@ -8,8 +8,10 @@ Esta pasta contém o item 1 do plano: transformar a base Khaje + overlay topaz e
 |---|---|---|
 | [`topaz-overlay.dtso`](topaz-overlay.dtso) | Gerado por [`tools/symbolize_overlay.py`](../../tools/symbolize_overlay.py) a partir de [`topaz-overlay-51-reference.dtso`](../reference/topaz-overlay-51-reference.dtso) | Overlay `/plugin/` com referências simbólicas (`&label`). 363 referências externas à base e 170 internas foram convertidas usando apenas `__fixups__`, `__local_fixups__` e `__symbols__` do próprio dtc. |
 | Base Khaje | [`khaje-base-reference.dts`](../reference/khaje-base-reference.dts) | Ainda usada como está: phandles numéricos (`<0x126>`), sem labels. Nenhuma conversão foi feita aqui. |
-| [`khaje.dtsi`](khaje.dtsi) | Gerado por [`tools/curate_dt.py`](../../tools/curate_dt.py) a partir da base | **Fase 2.** DT da SoC reduzida: 315 de 1978 nós da base. Phandles viram `&label` quando o alvo está no arquivo. |
-| [`topaz.dts`](topaz.dts) | Gerado por `tools/curate_dt.py` a partir do overlay e do FDT ativo | **Fase 2.** Inclui `khaje.dtsi`; define as propriedades de raiz, `/memory` e um bloco `&label { … }` por fragment do overlay. |
+| [`khaje.dtsi`](khaje.dtsi) | Gerado por [`tools/curate_dt.py`](../../tools/curate_dt.py) a partir da base | **Fase 2 (escopo C).** SoC reduzida ao port 6.12: 161 de 1978 nós da base. Phandles viram `&label` quando o alvo está no arquivo. |
+| [`topaz.dts`](topaz.dts) | Gerado por `tools/curate_dt.py` a partir do overlay e do FDT ativo | **Fase 2 (escopo C).** Inclui `khaje.dtsi`; define as propriedades de raiz, `/memory` e um bloco `&label { … }` por fragment mantido do overlay. |
+| [`excluidos.txt`](excluidos.txt) | Gerado por `tools/curate_dt.py` | Trilha de auditoria do escopo C: fragmentos e nós do overlay que saíram da DT curada, com o motivo. |
+| [`topaz-overlay.dtso`](topaz-overlay.dtso) (entrada) | Fase 1 | Continua completo (50 fragmentos). A curada usa só os fragmentos mantidos. |
 
 A conversão do overlay é exata por construção: cada célula `0xffffffff` apontada por `__fixups__` vira `&label`, e cada phandle local apontado por `__local_fixups__` vira `&label` do próprio overlay. Os 9 `0xffffffff` restantes são valores literais de calibração térmica (`-1`), não referências. O gerador é determinístico e o workflow confere se o arquivo versionado continua igual à saída do script.
 
@@ -57,58 +59,63 @@ Job `dt-schema` (com `continue-on-error`), na base fixada `0efd3abd3c356d644ea49
 - **DT-schema do DTB mesclado**: executado, mas as violações listadas acima ainda não foram corrigidas (fase 2). Bindings da série: sem erros.
 - **Hardware**: nada aqui foi testado no aparelho. Não flashar.
 
-## Fase 2 — DT curada
+## Fase 2 — DT curada (escopo C)
 
-Gerada por [`tools/curate_dt.py`](../../tools/curate_dt.py), sem edição manual:
+**Decisão:** a DT curada é reduzida ao escopo do port 6.12. Saem da curada e de `topaz.dts` os subsistemas fora do port inicial, porque não há driver 6.12 nesta série para eles e o dt-schema não tem como validar as propriedades vendor deles:
+
+- display (MDSS/DSI/SDE, painel, backlight do painel) e toque (dependem do painel);
+- câmera (CCI, CSIPHY, CPAS, TFE/IFE, OPE, sensores, EEPROM);
+- carregador, Type-C e bateria (incluindo o 1-wire `onewire_gpio`/`maxim,ds28e16`);
+- áudio (SPF/LPASS, codecs WCD, SoundWire, ref clocks);
+- USB (DWC3 e PHYs HS/SS), SD/eMMC (`sdhci-msm`), impressão digital;
+- depuração (CoreSight, JTAG, EUD), DSP/modem (remoteproc, FastRPC), IPA, Wi-Fi/BT, TrustZone e criptografia.
+
+Não é exclusão da fase 1: o overlay completo continua em `topaz-overlay.dtso`, e `excluidos.txt` lista cada fragmento e nó removido, com o motivo. A regra é o regex `EXCLUDE_COMPAT` em `tools/curate_dt.py`, aplicado ao `compatible` (do overlay, da base ou do FDT ativo). Também há `EXCLUDE_PATHS` (ex.: `/soc/thermal-screen`, que não tem compatible). O fecho não traz de volta um nó excluído. Se um overlay mantido referenciar um nó excluído, o gerador para com erro.
+
+O que fica: CPUs, PSCI, GIC/timers, RPM-SMD (regulators e clocks), SMEM/glink, SPMI/PMIC (vadc, adc_tm, gpios, pwm), TLMM e os estados de pinctrl usados, UFS (controlador e PHY), UART e I²C de baixa velocidade, reserved-memory, thermal zones e `/memory` (valores do FDT ativo).
+
+### Como gerar e verificar
 
 ```sh
 python3 tools/curate_dt.py --out-dir device-tree/topaz          # gera e verifica
 python3 tools/curate_dt.py --out-dir device-tree/topaz --check  # só verifica
 ```
 
-O que o gerador faz:
+Normalizações intencionais (todas documentadas no gerador):
 
-- **Labels:** a base decompilada não tem labels nos nós, então eles vêm de `__symbols__`. Phandles viram `&label` só nas propriedades que o gerador conhece: listas com células do provedor (`clocks`, `resets`, `power-domains`, `interrupts-extended`, `phys`, `dmas`, `iommus`, `qcom,freq-domain`, `sound-dai` etc.), referências simples (`interrupt-parent`, `memory-region`, `operating-points-v2`, `qcom,lmh-dcvs` etc.), `*-supply` e `*-gpio(s)`. Demais valores ficam numéricos, com o `phandle` do nó preservado; assim o `dtc` produz os mesmos números.
-- **Fecho de nós:** mantém os nós referenciados pelo overlay (126 labels), o fecho transitivo por phandles, os ancestrais, `/cpus`, `/psci`, `/reserved-memory`, `/firmware`, `/chosen`, `/aliases` e os alvos dos aliases. Filhos do overlay com o mesmo nome de um nó da base também puxam esse nó, para o overlay não criar um nó parcial.
-- **`/memory`:** sai do SoC e entra em `topaz.dts` como `memory@40000000`, com o `reg` do FDT ativo.
-- **Raiz:** as propriedades de raiz que o overlay define vão para `topaz.dts`. Segundo o docstring do gerador, o `fdtoverlay` da fase 1 não as aplicava.
-- **Normalizações intencionais:** `bias-disable = <0x0>` vira a flag `bias-disable;` (o binding 6.12 define booleana; o driver só lê a presença). O `phandle` em `/aliases` não é copiado (o nó de aliases não deve carregar `phandle`).
+- **Labels:** a base decompilada não tem labels nos nós, então eles vêm de `__symbols__`. Phandles viram `&label` só nas propriedades que o gerador conhece: listas com células do provedor (`clocks`, `resets`, `power-domains`, `interrupts-extended`, `phys`, `dmas`, `iommus`, `qcom,freq-domain`, `sound-dai` etc.), referências simples (`interrupt-parent`, `memory-region`, `operating-points-v2`, `qcom,lmh-dcvs` etc.), `*-supply` e `*-gpio(s)`. Demais valores ficam numéricos, com o `phandle` do nó preservado.
+- **Fecho:** nós referenciados pelo overlay mantido, fecho transitivo por phandles, ancestrais, `/cpus`, `/psci`, `/reserved-memory`, `/firmware`, `/chosen`, `/aliases` e os alvos dos aliases. Filhos do overlay com o mesmo nome de um nó da base também puxam esse nó, para o overlay não criar um nó parcial.
+- **`/memory`:** sai da base e entra em `topaz.dts` como `memory@40000000`, com o `reg` do FDT ativo.
+- **Raiz:** as propriedades de raiz que o overlay define vão para `topaz.dts` (o `fdtoverlay` da fase 1 não as aplicava, segundo o docstring do gerador).
+- **`bias-disable = <0x0>`** vira a flag `bias-disable;` (binding 6.12 define booleana).
+- **`status = "ok"`** vira `"okay"`. Linux aceita os dois, mas o dt-schema só aceita `okay`. Na comparação com o ativo os dois valores são iguais.
+- **`/aliases`:** o `phandle` não é copiado. Aliases cujo alvo saiu também saem.
 
 ### O que é verificado localmente
 
 `--check` reanalisa `topaz.dts` (resolvendo o include, os blocos `&label` e os labels) e compara com o FDT ativo, nó por nó e valor por valor. Resultado do gerador atual:
 
-- 475 nós na curada, contra 2137 no ativo (1662 removidos por não serem usados pelo overlay nem por dependências).
-- Nenhum nó extra, nenhum `&label` sem alvo, nenhuma referência decodificada apontando para fora da curada, nenhum alias perdido (11 de 11). Phandles não decodificados ficam numéricos e são contados, não erro (1 nesta execução).
-- 4 divergências de valor, todas esperadas: `fstab/vendor status` (base `ok`, ativo `disabled`, origem em runtime, já documentado na fase 1); `/soc/xiaomi_touch get_panel_info`, `/memory ddr_manufacturer_id` e `/memory ddr_size` (só no ativo, injetados pelo bootloader ou origem não confirmada).
+- 220 nós na curada, contra 2137 no ativo (1917 removidos pelo escopo C e pelo fecho).
+- Nenhum nó extra, nenhum `&label` sem alvo, nenhuma referência decodificada apontando para fora da curada, e os 11 aliases do ativo estão cobertos, exceto os 4 de SD e áudio excluídos (esperados).
+- 7 divergências de valor, todas esperadas: `/aliases` `mmc0`/`mmc1` (SD fora do escopo), `swr0`/`swr1` (áudio fora do escopo); `/firmware/android/fstab/vendor status` (base `ok`, ativo `disabled`, origem em runtime, já documentado na fase 1); `/memory ddr_manufacturer_id` e `/memory ddr_size` (só no ativo, injetados pelo bootloader).
 
 Isso não prova que a DT compila nem que é válida pelo dt-schema. Essas provas ficam na CI.
 
 ### Na CI
 
-- `compile-and-merge`: `tools/compile_curated_dt.sh` regenera a DT curada, exige que os arquivos versionados sejam idênticos à saída do gerador (geração determinística) e compila `topaz.dts` com `cpp` + `dtc`. A DT curada e o DTB entram no artefato `topaz-dt-validate`.
-- `dt-schema`: valida o DTB curado com o mesmo schema processado do DTB mesclado (log `dt-validate-curated.log`).
+- `compile-and-merge`: `tools/compile_curated_dt.sh` regenera a DT curada, exige que os arquivos versionados (`khaje.dtsi`, `topaz.dts`, `excluidos.txt`) sejam idênticos à saída do gerador e compila `topaz.dts` com `cpp` + `dtc`. A DT curada e o DTB entram no artefato `topaz-dt-validate`.
+- `dt-schema`: valida o DTB curado com o mesmo schema processado do DTB mesclado (log `dt-validate-curated.log`). O resumo mostra os erros por propriedade e por compatível (anotação `dtschema erros por propriedade`), porque a anotação do log completo é truncada.
 
-Resultado da CI desta fase (run [`38283896478`](https://github.com/Ctps1234/Kernel/actions/runs/38283896478), commit `28887c0`):
+### Resultados da CI (antes do escopo C)
 
-- `compile-and-merge` e `dt-schema`: **success** (o job `dt-schema` segue `continue-on-error`).
-- Verificação da DT curada gerada: idêntica aos arquivos versionados; `cpp` + `dtc` sem erro.
-- `dt-validate` do DTB curado: **1491 erros** (mesclado: 2761; run [`38284596380`](https://github.com/Ctps1234/Kernel/actions/runs/38284596380), commit `841fa41`, com `status = "ok"` já normalizado). Principais categorias no DTB curado:
-  - `status = "ok"`: resolvido na curada (normalizado para `okay`; era 38 erros).
-  - Propriedades vendor sem binding na base 6.12 (ficam como bytes): `rgltr-*` (36), `cci-master` (12), `gpio-req-tbl-*` (33), `gpio-no-mux` (11), `clock-rates` e `clock-cntl-level` (18), `qcom,lpi-gpios`, `qcom,codec-*` e `timing@0: qcom,mdss-dsi-*` (DSI do painel).
-  - `qcom,freq-domain` (8) e `qcom,lmh-dcvs` (8) em `cpu@N`: a base 6.12 não documenta essas propriedades em `cpus.yaml`, então o `dt-validate` não decodifica o phandle. A conversão está correta (`&label` no fonte, valor numérico no DTB).
-  - `compatible` (16), `status` (15), `'ranges' is a required property` (7), `$nodename` (7): precisam de revisão caso a caso.
-- Por compatível do nó (curada, top): `qcom,sde-kms` (86), `qcom,cam-sensor` (70), `qcom,eeprom` (46), `qcom,nopmi-chg` (32), `qcom,sdhci-msm-v5` (23), `qcom,swr-mstr` (22), `qcom,bengal-asoc-snd` (22), `qcom,audio-ref-clk` (22), `qcom,ufshc` (19), `qcom,cci-v1.2` (19), `qcom,geni-se-qup` (18), `sm,sm5602` (18), `qcom,wcd937x-codec` (18), `sc,sc8551-standalone` (17), `arm,armv8` (16), `ti,bq2589x-1` (12), `richtek,rt1711h` (10), `lionsemi,ln8000-master` (9), `qcom,dwc-usb3-msm` (7).
-  Quase todos são subsistemas vendor (display, câmera, carregador, áudio, UFS/SDHCI/USB) sem driver 6.12 nesta série. Escrever binding para eles exige o código do driver vendor, que não está no repositório.- Os erros de `mk-schema` que aparecem no log são da base (`fsl,liodn`, `gunyah-cma-mem`), não da DT topaz.
-- A contagem por propriedade agora é publicada como anotação `notice` (`dtschema erros por propriedade`), porque a anotação do log completo é truncada na página do run.
+- Run [`38284596380`](https://github.com/Ctps1234/Kernel/actions/runs/38284596380), commit `841fa41`: `compile-and-merge` e `dt-schema` **success**; DT curada (315 nós, com display/câmera/áudio/carregador): **1491 erros** de `dt-validate`, contra 2761 no DTB mesclado. Principais compatíveis: `qcom,sde-kms` (86), `qcom,cam-sensor` (70), `qcom,eeprom` (46), `qcom,nopmi-chg` (32), `qcom,sdhci-msm-v5` (23), `qcom,swr-mstr` (22), `qcom,bengal-asoc-snd` (22), `qcom,ufshc` (19), `qcom,cci-v1.2` (19), `sm,sm5602` (18), `arm,armv8` (16). Quase todos são vendor sem binding na série. Os erros de `qcom,freq-domain` e `qcom,lmh-dcvs` em `cpu@N` (8 + 8) são falta de binding em `cpus.yaml` na base 6.12, não erro de conversão.
+- Os erros de `mk-schema` no log são da base (`fsl,liodn`, `gunyah-cma-mem`), não da DT topaz.
 
-Nada disso bloqueia a CI. Corrigir os erros exige decidir entre bindings novos (série de patches) e reduzir ainda mais a DT curada (ver próxima etapa).
+### Próxima etapa
 
-## Próxima etapa (fase 2, continuação)
-
-- Revisar o resultado do `dt-validate` do DTB curado e corrigir o que for da DT (não do schema).
-- Decidir o `status` de `/firmware/android/fstab/vendor` (base `ok`, ativo `disabled`).
-- Confirmar a origem de `/soc/xiaomi_touch get_panel_info` e de `/memory ddr_*`.
-- Revisar o bloco `/memory` (valores do ativo) e a licença dos arquivos gerados antes de qualquer submissão.
-- Integrar os nós curados ao kernel: drivers 6.12 para cada nó mantido, e a configuração GKI.
+- Reexecutar a CI com o escopo C e medir o novo total de erros do DTB curado.
+- Binding mínimo para `cpu@N` em `cpus.yaml` (`qcom,freq-domain`, `qcom,lmh-dcvs`), para que o dt-schema decodifique os phandles.
+- Revisar os erros restantes nos nós mantidos (`status`, `compatible`, `'ranges' is a required property`, `$nodename`).
+- Decidir o `status` de `/firmware/android/fstab/vendor` (base `ok`, ativo `disabled`) e a origem de `/memory ddr_*`.
+- Integrar os nós mantidos ao kernel: drivers 6.12 e configuração GKI.
 - Hardware: nada aqui foi testado no aparelho. Não flashar.

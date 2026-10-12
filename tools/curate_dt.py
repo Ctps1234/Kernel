@@ -79,17 +79,69 @@ GPIO_PATTERN = re.compile(r".*-gpios?$")  # usa #gpio-cells
 
 # Nos da raiz da base que nao entram na DT da SoC.
 EXCLUDE_ROOT = {"memory", "__symbols__", "__fixups__", "__local_fixups__"}
+# Escopo C (reduzida ao port 6.12): subsistemas fora do port inicial. Um no (base ou
+# overlay) cujo `compatible` casa com esta regex sai da DT curada e de topaz.dts, junto
+# com seus filhos. Os nos excluidos ficam listados em excluidos.txt (trilha de auditoria).
+EXCLUDE_COMPAT = re.compile("|".join([
+    # display (MDSS/DSI/SDE e painel)
+    r"qcom,sde", r"qcom,mdss", r"qcom,dsi", r"dsi-phy", r"qcom,smmu_sde",
+    # camera (CCI, CSI, CPAS, TFE/IFE, OPE, sensores, EEPROM)
+    r"qcom,cam", r"qcom,cci", r"qcom,csi", r"qcom,csid", r"qcom,tfe", r"qcom,ope", r"qcom,ppi",
+    r"qcom,tpg", r"qcom,cpas", r"qcom,eeprom", r"qcom,msm-cam", r"qcom,icp",
+    # carregador e Type-C (I2C)
+    r"nopmi-chg", r"bq2589x", r"sc8551", r"sm5602", r"ln8000", r"rt1711h", r"rt-pd-manager",
+    r"cp_manager", r"onewire", r"ds28e16",
+    # toque e impressao digital (dependem do painel ou nao sao do port inicial)
+    r"touch", r"synaptics", r"focaltech", r"novatek", r"goodix", r"fpc,",
+    # audio (LPASS/SPF, codecs, SoundWire, Bolero)
+    r"qcom,spf", r"qcom,bengal-asoc", r"qcom,audio", r"qcom,swr", r"qcom,wcd9", r"qcom,msm-cdc",
+    r"qcom,msm-stub-codec", r"qcom,bolero", r"qcom,lpass", r"qcom,codec", r"qcom,adsp-loader",
+    r"wsa8", r"qcom,wsa",
+    # USB (DWC3, PHY HS/SS)
+    r"dwc-usb3", r"usb-nop", r"qcom,usb-",
+    # SD/eMMC (mmc0/mmc1 e sdhc_1/sdhc_2 do overlay)
+    r"sdhci-msm",
+    # depuracao (CoreSight, JTAG, EUD)
+    r"coresight", r"arm,primecell", r"jtagv8", r"qcom,msm-eud",
+    # DSP, modem, Wi-Fi/BT, IPA, TrustZone e criptografia
+    r"adsp", r"cdsp", r"modem", r"-pas", r"fastrpc", r"glinkpkt", r"ipa", r"icnss", r"wcn",
+    r"qseecom", r"smcinvoke", r"qcedev", r"qcrypto", r"qrng", r"msm_fastrpc",
+]))
+
+
+# No sem compatible que sai da curada (pelo caminho completo, em qualquer nivel).
+EXCLUDE_PATHS = ["/soc/thermal-screen"]
+
+
+# compatible por caminho, do FDT ativo. A base de referencia nao traz compatible em
+# alguns nos (ex.: touch sob i2c); o ativo e a fonte para decidir o corte.
+LIVE_COMPAT: dict[str, str] = {}
+
+
+def node_compat(node: "Node") -> str | None:
+    return node.props.get("compatible") or LIVE_COMPAT.get(path_key(node))
+
+
+def is_dropped(compat: str | None, path: str | None = None) -> bool:
+    if compat and EXCLUDE_COMPAT.search(compat):
+        return True
+    return bool(path) and any(path == p or path.startswith(p + "/") for p in EXCLUDE_PATHS)
+
+
 # Subarvores inteiras mantidas (fecho minimo de infraestrutura de boot).
 ESSENTIAL_SUBTREES = ["/cpus", "/psci", "/reserved-memory", "/firmware", "/chosen"]
 
 # Divergencias conhecidas entre a DT curada e o FDT ativo. Cada chave e
 # (caminho normalizado, propriedade); o valor explica a origem.
 EXPECTED = {
+    ("/aliases", "mmc0"): "escopo C: sdhci (SD/eMMC) fora do port inicial; alias sai com o no",
+    ("/aliases", "mmc1"): "escopo C: sdhci (SD/eMMC) fora do port inicial; alias sai com o no",
+    ("/aliases", "swr0"): "escopo C: SoundWire/audio fora do port inicial; alias sai com o no",
+    ("/aliases", "swr1"): "escopo C: SoundWire/audio fora do port inicial; alias sai com o no",
     ("/firmware/android/fstab/vendor", "status"):
         "fase 1: base 'ok', ativo 'disabled' (runtime); o overlay nao altera o no",
     ("/memory", "ddr_manufacturer_id"): "injetada pelo bootloader; nao e DT da placa",
     ("/memory", "ddr_size"): "injetada pelo bootloader; nao e DT da placa",
-    ("/soc/xiaomi_touch", "get_panel_info"): "so no ativo; origem nao confirmada",
 }
 # Propriedades que o gerador normaliza de forma intencional.
 NORMALIZED_FLAGS = {"bias-disable"}
@@ -333,6 +385,8 @@ class Closure:
             return
         if node.parent is not None and node.parent.parent is None and node.name in EXCLUDE_ROOT:
             return
+        if is_dropped(node_compat(node), node.path()):
+            return
         self.keep.add(id(node))
         self.kept.append(node)
         self.work.append(node)
@@ -431,13 +485,90 @@ def generate(out_dir: Path) -> None:
     overlay_text = OVERLAY_PATH.read_text(encoding="utf-8")
     ov_root, _ = parse(overlay_text)
     live_root, _ = parse(LIVE_PATH.read_text(encoding="utf-8"))
+    LIVE_COMPAT.clear()
+    LIVE_COMPAT.update({path_key(n): n.props["compatible"] for n in walk(live_root)
+                        if n.parent is not None and n.props.get("compatible")})
 
     refs, defs = overlay_refs(overlay_text)
     missing = [r for r in refs if r not in bt.labels]
     if missing:
         raise SystemExit(f"overlay referencia labels ausentes na base: {sorted(missing)}")
 
-    roots = [bt.labels[r] for r in sorted(refs)]
+    # Escopo C: fragmentos cujo alvo e excluido saem; filhos excluidos do overlay mantido
+    # saem de dentro dele (in place). Excluidos sao registrados em excluidos.txt.
+    kept_frags: list[tuple[Node, Node]] = []
+    dropped_log: list[str] = []
+    for frag in ov_root.children.values():
+        if not frag.name.startswith("fragment@"):
+            raise SystemExit(f"no inesperado no overlay: {frag.name}")
+        m = re.fullmatch(r"<&([A-Za-z_]\w*)>", (frag.props.get("target") or "").strip())
+        if not m or "__overlay__" not in frag.children:
+            raise SystemExit(f"fragmento sem target simbolico ou sem __overlay__: {frag.name}")
+        tgt = bt.labels[m.group(1)]
+        if is_dropped(node_compat(tgt), tgt.path()):
+            dropped_log.append(f"{frag.name} (alvo &{m.group(1)}, {tgt.props.get('compatible')})")
+            continue
+        kept_frags.append((frag, tgt))
+
+    def prune(target: Node, ov: Node, path: str) -> None:
+        for name in list(ov.children):
+            child = ov.children[name]
+            base_child = target.children.get(name)
+            comp = child.props.get("compatible") or (node_compat(base_child) if base_child else None) \
+                or LIVE_COMPAT.get(f"{path}/{name}")
+            if is_dropped(comp, f"{path}/{name}"):
+                dropped_log.append(f"{path}/{name} (compatible {comp})")
+                del ov.children[name]
+            elif base_child is not None:
+                prune(base_child, child, f"{path}/{name}")
+
+    for frag, tgt in kept_frags:
+        prune(tgt, frag.children["__overlay__"], tgt.path())
+
+    # Estados de pinctrl definidos no overlay (filhos com label do tlmm) so sao mantidos
+    # se algum no mantido os referencia. Os que so serviam a no excluido saem.
+    tlmm_node = bt.labels["tlmm"]
+    used_outside: set[str] = set()
+    for frag, tgt in kept_frags:
+        for name, child in frag.children["__overlay__"].children.items():
+            if tgt is tlmm_node and child.labels:
+                continue
+            for node in [child, *walk(child)]:
+                for v in node.props.values():
+                    if v:
+                        used_outside.update(re.findall(r"&([A-Za-z_]\w*)", v))
+        for v in frag.children["__overlay__"].props.values():
+            if v:
+                used_outside.update(re.findall(r"&([A-Za-z_]\w*)", v))
+    for frag, tgt in kept_frags:
+        if tgt is not tlmm_node:
+            continue
+        ov = frag.children["__overlay__"]
+        for name in list(ov.children):
+            child = ov.children[name]
+            if child.labels and not (set(child.labels) & used_outside):
+                dropped_log.append(f"{tgt.path()}/{name} (estado de pinctrl sem uso na DT curada)")
+                del ov.children[name]
+
+    kept_text: set[str] = set()
+
+    def collect_refs(node: Node) -> None:
+        for v in node.props.values():
+            if v:
+                kept_text.update(re.findall(r"&([A-Za-z_]\w*)", v))
+        for c in node.children.values():
+            collect_refs(c)
+
+    for frag, _ in kept_frags:
+        collect_refs(frag.children["__overlay__"])
+    kept_refs = kept_text - defs
+    dangling = sorted(r for r in kept_refs
+                      if is_dropped(node_compat(bt.labels[r]), bt.labels[r].path()))
+    if dangling:
+        raise SystemExit("overlay mantido referencia nos excluidos: " + ", ".join(dangling)
+                         + " (ajuste EXCLUDE_COMPAT ou o overlay)")
+    roots = [bt.labels[r] for r in sorted(kept_refs)] + [tgt for _, tgt in kept_frags]
+
     # Filhos do overlay que tem o mesmo nome de um no da base sao mesclados por dtc
     # com esse no. O no da base precisa estar na DT curada, senao o overlay cria um
     # no parcial no lugar dele.
@@ -447,10 +578,8 @@ def generate(out_dir: Path) -> None:
                 roots.append(target.children[name])
                 overlay_children_roots(target.children[name], child)
 
-    for frag in ov_root.children.values():
-        m = re.fullmatch(r"<&([A-Za-z_]\w*)>", (frag.props.get("target") or "").strip())
-        if m and "__overlay__" in frag.children:
-            overlay_children_roots(bt.labels[m.group(1)], frag.children["__overlay__"])
+    for frag, tgt in kept_frags:
+        overlay_children_roots(tgt, frag.children["__overlay__"])
     # Alvos de aliases e de chosen/stdout-path entram como raizes.
     aliases = base_root.children.get("aliases")
     if aliases is not None:
@@ -534,22 +663,24 @@ def generate(out_dir: Path) -> None:
     topaz.append("\t};")
     topaz.append("};")
     topaz.append("")
-    for frag in ov_root.children.values():
-        if not frag.name.startswith("fragment@"):
-            raise SystemExit(f"no inesperado no overlay: {frag.name}")
-        target = frag.props.get("target") or ""
-        m = re.fullmatch(r"<&([A-Za-z_]\w*)>", target.strip())
-        if not m:
-            raise SystemExit(f"target nao simbolico em {frag.name}: {target}")
+    for frag, tgt in kept_frags:
+        m = re.fullmatch(r"<&([A-Za-z_]\w*)>", (frag.props.get("target") or "").strip())
         ovl = frag.children["__overlay__"]
         topaz.append(f"&{m.group(1)} {{")
         topaz.extend(render_overlay_body(ovl, 1))
         topaz.append("};")
         topaz.append("")
     (out_dir / "topaz.dts").write_text("\n".join(topaz), encoding="utf-8")
+    excl = [
+        "Nos excluidos da DT curada (escopo C: subsistemas fora do port 6.12).",
+        "Regex: EXCLUDE_COMPAT em tools/curate_dt.py. Fragmentos e filhos do overlay removidos:",
+        "",
+    ] + [f"- {x}" for x in dict.fromkeys(dropped_log)]
+    (out_dir / "excluidos.txt").write_text("\n".join(excl) + "\n", encoding="utf-8")
 
     print(f"khaje.dtsi: {len(kept)} nos mantidos de {sum(1 for _ in walk(base_root))}")
-    print(f"raizes do overlay: {len(refs)} labels; ambiguos (nao puxados): {len(cl.ambiguous)}")
+    print(f"raizes do overlay: {len(kept_refs)} labels; ambiguos (nao puxados): {len(cl.ambiguous)}")
+    print(f"excluidos do overlay (escopo C): {len(set(dropped_log))} (lista em excluidos.txt)")
 
 
 def render_aliases(t: Tree, aliases: Node, kept: set[int], sym, base_root: Node) -> list[str]:
@@ -710,7 +841,7 @@ def check(out_dir: Path) -> int:
             errors.append("no /aliases ausente na curada")
         else:
             for prop, lv in live_al.props.items():
-                if prop == "phandle":
+                if prop == "phandle" or ("/aliases", prop) in EXPECTED:
                     continue
                 cv = cur_al.props.get(prop)
                 if cv != lv:
@@ -718,9 +849,9 @@ def check(out_dir: Path) -> int:
             notes.append(f"aliases: {len(cur_al.props)} na curada, "
                          f"{len([p for p in live_al.props if p != 'phandle'])} no ativo")
 
-    # Fragments do overlay: cada target precisa existir na curada.
-    overlay_text = OVERLAY_PATH.read_text(encoding="utf-8")
-    refs, _ = overlay_refs(overlay_text)
+    # Fragments mantidos em topaz.dts: cada label referenciado precisa existir na curada.
+    # (O overlay de origem tem fragmentos excluidos no escopo C; eles nao entram aqui.)
+    refs, _ = overlay_refs(board_text)
     for r in refs:
         if r not in cur.labels:
             errors.append(f"label do overlay ausente na curada: {r}")

@@ -16,7 +16,7 @@ mkdir -p "$OUT"
 
 python3 "$ROOT/tools/curate_dt.py" --out-dir "$OUT"
 
-for f in khaje.dtsi topaz.dts; do
+for f in khaje.dtsi topaz.dts excluidos.txt; do
     if ! cmp -s "$OUT/$f" "$ROOT/device-tree/topaz/$f"; then
         echo "::error::device-tree/topaz/$f diverge da saida de tools/curate_dt.py." >&2
         echo "Regenere com: python3 tools/curate_dt.py --out-dir device-tree/topaz" >&2
