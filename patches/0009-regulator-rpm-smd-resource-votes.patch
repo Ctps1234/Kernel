@@ -1,0 +1,954 @@
+Subject: [PATCH 9/11] regulator: qcom: support nested RPM-SMD resources
+
+Add a resource parent for the direct nested layout used by the Khaje reference
+FDT. Dispatch qcom,rpm-smd-regulator children by their voltage-key properties:
+aggregate vlvl/vfl votes across clients and active/sleep sets, while matching
+physical PM6125 rails to the existing regulator table using both regulator-name
+and the containing RPM resource type/ID. Preserve the conventional PMIC
+container path and its active-set behavior, remove the global RPM handle, and
+roll back already-sent physical votes when a later selected set fails.
+
+Static matching against topaz-live-reference.dts covered all six resource names,
+30 resource parents, 25 enabled physical PM6125 children, and 8 enabled level
+children; every enabled physical child matched its existing PM6125 table
+resource type/ID, while disabled PMIC children sharing level-resource
+compatibles were not registered. This is static review only: no compilation,
+DT schema validation, dtbs_check, or boot test has been run.
+
+diff --git a/drivers/regulator/qcom_smd-regulator.c b/drivers/regulator/qcom_smd-regulator.c
+index 25ed9f713974..bb9e887127da 100644
+--- a/drivers/regulator/qcom_smd-regulator.c
++++ b/drivers/regulator/qcom_smd-regulator.c
+@@ -4,18 +4,25 @@
+  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+  */
+ 
++#include <linux/bitops.h>
++#include <linux/limits.h>
++#include <linux/list.h>
+ #include <linux/module.h>
++#include <linux/mutex.h>
+ #include <linux/of.h>
++#include <linux/of_platform.h>
+ #include <linux/platform_device.h>
+ #include <linux/regulator/driver.h>
+ #include <linux/regulator/of_regulator.h>
++#include <linux/slab.h>
+ #include <linux/soc/qcom/smd-rpm.h>
+-
+-static struct qcom_smd_rpm *smd_vreg_rpm;
++#include <linux/string.h>
+ 
+ struct qcom_rpm_reg {
+ 	struct device *dev;
++	struct qcom_smd_rpm *rpm;
+ 	u32 type;
++	u32 set_mask;
+ 	u32 id;
+ 
+ 	struct regulator_desc desc;
+@@ -39,59 +46,130 @@ struct rpm_regulator_req {
+ #define RPM_KEY_UV	0x00007675 /* "uv" */
+ #define RPM_KEY_MA	0x0000616d /* "ma" */
+ 
+-static int rpm_reg_write_active(struct qcom_rpm_reg *vreg)
++#define RPM_SMD_SET_ACTIVE	BIT(QCOM_SMD_RPM_ACTIVE_STATE)
++#define RPM_SMD_SET_SLEEP	BIT(QCOM_SMD_RPM_SLEEP_STATE)
++#define RPM_SMD_SET_MASK	(RPM_SMD_SET_ACTIVE | RPM_SMD_SET_SLEEP)
++#define RPM_SMD_KEY_VLVL	0x6c766c76 /* "vlvl" */
++#define RPM_SMD_KEY_VFL		0x006c6676 /* "vfl" */
++
++struct rpm_regulator_state {
++	int is_enabled;
++	int uV;
++	u32 load;
++};
++
++static unsigned int rpm_reg_build_req(struct rpm_regulator_req *req,
++				      struct qcom_rpm_reg *vreg,
++				      const struct rpm_regulator_state *state)
+ {
+-	struct rpm_regulator_req req[3];
+-	int reqlen = 0;
+-	int ret;
++	unsigned int count = 0;
+ 
+ 	if (vreg->enabled_updated) {
+-		req[reqlen].key = cpu_to_le32(RPM_KEY_SWEN);
+-		req[reqlen].nbytes = cpu_to_le32(sizeof(u32));
+-		req[reqlen].value = cpu_to_le32(vreg->is_enabled);
+-		reqlen++;
++		req[count].key = cpu_to_le32(RPM_KEY_SWEN);
++		req[count].nbytes = cpu_to_le32(sizeof(u32));
++		req[count].value = cpu_to_le32(state->is_enabled);
++		count++;
+ 	}
+ 
+-	if (vreg->uv_updated && vreg->is_enabled) {
+-		req[reqlen].key = cpu_to_le32(RPM_KEY_UV);
+-		req[reqlen].nbytes = cpu_to_le32(sizeof(u32));
+-		req[reqlen].value = cpu_to_le32(vreg->uV);
+-		reqlen++;
++	if (vreg->uv_updated && state->is_enabled) {
++		req[count].key = cpu_to_le32(RPM_KEY_UV);
++		req[count].nbytes = cpu_to_le32(sizeof(u32));
++		req[count].value = cpu_to_le32(state->uV);
++		count++;
+ 	}
+ 
+-	if (vreg->load_updated && vreg->is_enabled) {
+-		req[reqlen].key = cpu_to_le32(RPM_KEY_MA);
+-		req[reqlen].nbytes = cpu_to_le32(sizeof(u32));
+-		req[reqlen].value = cpu_to_le32(vreg->load / 1000);
+-		reqlen++;
++	if (vreg->load_updated && state->is_enabled) {
++		req[count].key = cpu_to_le32(RPM_KEY_MA);
++		req[count].nbytes = cpu_to_le32(sizeof(u32));
++		req[count].value = cpu_to_le32(state->load / 1000);
++		count++;
+ 	}
+ 
+-	if (!reqlen)
++	return count;
++}
++
++static int rpm_reg_write_state(struct qcom_rpm_reg *vreg,
++			       unsigned int state,
++			       const struct rpm_regulator_state *vote)
++{
++	struct rpm_regulator_req req[3];
++	unsigned int count;
++
++	count = rpm_reg_build_req(req, vreg, vote);
++	if (!count)
+ 		return 0;
+ 
+-	ret = qcom_rpm_smd_write(smd_vreg_rpm, QCOM_SMD_RPM_ACTIVE_STATE,
+-				 vreg->type, vreg->id,
+-				 req, sizeof(req[0]) * reqlen);
+-	if (!ret) {
+-		vreg->enabled_updated = 0;
+-		vreg->uv_updated = 0;
+-		vreg->load_updated = 0;
++	return qcom_rpm_smd_write(vreg->rpm, state, vreg->type, vreg->id,
++				  req, sizeof(req[0]) * count);
++}
++
++static int rpm_reg_write(struct qcom_rpm_reg *vreg,
++			 const struct rpm_regulator_state *old)
++{
++	struct rpm_regulator_state current = {
++		.is_enabled = vreg->is_enabled,
++		.uV = vreg->uV,
++		.load = vreg->load,
++	};
++	struct rpm_regulator_req req[3];
++	unsigned int count, state, rollback;
++	u32 written = 0;
++	int ret;
++
++	count = rpm_reg_build_req(req, vreg, &current);
++	if (!count)
++		return 0;
++
++	for (state = 0; state < QCOM_SMD_RPM_STATE_NUM; state++) {
++		if (!(vreg->set_mask & BIT(state)))
++			continue;
++
++		ret = qcom_rpm_smd_write(vreg->rpm, state, vreg->type, vreg->id,
++					 req, sizeof(req[0]) * count);
++		if (ret) {
++			for (rollback = state; rollback > 0; rollback--) {
++				unsigned int restore_state = rollback - 1;
++				int restore_ret;
++
++				if (!(written & BIT(restore_state)))
++					continue;
++
++				restore_ret = rpm_reg_write_state(vreg,
++							 restore_state, old);
++				if (restore_ret)
++					dev_warn(vreg->dev,
++						 "failed to restore RPM state %u: %d\n",
++						 restore_state, restore_ret);
++			}
++			return ret;
++		}
++
++		written |= BIT(state);
+ 	}
+ 
+-	return ret;
++	vreg->enabled_updated = 0;
++	vreg->uv_updated = 0;
++	vreg->load_updated = 0;
++
++	return 0;
+ }
+ 
+ static int rpm_reg_enable(struct regulator_dev *rdev)
+ {
+ 	struct qcom_rpm_reg *vreg = rdev_get_drvdata(rdev);
++	struct rpm_regulator_state old = {
++		.is_enabled = vreg->is_enabled,
++		.uV = vreg->uV,
++		.load = vreg->load,
++	};
+ 	int ret;
+ 
+ 	vreg->is_enabled = 1;
+ 	vreg->enabled_updated = 1;
+ 
+-	ret = rpm_reg_write_active(vreg);
++	ret = rpm_reg_write(vreg, &old);
+ 	if (ret)
+-		vreg->is_enabled = 0;
++		vreg->is_enabled = old.is_enabled;
+ 
+ 	return ret;
+ }
+@@ -106,14 +184,19 @@ static int rpm_reg_is_enabled(struct regulator_dev *rdev)
+ static int rpm_reg_disable(struct regulator_dev *rdev)
+ {
+ 	struct qcom_rpm_reg *vreg = rdev_get_drvdata(rdev);
++	struct rpm_regulator_state old = {
++		.is_enabled = vreg->is_enabled,
++		.uV = vreg->uV,
++		.load = vreg->load,
++	};
+ 	int ret;
+ 
+ 	vreg->is_enabled = 0;
+ 	vreg->enabled_updated = 1;
+ 
+-	ret = rpm_reg_write_active(vreg);
++	ret = rpm_reg_write(vreg, &old);
+ 	if (ret)
+-		vreg->is_enabled = 1;
++		vreg->is_enabled = old.is_enabled;
+ 
+ 	return ret;
+ }
+@@ -131,15 +214,19 @@ static int rpm_reg_set_voltage(struct regulator_dev *rdev,
+ 			       unsigned *selector)
+ {
+ 	struct qcom_rpm_reg *vreg = rdev_get_drvdata(rdev);
++	struct rpm_regulator_state old = {
++		.is_enabled = vreg->is_enabled,
++		.uV = vreg->uV,
++		.load = vreg->load,
++	};
+ 	int ret;
+-	int old_uV = vreg->uV;
+ 
+ 	vreg->uV = min_uV;
+ 	vreg->uv_updated = 1;
+ 
+-	ret = rpm_reg_write_active(vreg);
++	ret = rpm_reg_write(vreg, &old);
+ 	if (ret)
+-		vreg->uV = old_uV;
++		vreg->uV = old.uV;
+ 
+ 	return ret;
+ }
+@@ -147,14 +234,18 @@ static int rpm_reg_set_voltage(struct regulator_dev *rdev,
+ static int rpm_reg_set_load(struct regulator_dev *rdev, int load_uA)
+ {
+ 	struct qcom_rpm_reg *vreg = rdev_get_drvdata(rdev);
+-	u32 old_load = vreg->load;
++	struct rpm_regulator_state old = {
++		.is_enabled = vreg->is_enabled,
++		.uV = vreg->uV,
++		.load = vreg->load,
++	};
+ 	int ret;
+ 
+ 	vreg->load = load_uA;
+ 	vreg->load_updated = 1;
+-	ret = rpm_reg_write_active(vreg);
++	ret = rpm_reg_write(vreg, &old);
+ 	if (ret)
+-		vreg->load = old_load;
++		vreg->load = old.load;
+ 
+ 	return ret;
+ }
+@@ -1383,6 +1474,7 @@ MODULE_DEVICE_TABLE(of, rpm_of_match);
+  * @dev:		Pointer to the top level qcom_smd-regulator PMIC device
+  * @node:		Pointer to the individual qcom_smd-regulator resource
+  *			device node
++ * @rpm:		RPM SMD transport used by this regulator
+  * @pmic_rpm_data:	Pointer to a null-terminated array of qcom_smd-regulator
+  *			resources defined for the top level PMIC device
+  *
+@@ -1390,6 +1482,7 @@ MODULE_DEVICE_TABLE(of, rpm_of_match);
+  */
+ static int rpm_regulator_init_vreg(struct qcom_rpm_reg *vreg, struct device *dev,
+ 				   struct device_node *node,
++				   struct qcom_smd_rpm *rpm,
+ 				   const struct rpm_regulator_data *pmic_rpm_data)
+ {
+ 	struct regulator_config config = {};
+@@ -1407,8 +1500,10 @@ static int rpm_regulator_init_vreg(struct qcom_rpm_reg *vreg, struct device *dev
+ 	}
+ 
+ 	vreg->dev	= dev;
++	vreg->rpm	= rpm;
+ 	vreg->type	= rpm_data->type;
+ 	vreg->id	= rpm_data->id;
++	vreg->set_mask	= RPM_SMD_SET_ACTIVE;
+ 
+ 	memcpy(&vreg->desc, rpm_data->desc, sizeof(vreg->desc));
+ 	vreg->desc.name = rpm_data->name;
+@@ -1445,11 +1540,6 @@ static int rpm_reg_probe(struct platform_device *pdev)
+ 		return -ENODEV;
+ 	}
+ 
+-	if (smd_vreg_rpm && rpm != smd_vreg_rpm)
+-		return dev_err_probe(dev, -EINVAL, "RPM mismatch\n");
+-
+-	smd_vreg_rpm = rpm;
+-
+ 	vreg_data = of_device_get_match_data(dev);
+ 	if (!vreg_data)
+ 		return -ENODEV;
+@@ -1459,7 +1549,7 @@ static int rpm_reg_probe(struct platform_device *pdev)
+ 		if (!vreg)
+ 			return -ENOMEM;
+ 
+-		ret = rpm_regulator_init_vreg(vreg, dev, node, vreg_data);
++		ret = rpm_regulator_init_vreg(vreg, dev, node, rpm, vreg_data);
+ 		if (ret < 0)
+ 			return ret;
+ 	}
+@@ -1467,6 +1557,593 @@ static int rpm_reg_probe(struct platform_device *pdev)
+ 	return 0;
+ }
+ 
++enum rpm_smd_level_key {
++	RPM_SMD_LEVEL_KEY,
++	RPM_SMD_FLOOR_KEY,
++	RPM_SMD_LEVEL_KEY_COUNT,
++};
++
++struct rpm_smd_level_vote {
++	bool valid;
++	bool enabled;
++	u32 level[RPM_SMD_LEVEL_KEY_COUNT];
++};
++
++struct qcom_rpm_smd_resource {
++	struct device *dev;
++	struct qcom_smd_rpm *rpm;
++	struct mutex lock;
++	struct list_head regulators;
++	u32 type;
++	u32 id;
++	u32 set_mask;
++	u32 key_mask;
++	struct rpm_smd_level_vote state[QCOM_SMD_RPM_STATE_NUM];
++};
++
++struct qcom_rpm_smd_level_regulator {
++	struct list_head node;
++	struct qcom_rpm_smd_resource *resource;
++	struct regulator_desc desc;
++	enum rpm_smd_level_key key;
++	u32 set_mask;
++	int min_uV;
++	int max_uV;
++	int uV;
++	bool enabled;
++	bool always_send_voltage;
++};
++
++static const struct rpm_regulator_data *
++rpm_smd_find_pm6125_regulator(const char *reg_name, u32 type, u32 id)
++{
++	const struct rpm_regulator_data *rpm_data;
++	const char *name;
++
++	if (strncmp(reg_name, "pm6125_", sizeof("pm6125_") - 1))
++		return NULL;
++
++	name = reg_name + sizeof("pm6125_") - 1;
++	for (rpm_data = rpm_pm6125_regulators; rpm_data->name; rpm_data++)
++		if (!strcmp(name, rpm_data->name) && rpm_data->type == type &&
++		    rpm_data->id == id)
++			return rpm_data;
++
++	return NULL;
++}
++
++static int rpm_smd_pmic_regulator_probe(struct platform_device *pdev)
++{
++	struct device_node *np = pdev->dev.of_node;
++	struct qcom_rpm_smd_resource *resource;
++	struct regulator_config config = {};
++	struct qcom_rpm_reg *vreg;
++	struct regulator_dev *rdev;
++	const struct rpm_regulator_data *rpm_data;
++	const char *reg_name;
++	u32 set, init_uV;
++	int ret;
++
++	resource = dev_get_drvdata(pdev->dev.parent);
++	if (!resource)
++		return dev_err_probe(&pdev->dev, -EPROBE_DEFER,
++				     "RPM resource parent is not ready\n");
++
++	if (of_property_read_string(np, "regulator-name", &reg_name))
++		return dev_err_probe(&pdev->dev, -EINVAL,
++				     "missing regulator-name\n");
++
++	rpm_data = rpm_smd_find_pm6125_regulator(reg_name, resource->type,
++						 resource->id);
++	if (!rpm_data)
++		return -ENODEV;
++
++	if (of_property_read_u32(np, "qcom,set", &set) || !set ||
++	    (set & ~RPM_SMD_SET_MASK))
++		return dev_err_probe(&pdev->dev, -EINVAL,
++				     "invalid or missing qcom,set\n");
++
++	vreg = devm_kzalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
++	if (!vreg)
++		return -ENOMEM;
++
++	vreg->dev = &pdev->dev;
++	vreg->rpm = resource->rpm;
++	vreg->type = resource->type;
++	vreg->id = resource->id;
++	vreg->set_mask = set;
++
++	memcpy(&vreg->desc, rpm_data->desc, sizeof(vreg->desc));
++	vreg->desc.name = reg_name;
++	vreg->desc.supply_name = NULL;
++	vreg->desc.owner = THIS_MODULE;
++	vreg->desc.type = REGULATOR_VOLTAGE;
++	vreg->desc.of_match = np->name;
++
++	if (of_find_property(np, "qcom,init-voltage", NULL)) {
++		ret = of_property_read_u32(np, "qcom,init-voltage", &init_uV);
++		if (ret)
++			return dev_err_probe(&pdev->dev, ret,
++					     "invalid qcom,init-voltage\n");
++		if (init_uV > INT_MAX)
++			return dev_err_probe(&pdev->dev, -ERANGE,
++					     "qcom,init-voltage exceeds signed range\n");
++		vreg->uV = init_uV;
++		vreg->uv_updated = 1;
++	}
++
++	/*
++	 * The nested PMIC resource nodes do not describe regulator input
++	 * supplies, so do not create phantom supply dependencies here.
++	 */
++	config.dev = resource->dev;
++	config.of_node = np;
++	config.driver_data = vreg;
++
++	rdev = devm_regulator_register(&pdev->dev, &vreg->desc, &config);
++	if (IS_ERR(rdev))
++		return dev_err_probe(&pdev->dev, PTR_ERR(rdev),
++				     "failed to register PMIC regulator\n");
++
++	return 0;
++}
++
++static int rpm_smd_resource_type(const char *name, u32 *type)
++{
++	if (!strcmp(name, "rwcx"))
++		*type = QCOM_SMD_RPM_RWCX;
++	else if (!strcmp(name, "rwmx"))
++		*type = QCOM_SMD_RPM_RWMX;
++	else if (!strcmp(name, "rwlc"))
++		*type = QCOM_SMD_RPM_RWLC;
++	else if (!strcmp(name, "rwlm"))
++		*type = QCOM_SMD_RPM_RWLM;
++	else if (!strcmp(name, "smpa"))
++		*type = QCOM_SMD_RPM_SMPA;
++	else if (!strcmp(name, "ldoa"))
++		*type = QCOM_SMD_RPM_LDOA;
++	else
++		return -EINVAL;
++
++	return 0;
++}
++
++static bool rpm_smd_vote_equal(const struct rpm_smd_level_vote *a,
++			       const struct rpm_smd_level_vote *b)
++{
++	return a->enabled == b->enabled &&
++	       !memcmp(a->level, b->level, sizeof(a->level));
++}
++
++static void rpm_smd_resource_aggregate_locked(
++		struct qcom_rpm_smd_resource *resource, unsigned int state,
++		struct rpm_smd_level_vote *vote)
++{
++	struct qcom_rpm_smd_level_regulator *vreg;
++	unsigned int key;
++
++	memset(vote, 0, sizeof(*vote));
++	vote->valid = true;
++
++	list_for_each_entry(vreg, &resource->regulators, node) {
++		if (!(vreg->set_mask & BIT(state)))
++			continue;
++
++		if (vreg->enabled)
++			vote->enabled = true;
++		if (!vreg->enabled && !vreg->always_send_voltage)
++			continue;
++
++		key = vreg->key;
++		vote->level[key] = max_t(u32, vote->level[key], vreg->uV);
++	}
++}
++
++static int rpm_smd_resource_write_state(
++		struct qcom_rpm_smd_resource *resource, unsigned int state,
++		const struct rpm_smd_level_vote *vote)
++{
++	struct clk_smd_rpm_req req[RPM_SMD_LEVEL_KEY_COUNT + 1];
++	unsigned int key, count = 0;
++
++	req[count++] = (struct clk_smd_rpm_req) {
++		.key = cpu_to_le32(QCOM_RPM_KEY_SOFTWARE_ENABLE),
++		.nbytes = cpu_to_le32(sizeof(u32)),
++		.value = cpu_to_le32(vote->enabled),
++	};
++
++	for (key = 0; key < RPM_SMD_LEVEL_KEY_COUNT; key++) {
++		u32 rpm_key;
++
++		if (!(resource->key_mask & BIT(key)))
++			continue;
++
++		rpm_key = key == RPM_SMD_LEVEL_KEY ? RPM_SMD_KEY_VLVL :
++								 RPM_SMD_KEY_VFL;
++		req[count++] = (struct clk_smd_rpm_req) {
++			.key = cpu_to_le32(rpm_key),
++			.nbytes = cpu_to_le32(sizeof(u32)),
++			.value = cpu_to_le32(vote->level[key]),
++		};
++	}
++
++	return qcom_rpm_smd_write(resource->rpm, state, resource->type,
++				  resource->id, req,
++				  sizeof(req[0]) * count);
++}
++
++static int rpm_smd_resource_sync_locked(
++		struct qcom_rpm_smd_resource *resource)
++{
++	struct rpm_smd_level_vote old[QCOM_SMD_RPM_STATE_NUM];
++	struct rpm_smd_level_vote new[QCOM_SMD_RPM_STATE_NUM];
++	bool changed[QCOM_SMD_RPM_STATE_NUM] = {};
++	int state, rollback;
++	int ret;
++
++	for (state = 0; state < QCOM_SMD_RPM_STATE_NUM; state++) {
++		if (!(resource->set_mask & BIT(state)))
++			continue;
++
++		rpm_smd_resource_aggregate_locked(resource, state, &new[state]);
++		old[state] = resource->state[state];
++
++		/* Do not create a zero vote just because voltage was staged before
++		 * the first enable.  A later disable still sends zero because the
++		 * successful enable populated the cache.
++		 */
++		if (!old[state].valid && !new[state].enabled &&
++		    !new[state].level[RPM_SMD_LEVEL_KEY] &&
++		    !new[state].level[RPM_SMD_FLOOR_KEY])
++			continue;
++		if (old[state].valid && rpm_smd_vote_equal(&old[state], &new[state]))
++			continue;
++
++		ret = rpm_smd_resource_write_state(resource, state, &new[state]);
++		if (ret) {
++			struct rpm_smd_level_vote restore = old[state];
++			int restore_ret;
++
++			resource->state[state].valid = false;
++			if (!restore.valid) {
++				memset(&restore, 0, sizeof(restore));
++				restore.valid = true;
++			}
++			restore_ret = rpm_smd_resource_write_state(resource, state,
++								   &restore);
++			if (restore_ret) {
++				dev_warn(resource->dev,
++					 "failed to restore RPM state %d: %d\n",
++					 state, restore_ret);
++			} else {
++				resource->state[state] = restore;
++			}
++			goto rollback;
++		}
++
++		resource->state[state] = new[state];
++		changed[state] = true;
++	}
++
++	return 0;
++
++rollback:
++	for (rollback = state - 1; rollback >= 0; rollback--) {
++		struct rpm_smd_level_vote restore = old[rollback];
++		int restore_ret;
++
++		if (!changed[rollback])
++			continue;
++		if (!restore.valid) {
++			memset(&restore, 0, sizeof(restore));
++			restore.valid = true;
++		}
++
++		restore_ret = rpm_smd_resource_write_state(resource, rollback,
++							   &restore);
++		if (restore_ret) {
++			resource->state[rollback].valid = false;
++			dev_warn(resource->dev,
++				 "failed to roll back RPM state %d: %d\n",
++				 rollback, restore_ret);
++		} else {
++			resource->state[rollback] = restore;
++		}
++	}
++
++	return ret;
++}
++
++static int rpm_smd_level_update(struct qcom_rpm_smd_level_regulator *vreg,
++				bool update_enabled, bool enabled,
++				bool update_voltage, int uV)
++{
++	struct qcom_rpm_smd_resource *resource = vreg->resource;
++	bool old_enabled;
++	int old_uV;
++	int rollback_ret;
++	int ret;
++
++	mutex_lock(&resource->lock);
++	old_enabled = vreg->enabled;
++	old_uV = vreg->uV;
++	if (update_enabled)
++		vreg->enabled = enabled;
++	if (update_voltage)
++		vreg->uV = uV;
++
++	ret = rpm_smd_resource_sync_locked(resource);
++	if (ret) {
++		vreg->enabled = old_enabled;
++		vreg->uV = old_uV;
++		rollback_ret = rpm_smd_resource_sync_locked(resource);
++		if (rollback_ret)
++			dev_warn(resource->dev,
++				 "failed to restore %s vote after RPM error: %d\n",
++				 vreg->desc.name, rollback_ret);
++	}
++	mutex_unlock(&resource->lock);
++
++	return ret;
++}
++
++static int rpm_smd_level_enable(struct regulator_dev *rdev)
++{
++	struct qcom_rpm_smd_level_regulator *vreg = rdev_get_drvdata(rdev);
++
++	return rpm_smd_level_update(vreg, true, true, false, 0);
++}
++
++static int rpm_smd_level_disable(struct regulator_dev *rdev)
++{
++	struct qcom_rpm_smd_level_regulator *vreg = rdev_get_drvdata(rdev);
++
++	return rpm_smd_level_update(vreg, true, false, false, 0);
++}
++
++static int rpm_smd_level_is_enabled(struct regulator_dev *rdev)
++{
++	struct qcom_rpm_smd_level_regulator *vreg = rdev_get_drvdata(rdev);
++	int enabled;
++
++	mutex_lock(&vreg->resource->lock);
++	enabled = vreg->enabled;
++	mutex_unlock(&vreg->resource->lock);
++
++	return enabled;
++}
++
++static int rpm_smd_level_get_voltage(struct regulator_dev *rdev)
++{
++	struct qcom_rpm_smd_level_regulator *vreg = rdev_get_drvdata(rdev);
++	int uV;
++
++	mutex_lock(&vreg->resource->lock);
++	uV = vreg->uV;
++	mutex_unlock(&vreg->resource->lock);
++
++	return uV;
++}
++
++static int rpm_smd_level_set_voltage(struct regulator_dev *rdev, int min_uV,
++				     int max_uV, unsigned int *selector)
++{
++	struct qcom_rpm_smd_level_regulator *vreg = rdev_get_drvdata(rdev);
++	int uV;
++
++	if (max_uV < vreg->min_uV || min_uV > vreg->max_uV)
++		return -EINVAL;
++
++	uV = max(min_uV, vreg->min_uV);
++	if (uV > min(max_uV, vreg->max_uV))
++		return -EINVAL;
++	if (selector)
++		*selector = uV - vreg->min_uV;
++
++	return rpm_smd_level_update(vreg, false, false, true, uV);
++}
++
++static const struct regulator_ops rpm_smd_level_ops = {
++	.enable = rpm_smd_level_enable,
++	.disable = rpm_smd_level_disable,
++	.is_enabled = rpm_smd_level_is_enabled,
++	.list_voltage = regulator_list_voltage_linear,
++	.get_voltage = rpm_smd_level_get_voltage,
++	.set_voltage = rpm_smd_level_set_voltage,
++};
++
++static void rpm_smd_level_regulator_remove(void *data)
++{
++	struct qcom_rpm_smd_level_regulator *vreg = data;
++	struct qcom_rpm_smd_resource *resource = vreg->resource;
++	int ret;
++
++	mutex_lock(&resource->lock);
++	vreg->enabled = false;
++	vreg->always_send_voltage = false;
++	if (!list_empty(&vreg->node))
++		list_del_init(&vreg->node);
++	ret = rpm_smd_resource_sync_locked(resource);
++	mutex_unlock(&resource->lock);
++
++	if (ret)
++		dev_warn(resource->dev, "failed to clear removed regulator vote: %d\n",
++			 ret);
++}
++
++static int rpm_smd_level_regulator_probe(struct platform_device *pdev)
++{
++	struct qcom_rpm_smd_level_regulator *vreg;
++	struct qcom_rpm_smd_resource *resource;
++	struct regulator_config config = {};
++	struct regulator_dev *rdev;
++	struct device_node *np = pdev->dev.of_node;
++	const char *reg_name;
++	u32 min_uV, max_uV, set, initial;
++	int ret;
++
++	resource = dev_get_drvdata(pdev->dev.parent);
++	if (!resource)
++		return dev_err_probe(&pdev->dev, -EPROBE_DEFER,
++				     "RPM resource parent is not ready\n");
++
++	if (of_property_read_string(np, "regulator-name", &reg_name))
++		return dev_err_probe(&pdev->dev, -EINVAL,
++				     "missing regulator-name\n");
++	if (of_property_read_u32(np, "regulator-min-microvolt", &min_uV) ||
++	    of_property_read_u32(np, "regulator-max-microvolt", &max_uV) ||
++	    min_uV > max_uV || max_uV > INT_MAX)
++		return dev_err_probe(&pdev->dev, -EINVAL,
++				     "invalid regulator level range\n");
++	if (of_property_read_u32(np, "qcom,set", &set) || !set ||
++	    (set & ~RPM_SMD_SET_MASK))
++		return dev_err_probe(&pdev->dev, -EINVAL,
++				     "qcom,set must select active and/or sleep\n");
++
++	vreg = devm_kzalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
++	if (!vreg)
++		return -ENOMEM;
++
++	vreg->resource = resource;
++	vreg->set_mask = set;
++	vreg->min_uV = min_uV;
++	vreg->max_uV = max_uV;
++	vreg->always_send_voltage =
++		of_property_read_bool(np, "qcom,always-send-voltage");
++
++	if (of_property_read_bool(np, "qcom,use-voltage-level") ==
++	    of_property_read_bool(np, "qcom,use-voltage-floor-level"))
++		return dev_err_probe(&pdev->dev, -EINVAL,
++				     "select exactly one RPM level key\n");
++
++	if (of_property_read_bool(np, "qcom,use-voltage-level")) {
++		vreg->key = RPM_SMD_LEVEL_KEY;
++		ret = of_property_read_u32(np, "qcom,init-voltage-level", &initial);
++	} else {
++		vreg->key = RPM_SMD_FLOOR_KEY;
++		ret = of_property_read_u32(np, "qcom,init-voltage-floor-level",
++					   &initial);
++	}
++	if (!ret) {
++		if (initial < min_uV || initial > max_uV)
++			return dev_err_probe(&pdev->dev, -EINVAL,
++					     "initial RPM level is outside range\n");
++		vreg->uV = initial;
++	} else if (ret != -EINVAL) {
++		return ret;
++	}
++
++	vreg->desc.name = reg_name;
++	vreg->desc.of_match = reg_name;
++	vreg->desc.owner = THIS_MODULE;
++	vreg->desc.type = REGULATOR_VOLTAGE;
++	vreg->desc.ops = &rpm_smd_level_ops;
++	vreg->desc.min_uV = min_uV;
++	vreg->desc.uV_step = 1;
++	vreg->desc.n_voltages = max_uV - min_uV + 1;
++	vreg->desc.continuous_voltage_range = true;
++
++	INIT_LIST_HEAD(&vreg->node);
++	mutex_lock(&resource->lock);
++	list_add_tail(&vreg->node, &resource->regulators);
++	resource->set_mask |= set;
++	resource->key_mask |= BIT(vreg->key);
++	mutex_unlock(&resource->lock);
++
++	ret = devm_add_action_or_reset(&pdev->dev,
++				       rpm_smd_level_regulator_remove, vreg);
++	if (ret)
++		return ret;
++
++	config.dev = &pdev->dev;
++	config.of_node = np;
++	config.driver_data = vreg;
++	rdev = devm_regulator_register(&pdev->dev, &vreg->desc, &config);
++	if (IS_ERR(rdev))
++		return dev_err_probe(&pdev->dev, PTR_ERR(rdev),
++				     "failed to register RPM level regulator\n");
++
++	return 0;
++}
++
++static int rpm_smd_regulator_probe(struct platform_device *pdev)
++{
++	struct device_node *np = pdev->dev.of_node;
++
++	/* The compatible is shared by PMIC rails and RPM voltage-level votes. */
++	if (of_property_read_bool(np, "qcom,use-voltage-level") ||
++	    of_property_read_bool(np, "qcom,use-voltage-floor-level"))
++		return rpm_smd_level_regulator_probe(pdev);
++
++	return rpm_smd_pmic_regulator_probe(pdev);
++}
++
++static int rpm_smd_resource_probe(struct platform_device *pdev)
++{
++	struct qcom_rpm_smd_resource *resource;
++	const char *name;
++	struct qcom_smd_rpm *rpm;
++	u32 id;
++	int ret;
++
++	rpm = dev_get_drvdata(pdev->dev.parent);
++	if (!rpm)
++		return dev_err_probe(&pdev->dev, -EPROBE_DEFER,
++				     "RPM parent is not ready\n");
++
++	if (of_property_read_string(pdev->dev.of_node, "qcom,resource-name",
++				    &name) ||
++	    of_property_read_u32(pdev->dev.of_node, "qcom,resource-id", &id))
++		return dev_err_probe(&pdev->dev, -EINVAL,
++				     "missing RPM resource name or id\n");
++
++	resource = devm_kzalloc(&pdev->dev, sizeof(*resource), GFP_KERNEL);
++	if (!resource)
++		return -ENOMEM;
++
++	ret = rpm_smd_resource_type(name, &resource->type);
++	if (ret)
++		return dev_err_probe(&pdev->dev, ret,
++				     "unsupported RPM resource %s\n", name);
++
++	resource->dev = &pdev->dev;
++	resource->rpm = rpm;
++	resource->id = id;
++	mutex_init(&resource->lock);
++	INIT_LIST_HEAD(&resource->regulators);
++	platform_set_drvdata(pdev, resource);
++
++	return devm_of_platform_populate(&pdev->dev);
++}
++
++static const struct of_device_id rpm_smd_resource_match[] = {
++	{ .compatible = "qcom,rpm-smd-regulator-resource" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, rpm_smd_resource_match);
++
++static const struct of_device_id rpm_smd_level_regulator_match[] = {
++	{ .compatible = "qcom,rpm-smd-regulator" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, rpm_smd_level_regulator_match);
++
++static struct platform_driver rpm_smd_resource_driver = {
++	.probe = rpm_smd_resource_probe,
++	.driver = {
++		.name = "qcom-rpm-smd-regulator-resource",
++		.of_match_table = rpm_smd_resource_match,
++	},
++};
++
++static struct platform_driver rpm_smd_level_regulator_driver = {
++	.probe = rpm_smd_regulator_probe,
++	.driver = {
++		.name = "qcom-rpm-smd-regulator",
++		.of_match_table = rpm_smd_level_regulator_match,
++	},
++};
++
+ static struct platform_driver rpm_reg_driver = {
+ 	.probe = rpm_reg_probe,
+ 	.driver = {
+@@ -1478,12 +2155,34 @@ static struct platform_driver rpm_reg_driver = {
+ 
+ static int __init rpm_reg_init(void)
+ {
+-	return platform_driver_register(&rpm_reg_driver);
++	int ret;
++
++	ret = platform_driver_register(&rpm_reg_driver);
++	if (ret)
++		return ret;
++
++	ret = platform_driver_register(&rpm_smd_resource_driver);
++	if (ret)
++		goto unregister_pmic_driver;
++
++	ret = platform_driver_register(&rpm_smd_level_regulator_driver);
++	if (ret)
++		goto unregister_resource_driver;
++
++	return 0;
++
++unregister_resource_driver:
++	platform_driver_unregister(&rpm_smd_resource_driver);
++unregister_pmic_driver:
++	platform_driver_unregister(&rpm_reg_driver);
++	return ret;
+ }
+ subsys_initcall(rpm_reg_init);
+ 
+ static void __exit rpm_reg_exit(void)
+ {
++	platform_driver_unregister(&rpm_smd_level_regulator_driver);
++	platform_driver_unregister(&rpm_smd_resource_driver);
+ 	platform_driver_unregister(&rpm_reg_driver);
+ }
+ module_exit(rpm_reg_exit)

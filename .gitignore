@@ -1,0 +1,7 @@
+/google_drive/*_b.img
+/google_drive/boot_b.img.gz
+/google_drive/topaz-live.dtb
+/google_drive/topaz-5.15.config
+/google_drive/topaz-module-map.txt
+__pycache__/
+*.py[cod]

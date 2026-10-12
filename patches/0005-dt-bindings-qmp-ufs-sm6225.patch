@@ -1,0 +1,27 @@
+Subject: [PATCH 5/11] dt-bindings: phy: qcom: add SM6225 QMP UFS PHY
+
+Add qcom,sm6225-qmp-ufs-phy to the compatible lists in the Qualcomm QMP
+UFS PHY binding. This documents the compatible for the upstream QMP driver
+port; no device-tree source is added here.
+
+---
+diff --git a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
+index f9cfbd0b2de6c4d7096fbd8658431ad68c18c4f2..5266bba07c67ec0d9f02dc08c09a481463e4fdaf 100644
+--- a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
++++ b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
+@@ -21,6 +21,7 @@ properties:
+       - qcom,sa8775p-qmp-ufs-phy
+       - qcom,sc7180-qmp-ufs-phy
+       - qcom,sc7280-qmp-ufs-phy
++      - qcom,sm6225-qmp-ufs-phy
+       - qcom,sc8180x-qmp-ufs-phy
+       - qcom,sc8280xp-qmp-ufs-phy
+       - qcom,sdm845-qmp-ufs-phy
+@@ -88,6 +89,7 @@ allOf:
+               - qcom,sa8775p-qmp-ufs-phy
+               - qcom,sc7180-qmp-ufs-phy
+               - qcom,sc7280-qmp-ufs-phy
++              - qcom,sm6225-qmp-ufs-phy
+               - qcom,sc8180x-qmp-ufs-phy
+               - qcom,sc8280xp-qmp-ufs-phy
+               - qcom,sdm845-qmp-ufs-phy
