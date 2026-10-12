@@ -4,7 +4,7 @@
  * Gerado por tools/symbolize_overlay.py a partir de um overlay decompilado.
  * Entrada SHA-256 (texto): db0e00a6f0789887ffc987e404158e9763aba6bfe0871c7ed81ce1a0620421a0
  * Referencias externas convertidas: 363; internas: 170
-   (label: 170, caminho: 0).
+ * (label: 170, caminho: 0).
  * Nao revisado por upstream; validar com dtc -@ e fdtoverlay antes de qualquer uso.
  */
 
@@ -101,7 +101,7 @@
     fragment@2 {
         target = <&tlmm>;
         __overlay__ {
-            msm_gpio_104 {
+            msm_gpio_104: msm_gpio_104 {
                 mux {
                     pins = "gpio104";
                     function = "gpio";
@@ -113,7 +113,7 @@
                     output-low;
                 };
             };
-            msm_gpio_104_output_high {
+            msm_gpio_104_output_high: msm_gpio_104_output_high {
                 mux {
                     pins = "gpio104";
                     function = "gpio";
@@ -125,7 +125,7 @@
                     output-high;
                 };
             };
-            msm_gpio_83 {
+            msm_gpio_83: msm_gpio_83 {
                 mux {
                     pins = "gpio83";
                     function = "gpio";
@@ -136,7 +136,7 @@
                     bias-pull-down;
                 };
             };
-            msm_gpio_65 {
+            msm_gpio_65: msm_gpio_65 {
                 mux {
                     pins = "gpio65";
                     function = "gpio";
@@ -148,7 +148,7 @@
                     output-low;
                 };
             };
-            msm_gpio_65_output_high {
+            msm_gpio_65_output_high: msm_gpio_65_output_high {
                 mux {
                     pins = "gpio65";
                     function = "gpio";
@@ -230,13 +230,13 @@
                 };
             };
             rf_pa1_therm {
-                rf_pa1_therm_default {
+                rf_pa1_therm_default: rf_pa1_therm_default {
                     pins = "gpio7";
                     bias-high-impedance;
                 };
             };
             vib_out_gpio8 {
-                vib_out_gpio8_default {
+                vib_out_gpio8_default: vib_out_gpio8_default {
                     pins = "gpio8";
                     function = "normal";
                     bias-pull-up;
@@ -244,7 +244,7 @@
                 };
             };
             key_vol_up {
-                key_vol_up_default {
+                key_vol_up_default: key_vol_up_default {
                     pins = "gpio5";
                     function = "normal";
                     input-enable;
@@ -253,7 +253,7 @@
                 };
             };
             eldo9_pin {
-                gpio@c000 {
+                usb_eldo9: gpio@c000 {
                     pins = "gpio1";
                     function = "normal";
                     qcom,drive-strength = <0x00000002>;
@@ -303,7 +303,7 @@
                 pinctrl-0 = <&vib_out_gpio8_default>;
                 vib,en-gpio = <&pm6125_gpios 0x00000008 0x00000001>;
             };
-            vdda_usb_ss_dp_core {
+            vdda_usb_ss_dp_core: vdda_usb_ss_dp_core {
                 compatible = "regulator-fixed";
                 regulator-name = "vdd_supply";
                 regulator-min-microvolt = <0x000d6d80>;
@@ -443,7 +443,7 @@
     fragment@16 {
         target = <&tlmm>;
         __overlay__ {
-            rt1711h_int_n {
+            rt1711h_int_n: rt1711h_int_n {
                 mux {
                     pins = "gpio93";
                     function = "gpio";
@@ -525,7 +525,7 @@
     fragment@18 {
         target = <&soc>;
         __overlay__ {
-            rt-pd-manager {
+            rpm: rt-pd-manager {
                 compatible = "richtek,rt-pd-manager";
                 #io-channel-cells = <0x00000001>;
                 io-channels = <&nopmi_chg 0x0000000a &nopmi_chg 0x00000004 &nopmi_chg 0x0000000c &nopmi_chg 0x0000000b &nopmi_chg 0x00000000 &nopmi_chg 0x00000003 &nopmi_chg 0x0000001f &nopmi_chg 0x0000001e &rpm 0x000000ab>;
@@ -546,7 +546,7 @@
     fragment@20 {
         target = <&tlmm>;
         __overlay__ {
-            bq2589x_int_default {
+            bq2589x_int_default: bq2589x_int_default {
                 mux {
                     pins = "gpio105";
                     function = "gpio";
@@ -558,7 +558,7 @@
                     input-enable;
                 };
             };
-            bq2589x_usb_switch_default {
+            bq2589x_usb_switch_default: bq2589x_usb_switch_default {
                 mux {
                     pins = "gpio66";
                     function = "gpio";
@@ -578,7 +578,7 @@
             status = "ok";
             #address-cells = <0x00000001>;
             #size-cells = <0x00000000>;
-            bq2589x@6A {
+            bq2589x: bq2589x@6A {
                 #io-channel-cells = <0x00000001>;
                 compatible = "ti,bq2589x-1";
                 reg = <0x0000006a>;
@@ -609,7 +609,7 @@
                 io-channels = <&maxim_ds28e16 0x0000008b &sm5602 0x000000a2 &sm5602 0x000000b0 &nopmi_chg 0x0000008e &nopmi_chg 0x0000000a &nopmi_chg 0x00000004 &nopmi_chg 0x00000003 &nopmi_chg 0x00000001 &nopmi_chg 0x000000af>;
                 io-channel-names = "ds_chip_ok", "fastcharge_mode", "fg_monitor_work", "mtbf_cur", "usb_real_type", "pd_active", "typec_cc_orientation", "typec_mode", "ffc_disable";
             };
-            sm5602@71 {
+            sm5602: sm5602@71 {
                 #io-channel-cells = <0x00000001>;
                 compatible = "sm,sm5602";
                 reg = <0x00000071>;
@@ -756,7 +756,7 @@
             status = "ok";
             #address-cells = <0x00000001>;
             #size-cells = <0x00000000>;
-            sc8551-charger@66 {
+            sc8551_standalone: sc8551-charger@66 {
                 #io-channel-cells = <0x00000001>;
                 compatible = "sc,sc8551-standalone";
                 reg = <0x00000066>;
@@ -778,7 +778,7 @@
                 sc,sc8551,ac-ovp-threshold = <0x0000000c>;
                 sc,sc8551,sense-resistor-mohm = <0x00000005>;
             };
-            ln8000_charger@51 {
+            ln8000_charger: ln8000_charger@51 {
                 #io-channel-cells = <0x00000001>;
                 compatible = "lionsemi,ln8000-master";
                 reg = <0x00000051>;
@@ -800,7 +800,7 @@
     fragment@24 {
         target = <&soc>;
         __overlay__ {
-            qcom,nopmi-chg {
+            nopmi_chg: qcom,nopmi-chg {
                 #io-channel-cells = <0x00000001>;
                 compatible = "qcom,nopmi-chg";
                 status = "okay";
@@ -851,7 +851,7 @@
                 pinctrl-1 = <&onewire_gpio_sleep>;
                 status = "ok";
             };
-            maxim_ds28e16 {
+            maxim_ds28e16: maxim_ds28e16 {
                 #io-channel-cells = <0x00000001>;
                 compatible = "maxim,ds28e16";
                 label = "max_ds28e16";
@@ -863,7 +863,7 @@
     fragment@25 {
         target = <&tlmm>;
         __overlay__ {
-            onewire_gpio_active {
+            onewire_gpio_active: onewire_gpio_active {
                 mux {
                     pins = "gpio108";
                     function = "gpio";
@@ -874,7 +874,7 @@
                     bias-pull-up;
                 };
             };
-            onewire_gpio_sleep {
+            onewire_gpio_sleep: onewire_gpio_sleep {
                 mux {
                     pins = "gpio108";
                     function = "gpio";
@@ -946,7 +946,7 @@
     fragment@31 {
         target = <&soc>;
         __overlay__ {
-            qcom,mdss_mdp {
+            mdss_mdp: qcom,mdss_mdp {
                 connectors = <&sde_dsi &smmu_sde_sec &smmu_sde_unsec>;
                 qcom,sde-ib-bw-vote = <0x00249f00 0x00000000 0x00186a00>;
                 interconnect-names = "qcom,sde-data-bus0", "qcom,sde-reg-bus";
@@ -1095,7 +1095,7 @@
                         qcom,sde-limit-name = "sde_bwlimit_usecases";
                     };
                 };
-                qcom,mdss_dsi_td4330_truly_v2_cmd {
+                dsi_td4330_truly_v2_cmd: qcom,mdss_dsi_td4330_truly_v2_cmd {
                     qcom,platform-reset-gpio = <&tlmm 0x00000052 0x00000000>;
                     qcom,platform-te-gpio = <&tlmm 0x00000051 0x00000000>;
                     qcom,bl-pmic-pwm-period-usecs = <0x00000064>;
@@ -1197,7 +1197,7 @@
                         };
                     };
                 };
-                qcom,mdss_dsi_td4330_truly_v2_video {
+                dsi_td4330_truly_v2_video: qcom,mdss_dsi_td4330_truly_v2_video {
                     qcom,platform-reset-gpio = <&tlmm 0x00000052 0x00000000>;
                     qcom,bl-pmic-pwm-period-usecs = <0x00000064>;
                     pwms = <&pm6125_pwm 0x00000000 0x00000000>;
@@ -1305,7 +1305,7 @@
                         };
                     };
                 };
-                qcom,mdss_dsi_nt36672e_fhd_plus_90hz_video {
+                dsi_nt36672e_fhd_plus_90hz_video: qcom,mdss_dsi_nt36672e_fhd_plus_90hz_video {
                     qcom,platform-reset-gpio = <&tlmm 0x00000052 0x00000000>;
                     qcom,mdss-dsi-bl-max-level = <0x00000fff>;
                     qcom,mdss-dsi-bl-min-level = <0x00000001>;
@@ -1373,7 +1373,7 @@
                         };
                     };
                 };
-                qcom,mdss_dsi_panel_m7_38_0c_0a_fhdp_video {
+                dsi_m7_38_0c_0a_video: qcom,mdss_dsi_panel_m7_38_0c_0a_fhdp_video {
                     qcom,platform-reset-gpio = <&tlmm 0x00000052 0x00000000>;
                     qcom,mdss-brightness-max-level = <0x000007ff>;
                     qcom,mdss-dsi-bl-max-level = <0x000007ff>;
@@ -1470,7 +1470,7 @@
                         };
                     };
                 };
-                qcom,mdss_dsi_panel_m7_38_0c_0b_fhdp_video {
+                dsi_m7_38_0c_0b_video: qcom,mdss_dsi_panel_m7_38_0c_0b_fhdp_video {
                     qcom,platform-reset-gpio = <&tlmm 0x00000052 0x00000000>;
                     qcom,mdss-brightness-max-level = <0x000007ff>;
                     qcom,mdss-dsi-bl-max-level = <0x000007ff>;
@@ -1563,7 +1563,7 @@
                         };
                     };
                 };
-                qcom,mdss_dsi_nt36672e_fhd_plus_120hz_video {
+                dsi_nt36672e_fhd_plus_120hz_video: qcom,mdss_dsi_nt36672e_fhd_plus_120hz_video {
                     qcom,platform-reset-gpio = <&tlmm 0x00000052 0x00000000>;
                     qcom,mdss-dsi-bl-max-level = <0x00000fff>;
                     qcom,mdss-dsi-bl-min-level = <0x00000001>;
@@ -1735,7 +1735,7 @@
                     compatible = "qcom,smmu_sde_rot_sec";
                 };
             };
-            qcom,mdss_dsi_ctrl0@5e94000 {
+            mdss_dsi0: qcom,mdss_dsi_ctrl0@5e94000 {
                 clock-names = "byte_clk", "byte_clk_rcg", "byte_intf_clk", "pixel_clk", "pixel_clk_rcg", "esc_clk";
                 clocks = <&dispcc 0x00000002 &dispcc 0x00000003 &dispcc 0x00000005 &dispcc 0x0000000c &dispcc 0x0000000d &dispcc 0x00000006>;
                 refgen-supply = <&refgen>;
@@ -1773,7 +1773,7 @@
                     };
                 };
             };
-            qcom,mdss_dsi_phy0@5e94400 {
+            mdss_dsi_phy0: qcom,mdss_dsi_phy0@5e94400 {
                 memory-region = <&dfps_data_memory>;
                 pll_codes_region = <&dsi_pll_codes_data>;
                 qcom,dsi-pll-ssc-mode = "down-spread";
@@ -1802,7 +1802,7 @@
                     };
                 };
             };
-            dsi_pll_codes {
+            dsi_pll_codes_data: dsi_pll_codes {
                 label = "dsi_pll_codes";
                 reg = <0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000>;
             };
@@ -1811,14 +1811,14 @@
     fragment@32 {
         target = <&soc>;
         __overlay__ {
-            qcom,smmu_sde_unsec_cb {
+            smmu_sde_unsec: qcom,smmu_sde_unsec_cb {
                 qcom,iommu-earlymap;
                 qcom,iommu-faults = "non-fatal";
                 qcom,iommu-dma-addr-pool = <0x00020000 0xfffe0000>;
                 iommus = <&apps_smmu 0x00000420 0x00000002>;
                 compatible = "qcom,smmu_sde_unsec";
             };
-            qcom,smmu_sde_sec_cb {
+            smmu_sde_sec: qcom,smmu_sde_sec_cb {
                 qcom,iommu-vmid = <0x0000000a>;
                 qcom,iommu-faults = "non-fatal";
                 qcom,iommu-dma-addr-pool = <0x00020000 0xfffe0000>;
@@ -1830,7 +1830,7 @@
     fragment@33 {
         target = <&reserved_memory>;
         __overlay__ {
-            dfps_data_region@5cf00000 {
+            dfps_data_memory: dfps_data_region@5cf00000 {
                 label = "dfps_data_region";
                 reg = <0x00000000 0x5cf00000 0x00000000 0x00100000>;
             };
@@ -1839,7 +1839,7 @@
     fragment@34 {
         target = <&soc>;
         __overlay__ {
-            dsi_panel_pwr_supply_no_labibb {
+            dsi_panel_pwr_supply_no_labibb: dsi_panel_pwr_supply_no_labibb {
                 #size-cells = <0x00000000>;
                 #address-cells = <0x00000001>;
                 qcom,panel-supply-entry@0 {
@@ -1852,7 +1852,7 @@
                     reg = <0x00000000>;
                 };
             };
-            qcom,dsi-display-primary {
+            sde_dsi: qcom,dsi-display-primary {
                 qcom,dsi-default-panel = <&dsi_m7_38_0c_0a_video>;
                 vddio-supply = <&L9A>;
                 clock-names = "pll_byte_clk0", "pll_dsi_clk0", "mdp_core_clk";
@@ -2063,7 +2063,7 @@
                     #size-cells = <0x00000000>;
                     #address-cells = <0x00000002>;
                     compatible = "qcom,swr-mstr";
-                    wcd937x-rx-slave {
+                    wcd937x_rx_slave: wcd937x-rx-slave {
                         reg = <0x0000000a 0x01170224>;
                         compatible = "qcom,wcd937x-slave";
                     };
@@ -2100,13 +2100,13 @@
                     #size-cells = <0x00000000>;
                     #address-cells = <0x00000002>;
                     compatible = "qcom,swr-mstr";
-                    wcd937x-tx-slave {
+                    wcd937x_tx_slave: wcd937x-tx-slave {
                         reg = <0x0000000a 0x01170223>;
                         compatible = "qcom,wcd937x-slave";
                     };
                 };
             };
-            wcd937x-codec {
+            wcd937x_codec: wcd937x-codec {
                 qcom,cdc-on-demand-supplies = "cdc-vdd-buck";
                 qcom,cdc-static-supplies = "cdc-vdd-rxtx", "cdc-vddpx";
                 qcom,cdc-micbias3-mv = <0x00000a8c>;
@@ -2218,14 +2218,14 @@
     fragment@45 {
         target = <&soc>;
         __overlay__ {
-            msm_cdc_pinctrl@92 {
+            wcd937x_rst_gpio: msm_cdc_pinctrl@92 {
                 #gpio-cells = <0x00000000>;
                 pinctrl-1 = <&wcd937x_reset_sleep>;
                 pinctrl-0 = <&wcd937x_reset_active>;
                 pinctrl-names = "aud_active", "aud_sleep";
                 compatible = "qcom,msm-cdc-pinctrl";
             };
-            msm_cdc_pinctrl@106 {
+            wsa881x_analog_reset_gpio: msm_cdc_pinctrl@106 {
                 status = "disable";
                 #gpio-cells = <0x00000000>;
                 pinctrl-1 = <&spkr_1_sd_n_sleep>;
@@ -2233,7 +2233,7 @@
                 pinctrl-names = "aud_active", "aud_sleep";
                 compatible = "qcom,msm-cdc-pinctrl";
             };
-            wsa_ana_clk {
+            wsa881x_analog_clk: wsa_ana_clk {
                 status = "disable";
                 #clock-cells = <0x00000001>;
                 qcom,codec-lpass-clk-id = <0x00000301>;
@@ -2241,49 +2241,49 @@
                 qcom,codec-ext-clk-src = <0x00000003>;
                 compatible = "qcom,audio-ref-clk";
             };
-            rx_core_clk {
+            clock_audio_rx_1: rx_core_clk {
                 #clock-cells = <0x00000001>;
                 qcom,codec-lpass-clk-id = <0x0000030e>;
                 qcom,codec-lpass-ext-clk-freq = <0x01588800>;
                 qcom,codec-ext-clk-src = <0x00000005>;
                 compatible = "qcom,audio-ref-clk";
             };
-            rx_npl_clk {
+            clock_audio_rx_2: rx_npl_clk {
                 #clock-cells = <0x00000001>;
                 qcom,codec-lpass-clk-id = <0x0000030f>;
                 qcom,codec-lpass-ext-clk-freq = <0x01588800>;
                 qcom,codec-ext-clk-src = <0x00000006>;
                 compatible = "qcom,audio-ref-clk";
             };
-            tx_core_clk {
+            clock_audio_tx_1: tx_core_clk {
                 #clock-cells = <0x00000001>;
                 qcom,codec-lpass-clk-id = <0x0000030c>;
                 qcom,codec-lpass-ext-clk-freq = <0x0124f800>;
                 qcom,codec-ext-clk-src = <0x00000007>;
                 compatible = "qcom,audio-ref-clk";
             };
-            tx_npl_clk {
+            clock_audio_tx_2: tx_npl_clk {
                 #clock-cells = <0x00000001>;
                 qcom,codec-lpass-clk-id = <0x0000030d>;
                 qcom,codec-lpass-ext-clk-freq = <0x0124f800>;
                 qcom,codec-ext-clk-src = <0x00000008>;
                 compatible = "qcom,audio-ref-clk";
             };
-            va_core_clk {
+            clock_audio_va_1: va_core_clk {
                 #clock-cells = <0x00000001>;
                 qcom,codec-lpass-clk-id = <0x00000307>;
                 qcom,codec-lpass-ext-clk-freq = <0x0124f800>;
                 qcom,codec-ext-clk-src = <0x00000002>;
                 compatible = "qcom,audio-ref-clk";
             };
-            va_npl_clk {
+            clock_audio_va_2: va_npl_clk {
                 #clock-cells = <0x00000001>;
                 qcom,codec-lpass-clk-id = <0x00000308>;
                 qcom,codec-lpass-ext-clk-freq = <0x0124f800>;
                 qcom,codec-ext-clk-src = <0x0000000a>;
                 compatible = "qcom,audio-ref-clk";
             };
-            si_pa_L {
+            si_pa_L: si_pa_L {
                 owi_mode = <0x00000001>;
                 channel_num = <0x00000000>;
                 timer_task_hdl = <0x00000000>;
@@ -2310,7 +2310,7 @@
                 status = "ok";
                 compatible = "qcom,cam-res-mgr";
             };
-            cam-vaf {
+            cam_vaf_2p8: cam-vaf {
                 status = "okay";
                 enable-active-high;
                 gpio = <&tlmm 0x00000065 0x00000000>;
@@ -2341,7 +2341,7 @@
     fragment@49 {
         target = <&cam_cci0>;
         __overlay__ {
-            qcom,actuator0 {
+            actuator_rear: qcom,actuator0 {
                 status = "ok";
                 pinctrl-1 = <&cam_sensor_rear0_vaf_suspend>;
                 pinctrl-0 = <&cam_sensor_rear0_vaf_active>;
@@ -2356,7 +2356,7 @@
                 compatible = "qcom,actuator";
                 cell-index = <0x00000000>;
             };
-            qcom,eeprom0 {
+            eeprom_rear: qcom,eeprom0 {
                 clock-rates = <0x0124f800>;
                 clock-cntl-level = "turbo";
                 clock-names = "cam_clk";
@@ -2383,7 +2383,7 @@
                 compatible = "qcom,eeprom";
                 cell-index = <0x00000000>;
             };
-            qcom,eeprom1 {
+            eeprom_rear_aux: qcom,eeprom1 {
                 clock-rates = <0x0124f800>;
                 clock-cntl-level = "turbo";
                 clock-names = "cam_clk";
@@ -2411,7 +2411,7 @@
                 compatible = "qcom,eeprom";
                 cell-index = <0x00000002>;
             };
-            qcom,eeprom2 {
+            eeprom_front: qcom,eeprom2 {
                 clock-rates = <0x016e3600>;
                 clock-cntl-level = "turbo";
                 clock-names = "cam_clk";
@@ -2438,7 +2438,7 @@
                 compatible = "qcom,eeprom";
                 cell-index = <0x00000001>;
             };
-            qcom,eeprom3 {
+            eeprom_rear_aux2: qcom,eeprom3 {
                 clock-rates = <0x0124f800>;
                 clock-cntl-level = "turbo";
                 clock-names = "cam_clk";
@@ -2466,7 +2466,7 @@
                 compatible = "qcom,eeprom";
                 cell-index = <0x00000003>;
             };
-            qcom,camera-flash@0 {
+            led_flash_rear: qcom,camera-flash@0 {
                 status = "ok";
                 gpio-no-mux = <0x00000000>;
                 rgltr-load-current = <0x0001d4c0>;

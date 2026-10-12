@@ -50,6 +50,7 @@ class Node:
     parent: "Node | None" = None
     children: list["Node"] = field(default_factory=list)
     props: list[Prop] = field(default_factory=list)
+    label: str | None = None  # label definido para referencias locais do overlay
 
     def child(self, name: str) -> "Node | None":
         for c in self.children:
@@ -216,6 +217,9 @@ def convert(text: str) -> str:
                     raise ValueError(f"phandle local {ref} sem no em /{'/'.join(prefix)}:{p.name}")
                 label = path_to_label.get(node.path())
                 if label is not None:
+                    # Sem definir o label no no alvo, o dtc trataria &label como
+                    # referencia externa (base), e o overlay nao aplicaria.
+                    node.label = label
                     cells[idx] = f"&{label}"
                     local_by_label += 1
                 else:
@@ -246,7 +250,7 @@ def convert(text: str) -> str:
         " * Gerado por tools/symbolize_overlay.py a partir de um overlay decompilado.",
         f" * Entrada SHA-256 (texto): {source_sha}",
         f" * Referencias externas convertidas: {external_hits}; internas: {local_hits}",
-        f"   (label: {local_by_label}, caminho: {local_by_path}).",
+        f" * (label: {local_by_label}, caminho: {local_by_path}).",
         " * Nao revisado por upstream; validar com dtc -@ e fdtoverlay antes de qualquer uso.",
         " */",
         "",
@@ -255,10 +259,11 @@ def convert(text: str) -> str:
 
     def emit(node: Node, depth: int) -> None:
         ind = "    " * depth
+        lbl = f"{node.label}: " if node.label else ""
         if node.parent is None:
             body.append("/ {")
         else:
-            body.append(f"{ind}{node.name} {{")
+            body.append(f"{ind}{lbl}{node.name} {{")
         for p in node.props:
             if p.value is None:
                 body.append(f"{ind}    {p.name};")
