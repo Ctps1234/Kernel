@@ -182,9 +182,18 @@ jobs:
 
       - name: Compilar Image e dtbs
         run: |
-          set -o pipefail
           cd "$RUNNER_TEMP/kernel"
-          make ARCH=arm64 LLVM=1 LLVM_IAS=1 -j"$(nproc)" Image dtbs 2>&1 | tee "$RUNNER_TEMP/full-build.log"
+          LOG="$RUNNER_TEMP/full-build.log"
+          rc=0
+          make ARCH=arm64 LLVM=1 LLVM_IAS=1 -k -j"$(nproc)" Image dtbs < /dev/null > "$LOG" 2>&1 || rc=$?
+          if [ "$rc" -ne 0 ]; then
+            grep -E "error:|fatal error|undefined reference|No such file" "$LOG" | grep -v "Werror" | cut -c1-220 | sort | uniq -c | sort -rn | head -40 > "$RUNNER_TEMP/diag-full.txt" || true
+            diag=$(sed 's/%/%25/g; s/\r/%0D/g' "$RUNNER_TEMP/diag-full.txt" | head -c 3500 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=build completo rc=$rc (diagnosticos)::$diag"
+            grep -E "\*\*\* " "$LOG" | tail -n 5 | sed 's/%/%25/g' | while IFS= read -r l; do echo "::error title=make-final::$l"; done
+          fi
+          tail -n 3 "$LOG"
+          exit "$rc"
 
       - name: Resumo do build completo
         if: always()
