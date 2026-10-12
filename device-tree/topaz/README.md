@@ -51,7 +51,7 @@ Job `dt-schema` (com `continue-on-error`), na base fixada `0efd3abd3c356d644ea49
   - `bias-disable`: a base tem `bias-disable = <0x0>` (4 bytes); o binding espera flag booleana. O driver lê só a presença, então é divergência de schema, não de funcionamento.
   - `/` (qcom,khaje): nó `memory` placeholder com `device_type` e `reg` (zeros) não permitidos por `root-node.yaml`. Deve ser preenchido/removido na fase 2.
   - `aliases`: `phandle` (294) tratado como alias, não é array. Candidato a remoção na fase 2.
-  - `cpu@N`: `qcom,freq-domain` e `qcom,lmh-dcvs` aparecem como bytes. O nó `phandle = <0x5>` existe na base (dispositivo de performance), então a hipótese é limitação do dtschema para propriedades sem binding de CPU (cells desconhecidas), não phandle quebrado. **A confirmar** (ex.: validar com um binding de CPU que declare essas propriedades).
+  - `cpu@N`: `qcom,freq-domain` e `qcom,lmh-dcvs` aparecem como bytes. O nó `phandle = <0x5>` existe na base (dispositivo de performance), então a hipótese é limitação do dtschema para propriedades sem binding de CPU (cells desconhecidas), não phandle quebrado. **Confirmado na CI:** a causa era falta de binding. O patch `0012` declara as duas propriedades em `arm/cpus.yaml`, e os erros de `cpu@N` sumiram (ver "Resultados da CI (escopo C)").
   - O log completo está no artefato `topaz-dt-schema` do run. Não foi possível contar todas as violações pelas anotações (truncadas).
 
 ### O que ainda **não** foi validado
@@ -64,9 +64,9 @@ Job `dt-schema` (com `continue-on-error`), na base fixada `0efd3abd3c356d644ea49
 **Decisão:** a DT curada é reduzida ao escopo do port 6.12. Saem da curada e de `topaz.dts` os subsistemas fora do port inicial, porque não há driver 6.12 nesta série para eles e o dt-schema não tem como validar as propriedades vendor deles:
 
 - display (MDSS/DSI/SDE, painel, backlight do painel) e toque (dependem do painel);
-- câmera (CCI, CSIPHY, CPAS, TFE/IFE, OPE, sensores, EEPROM);
+- câmera (CCI, CSIPHY, CPAS, TFE/IFE, OPE, sensores, EEPROM, flash `ovti,wl2866d`);
 - carregador, Type-C e bateria (incluindo o 1-wire `onewire_gpio`/`maxim,ds28e16`);
-- áudio (SPF/LPASS, codecs WCD, SoundWire, ref clocks);
+- áudio (SPF/LPASS, codecs WCD, SoundWire, ref clocks, amplificador de speaker `si,sia81xx`);
 - USB (DWC3 e PHYs HS/SS), SD/eMMC (`sdhci-msm`), impressão digital;
 - depuração (CoreSight, JTAG, EUD), DSP/modem (remoteproc, FastRPC), IPA, Wi-Fi/BT, TrustZone e criptografia.
 
@@ -95,7 +95,7 @@ Normalizações intencionais (todas documentadas no gerador):
 
 `--check` reanalisa `topaz.dts` (resolvendo o include, os blocos `&label` e os labels) e compara com o FDT ativo, nó por nó e valor por valor. Resultado do gerador atual:
 
-- 220 nós na curada, contra 2137 no ativo (1917 removidos pelo escopo C e pelo fecho).
+- 209 nós na curada, contra 2137 no ativo (1928 removidos pelo escopo C e pelo fecho).
 - Nenhum nó extra, nenhum `&label` sem alvo, nenhuma referência decodificada apontando para fora da curada, e os 11 aliases do ativo estão cobertos, exceto os 4 de SD e áudio excluídos (esperados).
 - 7 divergências de valor, todas esperadas: `/aliases` `mmc0`/`mmc1` (SD fora do escopo), `swr0`/`swr1` (áudio fora do escopo); `/firmware/android/fstab/vendor status` (base `ok`, ativo `disabled`, origem em runtime, já documentado na fase 1); `/memory ddr_manufacturer_id` e `/memory ddr_size` (só no ativo, injetados pelo bootloader).
 
@@ -111,11 +111,25 @@ Isso não prova que a DT compila nem que é válida pelo dt-schema. Essas provas
 - Run [`38284596380`](https://github.com/Ctps1234/Kernel/actions/runs/38284596380), commit `841fa41`: `compile-and-merge` e `dt-schema` **success**; DT curada (315 nós, com display/câmera/áudio/carregador): **1491 erros** de `dt-validate`, contra 2761 no DTB mesclado. Principais compatíveis: `qcom,sde-kms` (86), `qcom,cam-sensor` (70), `qcom,eeprom` (46), `qcom,nopmi-chg` (32), `qcom,sdhci-msm-v5` (23), `qcom,swr-mstr` (22), `qcom,bengal-asoc-snd` (22), `qcom,ufshc` (19), `qcom,cci-v1.2` (19), `sm,sm5602` (18), `arm,armv8` (16). Quase todos são vendor sem binding na série. Os erros de `qcom,freq-domain` e `qcom,lmh-dcvs` em `cpu@N` (8 + 8) são falta de binding em `cpus.yaml` na base 6.12, não erro de conversão.
 - Os erros de `mk-schema` no log são da base (`fsl,liodn`, `gunyah-cma-mem`), não da DT topaz.
 
+### Resultados da CI (escopo C)
+
+- Run [`38292834431`](https://github.com/Ctps1234/Kernel/actions/runs/38292834431), commit `a5bf854` (escopo C sem o ajuste de áudio/câmera): `compile-and-merge` e `dt-schema` **success**. DT curada: **203 erros** (antes: 1491). Mesclado: 2761.
+- Run [`38293210451`](https://github.com/Ctps1234/Kernel/actions/runs/38293210451), commit `4520c5b` (ajuste de áudio/câmera e patch `0012`): `compile-and-merge` e `dt-schema` **success**. DT curada: **172 erros** de `dt-validate`, 209 nós. Mesclado: 2745.
+- O binding `0012` zerou os erros de `qcom,freq-domain` e `qcom,lmh-dcvs` em `cpu@N` (eram 16). `compatible` de `arm,armv8` também sumiu da lista.
+- `compile-and-merge` confirmou a regeneração: os arquivos versionados são idênticos à saída do gerador, e `topaz.dts` compila com `dtc` na CI.
+
+Resíduos da curada (172), ainda sem correção nesta fase. São propriedades vendor de nós mantidos, sem binding na base 6.12 ou com tipo divergente:
+
+- `qcom,ufshc` (19), `simple-bus` (19), `qcom,geni-se-qup` (18), `qcom,mpm-khaje` (9), `qcom,rpm-smd-regulator-resource` (6), `qcom,spmi-pmic` (6), `qcom,i2c-geni` (6), `qcom,gpi-dma` (5), `qcom,cpufreq-hw` (3), `qcom,pm6125-gpio` (3), `qcom,scm` (2), `android,vendor` (3), `qcom,wrapper-core` (6).
+- Propriedades: `compatible` (12), `status` (6, valor ainda não auditado), `reg-names`, `#address-cells`/`#size-cells`, `$nodename`, `qcom,iommu-dma`/`dma-addr-pool`, `qcom,affinity`, `cluster-pd*` no psci, `parts`/`dev`/`mnt_flags`/`fsmgr_flags` do fstab, e 1 erro cada em `vibrator_gpio`, `thermal-message`, `interconnect`, `clocks` e `dsi_pll_codes`. O `dsi_pll_codes` (`khaje.dtsi`, linha 1167) fica na curada porque o overlay mantido o referencia por `pll_codes_region` (`topaz-overlay.dtso`, linha 1778); a fragmentação exata ainda precisa ser auditada.
+
+Esses erros não são novos: são o estado do port 6.12 para os nós que a curada mantém. Não há exclusão adicional sem decisão do usuário. Cada grupo precisa de binding próprio (série 0013 em diante) ou de exclusão documentada.
+
 ### Próxima etapa
 
-- Reexecutar a CI com o escopo C e medir o novo total de erros do DTB curado.
-- Binding mínimo para `cpu@N` em `cpus.yaml` (`qcom,freq-domain`, `qcom,lmh-dcvs`), para que o dt-schema decodifique os phandles.
-- Revisar os erros restantes nos nós mantidos (`status`, `compatible`, `'ranges' is a required property`, `$nodename`).
+- Decidir se o `dt-schema` vira bloqueante. Hoje é `continue-on-error: true`, então os 172 erros não quebram a CI.
+- Criar bindings para os grupos de maior volume (`qcom,ufshc`, `qcom,geni-se-qup`, `qcom,mpm-khaje`, `qcom,rpm-smd-regulator-resource`), ou excluí-los com registro em `excluidos.txt`.
+- Auditar os 6 erros de `status` que restam na curada e o nó `dsi_pll_codes`, que é a única dependência de display mantida.
 - Decidir o `status` de `/firmware/android/fstab/vendor` (base `ok`, ativo `disabled`) e a origem de `/memory ddr_*`.
 - Integrar os nós mantidos ao kernel: drivers 6.12 e configuração GKI.
 - Hardware: nada aqui foi testado no aparelho. Não flashar.
