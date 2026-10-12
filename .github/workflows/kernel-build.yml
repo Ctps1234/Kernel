@@ -1,0 +1,182 @@
+name: kernel-build
+
+# Constroi o kernel topaz sobre a base 6.12 fixada, com a serie de patches locais.
+# Job 1 (partial-build): compila so os diretorios tocados pelos patches (rapido, acha erros de C).
+# Job 2 (full-build): Image + dtbs completos; so roda se o job 1 passar.
+# Nao gera imagem de boot para flash. Nao toca em partições.
+
+on:
+  push:
+    paths:
+      - "patches/**"
+      - "configs/**"
+      - "tools/**"
+      - ".github/workflows/kernel-build.yml"
+  pull_request:
+    paths:
+      - "patches/**"
+      - "configs/**"
+      - "tools/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kernel-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BASE_SHA: 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
+
+jobs:
+  partial-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar toolchain (clang/LLVM, como a GKI)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flex bison bc libssl-dev libelf-dev clang lld llvm python3
+
+      - name: Obter a base 6.12 fixada (arvore completa, sem historico)
+        run: |
+          mkdir "$RUNNER_TEMP/kernel" && cd "$RUNNER_TEMP/kernel"
+          git init -q
+          git remote add origin https://github.com/EdMory/android_kernel_common_sm8850.git
+          git fetch -q --depth=1 origin "$BASE_SHA"
+          git checkout -q FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+
+      - name: Aplicar a serie de patches locais
+        run: |
+          cd "$RUNNER_TEMP/kernel"
+          for p in "$GITHUB_WORKSPACE"/patches/[0-9][0-9][0-9][0-9]-*.patch; do
+            git apply --check "$p" || { echo "::error::patch nao aplica: $(basename "$p")"; exit 1; }
+            git apply "$p"
+            echo "aplicado: $(basename "$p")"
+          done
+
+      - name: Gerar o .config (gki_defconfig + fragmento topaz)
+        run: |
+          bash tools/check_defconfig.sh "$RUNNER_TEMP/kernel" \
+              configs/topaz/topaz.fragment "$RUNNER_TEMP/defconfig"
+
+      - name: Compilar diretorios tocados pelos patches
+        run: |
+          set -o pipefail
+          cd "$RUNNER_TEMP/kernel"
+          MAKEARGS="ARCH=arm64 LLVM=1 LLVM_IAS=1"
+          make $MAKEARGS -j"$(nproc)" prepare 2>&1 | tee "$RUNNER_TEMP/partial-build.log"
+          make $MAKEARGS -j"$(nproc)" \
+              drivers/clk/qcom/ drivers/interconnect/qcom/ drivers/pinctrl/qcom/ \
+              drivers/phy/qualcomm/ drivers/regulator/ \
+              2>&1 | tee -a "$RUNNER_TEMP/partial-build.log"
+
+      - name: Conferir quais .c dos patches foram realmente compilados
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/kernel"
+          git status --porcelain --untracked-files=all | awk '{print $2}' | grep '\.c$' > "$RUNNER_TEMP/patched-c.txt" || true
+          : > "$RUNNER_TEMP/objetos-report.txt"
+          while read -r f; do
+            o="${f%.c}.o"
+            if [ -f "$o" ]; then
+              echo "OK      $f" >> "$RUNNER_TEMP/objetos-report.txt"
+            else
+              echo "NAO COMPILADO (fora do .config ou sem regra no Makefile): $f" >> "$RUNNER_TEMP/objetos-report.txt"
+              echo "::warning file=$f::arquivo do patch nao foi compilado; verificar Kconfig/Makefile"
+            fi
+          done < "$RUNNER_TEMP/patched-c.txt"
+          cat "$RUNNER_TEMP/objetos-report.txt"
+
+      - name: Resumo do build parcial
+        if: always()
+        run: |
+          {
+            echo "### Build parcial do kernel topaz (base 6.12 ${BASE_SHA:0:9})"
+            echo '```'
+            tail -n 40 "$RUNNER_TEMP/partial-build.log" 2>/dev/null || echo "sem log"
+            echo '```'
+            echo "### Arquivos de patch"
+            echo '```'
+            cat "$RUNNER_TEMP/objetos-report.txt" 2>/dev/null || echo "sem relatorio"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar log do build parcial
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: topaz-kernel-partial
+          path: |
+            ${{ runner.temp }}/partial-build.log
+            ${{ runner.temp }}/objetos-report.txt
+            ${{ runner.temp }}/defconfig
+          if-no-files-found: warn
+          retention-days: 14
+
+  full-build:
+    needs: partial-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar toolchain (clang/LLVM, como a GKI)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flex bison bc libssl-dev libelf-dev clang lld llvm python3
+
+      - name: Obter a base 6.12 fixada (arvore completa, sem historico)
+        run: |
+          mkdir "$RUNNER_TEMP/kernel" && cd "$RUNNER_TEMP/kernel"
+          git init -q
+          git remote add origin https://github.com/EdMory/android_kernel_common_sm8850.git
+          git fetch -q --depth=1 origin "$BASE_SHA"
+          git checkout -q FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+
+      - name: Aplicar a serie de patches locais
+        run: |
+          cd "$RUNNER_TEMP/kernel"
+          for p in "$GITHUB_WORKSPACE"/patches/[0-9][0-9][0-9][0-9]-*.patch; do
+            git apply --check "$p" || { echo "::error::patch nao aplica: $(basename "$p")"; exit 1; }
+            git apply "$p"
+            echo "aplicado: $(basename "$p")"
+          done
+
+      - name: Gerar o .config (gki_defconfig + fragmento topaz)
+        run: |
+          bash tools/check_defconfig.sh "$RUNNER_TEMP/kernel" \
+              configs/topaz/topaz.fragment "$RUNNER_TEMP/defconfig"
+
+      - name: Compilar Image e dtbs
+        run: |
+          set -o pipefail
+          cd "$RUNNER_TEMP/kernel"
+          make ARCH=arm64 LLVM=1 LLVM_IAS=1 -j"$(nproc)" Image dtbs 2>&1 | tee "$RUNNER_TEMP/full-build.log"
+
+      - name: Resumo do build completo
+        if: always()
+        run: |
+          {
+            echo "### Build completo do kernel topaz (Image + dtbs)"
+            echo '```'
+            tail -n 40 "$RUNNER_TEMP/full-build.log" 2>/dev/null || echo "sem log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar Image, dtbs e log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: topaz-kernel-full
+          path: |
+            ${{ runner.temp }}/full-build.log
+            ${{ runner.temp }}/kernel/arch/arm64/boot/Image
+            ${{ runner.temp }}/kernel/arch/arm64/boot/dts/qcom/*.dtb
+          if-no-files-found: warn
+          retention-days: 7
