@@ -79,6 +79,9 @@ diff -u "$OUT/live.dts" "$OUT/merged.dts" > "$OUT/live-vs-merged.diff" 2>/dev/nu
 DIFFLINES=$(grep -c '^[-+][^-+]' "$OUT/live-vs-merged.diff" 2>/dev/null || true)
 echo "linhas de diff com o FDT ativo (informativo): ${DIFFLINES:-0}"
 summary "- diff informativo com o FDT ativo: ${DIFFLINES:-0} linhas"
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "::notice title=DT topaz::merge OK; diff informativo vs FDT ativo: ${DIFFLINES:-0} linhas"
+fi
 
 if [ "$FAILED" -ne 0 ]; then
     echo "FALHA: veja os logs em $OUT" >&2
