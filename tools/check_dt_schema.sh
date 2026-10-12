@@ -104,7 +104,7 @@ done
 
 # Contagem de erros por propriedade (cada erro do dt-validate tem uma linha "from schema").
 # Evita depender do texto truncado das anotacoes do GitHub.
-python3 - "$OUT" | tee "$OUT/erros-por-propriedade.txt" >> "$REPORT" <<'PY'
+python3 - "$OUT" <<'PY' | tee "$OUT/erros-por-propriedade.txt" >> "$REPORT"
 import collections, os, re, sys
 out = sys.argv[1]
 for log in ("dt-validate", "dt-validate-curated"):
