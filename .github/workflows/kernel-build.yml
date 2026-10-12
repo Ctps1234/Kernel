@@ -180,6 +180,16 @@ jobs:
           bash tools/check_defconfig.sh "$RUNNER_TEMP/kernel" \
               configs/topaz/topaz.fragment "$RUNNER_TEMP/defconfig"
 
+      - name: Ajuste de ambiente - desligar BTF neste build de teste
+        run: |
+          # O pahole do runner (dwarves do Ubuntu 24.04) falha no BTFIDS com
+          # "Reached the limit of per-CPU variables" / "FAILED: load BTF from vmlinux".
+          # So para este build de CI: DEBUG_INFO_BTF=n no .config gerado. O fragmento aprovado nao muda.
+          cd "$RUNNER_TEMP/kernel"
+          scripts/config --file .config -d DEBUG_INFO_BTF -d DEBUG_INFO_BTF_MODULES
+          make ARCH=arm64 LLVM=1 LLVM_IAS=1 olddefconfig < /dev/null > "$RUNNER_TEMP/olddefconfig-full.log" 2>&1
+          grep -E "^CONFIG_DEBUG_INFO_BTF=" .config || echo "DEBUG_INFO_BTF desligado (nao aparece no .config)"
+
       - name: Compilar Image e dtbs
         run: |
           cd "$RUNNER_TEMP/kernel"
