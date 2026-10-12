@@ -115,10 +115,10 @@ for log in ("dt-validate", "dt-validate-curated"):
     cnt = collections.Counter()
     total = 0
     for i, line in enumerate(lines):
-        if not line.startswith("from schema"):
+        if not line.strip().startswith("from schema"):
             continue
         total += 1
-        prev = lines[i - 1] if i > 0 else line
+        prev = lines[i - 1].strip() if i > 0 else line.strip()
         m = re.search(r"\): ([^:]+):", prev)  # "no (compat): propriedade: mensagem"
         key = m.group(1) if m else re.sub(r"^\S+: ", "", prev)[:80]
         cnt[key] += 1
