@@ -87,7 +87,7 @@ EXCLUDE_COMPAT = re.compile("|".join([
     r"qcom,sde", r"qcom,mdss", r"qcom,dsi", r"dsi-phy", r"qcom,smmu_sde",
     # camera (CCI, CSI, CPAS, TFE/IFE, OPE, sensores, EEPROM)
     r"qcom,cam", r"qcom,cci", r"qcom,csi", r"qcom,csid", r"qcom,tfe", r"qcom,ope", r"qcom,ppi",
-    r"qcom,tpg", r"qcom,cpas", r"qcom,eeprom", r"qcom,msm-cam", r"qcom,icp",
+    r"qcom,tpg", r"qcom,cpas", r"qcom,eeprom", r"qcom,msm-cam", r"qcom,icp", r"wl2866d",
     # carregador e Type-C (I2C)
     r"nopmi-chg", r"bq2589x", r"sc8551", r"sm5602", r"ln8000", r"rt1711h", r"rt-pd-manager",
     r"cp_manager", r"onewire", r"ds28e16",
@@ -96,7 +96,7 @@ EXCLUDE_COMPAT = re.compile("|".join([
     # audio (LPASS/SPF, codecs, SoundWire, Bolero)
     r"qcom,spf", r"qcom,bengal-asoc", r"qcom,audio", r"qcom,swr", r"qcom,wcd9", r"qcom,msm-cdc",
     r"qcom,msm-stub-codec", r"qcom,bolero", r"qcom,lpass", r"qcom,codec", r"qcom,adsp-loader",
-    r"wsa8", r"qcom,wsa",
+    r"wsa8", r"qcom,wsa", r"si,sia81xx",
     # USB (DWC3, PHY HS/SS)
     r"dwc-usb3", r"usb-nop", r"qcom,usb-",
     # SD/eMMC (mmc0/mmc1 e sdhc_1/sdhc_2 do overlay)

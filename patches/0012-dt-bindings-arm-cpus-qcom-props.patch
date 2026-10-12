@@ -1,0 +1,41 @@
+Subject: [PATCH 12/12] dt-bindings: arm: cpus: describe qcom,freq-domain and qcom,lmh-dcvs
+
+The Khaje device trees (Xiaomi topaz/tapas, port Android 6.12) set two
+Qualcomm vendor properties on each cpu@N node: qcom,freq-domain, which points
+to the cpufreq-hw provider with #freq-domain-cells, and qcom,lmh-dcvs, which
+points to the LMh DCVS node of the CPU's cluster. Neither property is
+documented in arm/cpus.yaml of the 6.12 base, so dt-schema reports them as
+unknown properties with an undecoded phandle type.
+
+Describe both properties so that dtbs_check accepts the curated Khaje CPU
+nodes. This is a minimal binding; it does not change the cpufreq-qcom-hw or
+qcom-lmh drivers.
+
+Draft without Signed-off-by; not for upstream submission.
+
+diff --git a/Documentation/devicetree/bindings/arm/cpus.yaml b/Documentation/devicetree/bindings/arm/cpus.yaml
+index f308ff6..682a946 100644
+--- a/Documentation/devicetree/bindings/arm/cpus.yaml
++++ b/Documentation/devicetree/bindings/arm/cpus.yaml
+@@ -367,6 +367,21 @@ properties:
+       formed by encoding the target CPU id into the low bits of the
+       physical start address it should jump to.
+ 
++  qcom,freq-domain:
++    $ref: /schemas/types.yaml#/definitions/phandle-array
++    description:
++      Phandle and frequency domain specifier of the Qualcomm CPUFREQ hardware
++      provider that scales this CPU, as described in
++      cpufreq/cpufreq-qcom-hw.yaml (#freq-domain-cells). Consumed by the
++      Khaje device trees; one entry per CPU cluster domain.
++
++  qcom,lmh-dcvs:
++    $ref: /schemas/types.yaml#/definitions/phandle
++    description:
++      Phandle to the Limits Management Hardware (LMh) DCVS node that manages
++      the cluster containing this CPU. The phandle points to the first CPU of
++      the LMh cluster; see thermal/qcom-lmh.yaml.
++
+ if:
+   # If the enable-method property contains one of those values
+   properties:
