@@ -129,7 +129,7 @@ Esses erros não são novos: são o estado do port 6.12 para os nós que a curad
 
 - Decidir se o `dt-schema` vira bloqueante. Hoje é `continue-on-error: true`, então os 172 erros não quebram a CI.
 - Criar bindings para os grupos de maior volume (`qcom,ufshc`, `qcom,geni-se-qup`, `qcom,mpm-khaje`, `qcom,rpm-smd-regulator-resource`), ou excluí-los com registro em `excluidos.txt`.
-- Conferir na CI o efeito da normalização `"OK"` → `"okay"` nos erros de `status`.
+- Run [`38301446029`](https://github.com/Ctps1234/Kernel/actions/runs/38301446029), commit `d76a833`: normalização `"OK"` → `"okay"` aplicada, mas a curada continua com 172 erros e 6 de `status`. Os 6 erros de `status` não vêm do `"OK"`; o resumo da CI não mostra o valor. Precisa do log completo do `dt-validate-curated` para identificar.
 - Corrigir no gerador a duplicação do `dsi_pll_codes` (`khaje.dtsi` e `topaz.dts`), identificando o fragmento que emite o bloco `&soc`.
 - Decidir o `status` de `/firmware/android/fstab/vendor` (base `ok`, ativo `disabled`) e a origem de `/memory ddr_*`.
 - Integrar os nós mantidos ao kernel: drivers 6.12 e configuração GKI.
