@@ -8,11 +8,13 @@ on:
     paths:
       - "device-tree/**"
       - "tools/**"
+      - "patches/**"
       - ".github/workflows/device-tree.yml"
   pull_request:
     paths:
       - "device-tree/**"
       - "tools/**"
+      - "patches/**"
   workflow_dispatch:
 
 permissions:

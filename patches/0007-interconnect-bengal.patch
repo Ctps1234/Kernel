@@ -22,10 +22,10 @@ compilation or DT schema validation has been run yet.
 ---
 diff --git a/Documentation/devicetree/bindings/interconnect/qcom,bengal.yaml b/Documentation/devicetree/bindings/interconnect/qcom,bengal.yaml
 new file mode 100644
-index 000000000..ef53eec69
+index 0000000..64633cc
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/interconnect/qcom,bengal.yaml
-@@ -0,0 +1,195 @@
+@@ -0,0 +1,193 @@
 +# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 +%YAML 1.2
 +---
@@ -60,7 +60,6 @@ index 000000000..ef53eec69
 +
 +  clock-names:
 +    minItems: 2
-+    maxItems: 4
 +    items:
 +      - const: bus
 +      - const: bus_a
@@ -90,7 +89,6 @@ index 000000000..ef53eec69
 +
 +      clock-names:
 +        minItems: 2
-+        maxItems: 4
 +        items:
 +          - const: bus
 +          - const: bus_a
@@ -222,7 +220,7 @@ index 000000000..ef53eec69
 +        };
 +    };
 diff --git a/drivers/interconnect/qcom/Kconfig b/drivers/interconnect/qcom/Kconfig
-index de96d4661..a5cd47663 100644
+index de96d46..a5cd476 100644
 --- a/drivers/interconnect/qcom/Kconfig
 +++ b/drivers/interconnect/qcom/Kconfig
 @@ -236,6 +236,14 @@ config INTERCONNECT_QCOM_SM6115
@@ -241,7 +239,7 @@ index de96d4661..a5cd47663 100644
  	tristate "Qualcomm SM6350 interconnect driver"
  	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
 diff --git a/drivers/interconnect/qcom/Makefile b/drivers/interconnect/qcom/Makefile
-index bfeea8416..874b69308 100644
+index bfeea84..874b693 100644
 --- a/drivers/interconnect/qcom/Makefile
 +++ b/drivers/interconnect/qcom/Makefile
 @@ -29,6 +29,7 @@ qnoc-sdx55-objs				:= sdx55.o
@@ -262,7 +260,7 @@ index bfeea8416..874b69308 100644
  obj-$(CONFIG_INTERCONNECT_QCOM_SM8150) += qnoc-sm8150.o
 diff --git a/drivers/interconnect/qcom/bengal.c b/drivers/interconnect/qcom/bengal.c
 new file mode 100644
-index 000000000..519d0d4e5
+index 0000000..519d0d4
 --- /dev/null
 +++ b/drivers/interconnect/qcom/bengal.c
 @@ -0,0 +1,1555 @@
@@ -1822,7 +1820,7 @@ index 000000000..519d0d4e5
 +MODULE_DESCRIPTION("Bengal NoC driver");
 +MODULE_LICENSE("GPL");
 diff --git a/drivers/interconnect/qcom/icc-common.c b/drivers/interconnect/qcom/icc-common.c
-index 9b8a9c69e..f1978c62f 100644
+index 9b8a9c6..f1978c6 100644
 --- a/drivers/interconnect/qcom/icc-common.c
 +++ b/drivers/interconnect/qcom/icc-common.c
 @@ -18,6 +18,8 @@ struct icc_node_data *qcom_icc_xlate_extended(const struct of_phandle_args *spec
@@ -1835,7 +1833,7 @@ index 9b8a9c69e..f1978c62f 100644
  	ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
  	if (!ndata)
 diff --git a/drivers/interconnect/qcom/icc-rpm.c b/drivers/interconnect/qcom/icc-rpm.c
-index a8ed435f6..fb67b122e 100644
+index a8ed435..fb67b12 100644
 --- a/drivers/interconnect/qcom/icc-rpm.c
 +++ b/drivers/interconnect/qcom/icc-rpm.c
 @@ -36,6 +36,22 @@
@@ -2039,7 +2037,7 @@ index a8ed435f6..fb67b122e 100644
  	icc_nodes_remove(&qp->provider);
  	clk_disable_unprepare(qp->bus_clk);
 diff --git a/drivers/interconnect/qcom/icc-rpm.h b/drivers/interconnect/qcom/icc-rpm.h
-index f4883d43e..78f9b2138 100644
+index f4883d4..78f9b21 100644
 --- a/drivers/interconnect/qcom/icc-rpm.h
 +++ b/drivers/interconnect/qcom/icc-rpm.h
 @@ -23,6 +23,8 @@ enum qcom_icc_type {
@@ -2078,7 +2076,7 @@ index f4883d43e..78f9b2138 100644
  /**
 diff --git a/include/dt-bindings/interconnect/qcom,bengal.h b/include/dt-bindings/interconnect/qcom,bengal.h
 new file mode 100644
-index 000000000..064f00839
+index 0000000..064f008
 --- /dev/null
 +++ b/include/dt-bindings/interconnect/qcom,bengal.h
 @@ -0,0 +1,104 @@

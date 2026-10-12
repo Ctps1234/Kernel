@@ -6212,10 +6212,10 @@ index 000000000000..1f3df94c66f9
 +MODULE_LICENSE("GPL");
 diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-gcc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-gcc.yaml
 new file mode 100644
-index 000000000000..539d01700448
+index 0000000..f07b8ef
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/clock/qcom,khaje-gcc.yaml
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,98 @@
 +# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 +%YAML 1.2
 +---
@@ -6241,6 +6241,9 @@ index 000000000000..539d01700448
 +          - const: syscon
 +      - const: qcom,khaje-gcc
 +
++  reg:
++    maxItems: 1
++
 +  reg-names:
 +    const: cc_base
 +
@@ -6253,8 +6256,6 @@ index 000000000000..539d01700448
 +      - description: UFS PHY RX symbol 1 clock
 +      - description: UFS PHY TX symbol 0 clock
 +      - description: USB3 PHY wrapper pipe clock
-+    minItems: 7
-+    maxItems: 7
 +
 +  clock-names:
 +    items:
@@ -6265,8 +6266,6 @@ index 000000000000..539d01700448
 +      - const: ufs_phy_rx_symbol_1_clk
 +      - const: ufs_phy_tx_symbol_0_clk
 +      - const: usb3_phy_wrapper_gcc_usb30_pipe_clk
-+    minItems: 7
-+    maxItems: 7
 +
 +  vdd_cx-supply:
 +    description: CX voltage-corner regulator
@@ -6317,10 +6316,10 @@ index 000000000000..539d01700448
 +...
 diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml
 new file mode 100644
-index 000000000000..85c085002b2b
+index 0000000..79f885a
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,80 @@
 +# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 +%YAML 1.2
 +---
@@ -6346,6 +6345,9 @@ index 000000000000..85c085002b2b
 +          - const: syscon
 +      - const: qcom,khaje-dispcc
 +
++  reg:
++    maxItems: 1
++
 +  reg-names:
 +    const: cc_base
 +
@@ -6355,8 +6357,6 @@ index 000000000000..85c085002b2b
 +      - description: Sleep clock source
 +      - description: GCC display interface clock
 +      - description: GCC display GPLL0 clock source
-+    minItems: 4
-+    maxItems: 4
 +
 +  clock-names:
 +    items:
@@ -6364,8 +6364,6 @@ index 000000000000..85c085002b2b
 +      - const: sleep_clk
 +      - const: iface
 +      - const: gcc_disp_gpll0_clk
-+    minItems: 4
-+    maxItems: 4
 +
 +  vdd_cx-supply:
 +    description: CX voltage-corner regulator
@@ -6404,10 +6402,10 @@ index 000000000000..85c085002b2b
 +...
 diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml
 new file mode 100644
-index 000000000000..ca2e5645da23
+index 0000000..360812f
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,83 @@
 +# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 +%YAML 1.2
 +---
@@ -6433,6 +6431,9 @@ index 000000000000..ca2e5645da23
 +          - const: syscon
 +      - const: qcom,khaje-gpucc
 +
++  reg:
++    maxItems: 1
++
 +  reg-names:
 +    const: cc_base
 +
@@ -6441,16 +6442,12 @@ index 000000000000..ca2e5645da23
 +      - description: Board XO source
 +      - description: GCC GPU GPLL0 main clock
 +      - description: GCC GPU GPLL0 divided clock
-+    minItems: 3
-+    maxItems: 3
 +
 +  clock-names:
 +    items:
 +      - const: bi_tcxo
 +      - const: gpll0_out_main
 +      - const: gpll0_out_main_div
-+    minItems: 3
-+    maxItems: 3
 +
 +  vdd_cx-supply:
 +    description: CX voltage-corner regulator
@@ -6494,10 +6491,10 @@ index 000000000000..ca2e5645da23
 +...
 diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-debugcc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-debugcc.yaml
 new file mode 100644
-index 000000000000..5510fab9baa2
+index 0000000..ba8685c
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/clock/qcom,khaje-debugcc.yaml
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,85 @@
 +# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 +%YAML 1.2
 +---
@@ -6523,8 +6520,6 @@ index 000000000000..5510fab9baa2
 +      - description: GCC clock-controller reference
 +      - description: Display clock-controller reference
 +      - description: GPU clock-controller reference
-+    minItems: 4
-+    maxItems: 4
 +
 +  clock-names:
 +    items:
@@ -6532,8 +6527,6 @@ index 000000000000..5510fab9baa2
 +      - const: gcc
 +      - const: dispcc
 +      - const: gpucc
-+    minItems: 4
-+    maxItems: 4
 +
 +  qcom,gcc:
 +    $ref: /schemas/types.yaml#/definitions/phandle
