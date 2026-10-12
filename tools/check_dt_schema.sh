@@ -128,10 +128,10 @@ for log in ("dt-validate", "dt-validate-curated"):
             by_compat[mc.group(1)] += 1
     print("")
     print(f"--- {log}: {total} erro(s) por propriedade")
-    for key, n in cnt.most_common(40):
+    for key, n in cnt.most_common(25):
         print(f"  {n:4d}  {key}")
-    print(f"--- {log}: erro(s) por compatible do no (primeiros 40)")
-    for key, n in by_compat.most_common(40):
+    print(f"--- {log}: erro(s) por compatible do no (primeiros 25)")
+    for key, n in by_compat.most_common(25):
         print(f"  {n:4d}  {key}")
 PY
 
@@ -144,7 +144,7 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
         if [ -s "$OUT/$log.log" ] && grep -qiE 'error|fail|Traceback|invalid' "$OUT/$log.log"; then
             python3 - "$OUT/$log.log" "$log" <<'PY'
 import sys
-text = open(sys.argv[1], encoding="utf-8", errors="replace").read()[:2500]
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()[:3500]
 text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 print(f"::warning title=dtschema {sys.argv[2]}::" + text)
 PY
@@ -153,7 +153,7 @@ PY
     if [ -s "$OUT/erros-por-propriedade.txt" ]; then
         python3 - "$OUT/erros-por-propriedade.txt" <<'PY'
 import sys
-text = open(sys.argv[1], encoding="utf-8", errors="replace").read()[:2500]
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()[:3500]
 text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 print("::notice title=dtschema erros por propriedade::" + text)
 PY
