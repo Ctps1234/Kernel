@@ -93,6 +93,16 @@ EXPECTED = {
 }
 # Propriedades que o gerador normaliza de forma intencional.
 NORMALIZED_FLAGS = {"bias-disable"}
+# Valores de status normalizados: "ok" (legado, aceito pelo Linux) vira "okay" (o unico
+# que o dt-schema aceita). Mesma semantica; a comparacao com o ativo trata os dois iguais.
+NORMALIZED_STATUS = {'"ok"': '"okay"'}
+
+
+def norm_value(prop: str, value: str) -> str:
+    """Valor a escrever no DTS: aplica a normalizacao de status."""
+    if prop == "status":
+        return NORMALIZED_STATUS.get(value, value)
+    return value
 
 
 @dataclass
@@ -360,6 +370,8 @@ def render_value(t: Tree, node: Node, prop: str, value: str | None, kept: set[in
                  sym: dict[str, list[str]]) -> str:
     if value is None:
         return f"{prop};"
+    if value is not None and prop == "status":
+        return f"{prop} = {norm_value(prop, value)};"
     if prop in NORMALIZED_FLAGS and cells(value) in (["0x0"], ["0x00000000"], ["0"]):
         return f"{prop};"
     dec = t.decode(node, prop, value)
@@ -398,7 +410,7 @@ def render_overlay_body(node: Node, depth: int) -> list[str]:
     ind = "\t" * depth
     lines = []
     for prop, value in node.props.items():
-        lines.append(f"{ind}{prop};" if value is None else f"{ind}{prop} = {value};")
+        lines.append(f"{ind}{prop};" if value is None else f"{ind}{prop} = {norm_value(prop, value)};")
     for child in node.children.values():
         labels = "".join(f"{lb}: " for lb in child.labels)
         lines.append(f"{ind}{labels}{child.name} {{")
@@ -511,7 +523,7 @@ def generate(out_dir: Path) -> None:
     topaz.append("")
     topaz.append("/ {")
     for prop, value in ov_root.props.items():
-        topaz.append(f"\t{prop};" if value is None else f"\t{prop} = {value};")
+        topaz.append(f"\t{prop};" if value is None else f"\t{prop} = {norm_value(prop, value)};")
     topaz.append("};")
     topaz.append("")
     live_mem = live_root.children["memory"]
@@ -551,7 +563,7 @@ def render_aliases(t: Tree, aliases: Node, kept: set[int], sym, base_root: Node)
         except (KeyError, IndexError):
             continue
         if id(tgt) in kept:
-            lines.append(f"\t\t{prop} = {value};")
+            lines.append(f"\t\t{prop} = {norm_value(prop, value)};")
     lines.append("\t};")
     return lines
 
@@ -574,6 +586,7 @@ def canon_value(labels: dict[str, "Node"], pmap: dict[int, "Node"], prop: str,
     """
     if value is None:
         return "<0x0>" if prop in NORMALIZED_FLAGS else "<flag>"
+    value = norm_value(prop, value)
     out = []
     for chunk in TOKEN.findall(value):
         chunk = chunk.strip()

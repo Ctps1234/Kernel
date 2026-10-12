@@ -346,7 +346,7 @@
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,discard";
 					fsmgr_flags = "wait,slotselect,avb";
-					status = "ok";
+					status = "okay";
 				};
 			};
 		};
@@ -597,7 +597,7 @@
 			qcom,eud-clock-vote-req;
 			clocks = <&gcc 0x00000001>;
 			clock-names = "eud_ahb2phy_clk";
-			status = "ok";
+			status = "okay";
 			phandle = <0x000001a3>;
 		};
 		rpm_bus: qcom,rpm-smd {
@@ -1260,21 +1260,21 @@
 			compatible = "qcom,gdsc";
 			reg = <0x01458004 0x00000004>;
 			regulator-name = "gcc_camss_top_gdsc";
-			status = "ok";
+			status = "okay";
 			phandle = <0x000001de>;
 		};
 		gcc_ufs_phy_gdsc: qcom,gdsc@1445004 {
 			compatible = "qcom,gdsc";
 			reg = <0x01445004 0x00000004>;
 			regulator-name = "gcc_ufs_phy_gdsc";
-			status = "ok";
+			status = "okay";
 			phandle = <0x000001df>;
 		};
 		gcc_usb30_prim_gdsc: qcom,gdsc@141a004 {
 			compatible = "qcom,gdsc";
 			reg = <0x0141a004 0x00000004>;
 			regulator-name = "gcc_usb30_prim_gdsc";
-			status = "ok";
+			status = "okay";
 			phandle = <0x000000ef>;
 		};
 		mdss_core_gdsc: qcom,gdsc@5f03000 {
@@ -1283,7 +1283,7 @@
 			regulator-name = "mdss_core_gdsc";
 			proxy-supply = <&mdss_core_gdsc>;
 			qcom,proxy-consumer-enable;
-			status = "ok";
+			status = "okay";
 			qcom,support-hw-trigger;
 			phandle = <0x000000eb>;
 		};
@@ -1549,7 +1549,7 @@
 			iommus = <&apps_smmu 0x000000f6 0x00000000>;
 			qcom,gpi-ee-offset = <0x00010000>;
 			qcom,iommu-dma-addr-pool = <0x00100000 0x00100000>;
-			status = "ok";
+			status = "okay";
 			phandle = <0x00000105>;
 		};
 		qupv3_0: qcom,qupv3_0_geni_se@4ac0000 {
@@ -1564,7 +1564,7 @@
 			qcom,iommu-geometry = <0x40000000 0x10000000>;
 			qcom,iommu-dma = "fastmap";
 			ranges;
-			status = "ok";
+			status = "okay";
 			phandle = <0x00000104>;
 			qupv3_se4_2uart: qcom,qup_uart@4a90000 {
 				compatible = "qcom,geni-debug-uart";
@@ -1600,7 +1600,7 @@
 				pinctrl-3 = <0x00000106 0x00000107 0x00000108 0x00000109>;
 				qcom,wrapper-core = <0x00000104>;
 				qcom,wakeup-byte = <0x000000fd>;
-				status = "ok";
+				status = "okay";
 				phandle = <0x00000234>;
 			};
 			qupv3_se1_i2c: i2c@4a84000 {
@@ -1619,7 +1619,7 @@
 				pinctrl-0 = <0x00000110>;
 				pinctrl-1 = <0x00000111>;
 				qcom,wrapper-core = <0x00000104>;
-				status = "ok";
+				status = "okay";
 				qcom,leica-used-i2c;
 				phandle = <0x000000c3>;
 			};
@@ -1679,7 +1679,7 @@
 				qcom,wrapper-core = <0x00000104>;
 				dmas = <&gpi_dma0 0x00000000 0x00000000 0x00000001 0x00000040 0x00000000 &gpi_dma0 0x00000001 0x00000000 0x00000001 0x00000040 0x00000000>;
 				dma-names = "tx", "rx";
-				status = "ok";
+				status = "okay";
 				phandle = <0x00000244>;
 			};
 		};
@@ -1744,7 +1744,7 @@
 			qcom,adsp-state = <0x00000000>;
 			qcom,rproc-handle = <0x000001bb>;
 			compatible = "qcom,adsp-loader";
-			status = "ok";
+			status = "okay";
 		};
 		spf_core_platform: spf_core_platform {
 			phandle = <0x00000270>;
@@ -2215,7 +2215,7 @@
 			clocks = <&gcc 0x0000000d &gcc 0x0000000e>;
 			regulator-names = "gdscr";
 			gdscr-supply = <&gcc_camss_top_gdsc>;
-			status = "ok";
+			status = "okay";
 			interrupts = <0x00000000 0x000000ce 0x00000001>;
 			interrupt-names = "cci";
 			reg-cam-base = <0x0001b000>;

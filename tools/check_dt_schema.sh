@@ -113,6 +113,7 @@ for log in ("dt-validate", "dt-validate-curated"):
         continue
     lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
     cnt = collections.Counter()
+    by_compat = collections.Counter()
     total = 0
     for i, line in enumerate(lines):
         if not line.strip().startswith("from schema"):
@@ -122,9 +123,15 @@ for log in ("dt-validate", "dt-validate-curated"):
         m = re.search(r"\): ([^:]+):", prev)  # "no (compat): propriedade: mensagem"
         key = m.group(1) if m else re.sub(r"^\S+: ", "", prev)[:80]
         cnt[key] += 1
+        mc = re.search(r"\(([^)]*)\): ", prev)  # compatible do no que falhou
+        if mc:
+            by_compat[mc.group(1)] += 1
     print("")
     print(f"--- {log}: {total} erro(s) por propriedade")
     for key, n in cnt.most_common(40):
+        print(f"  {n:4d}  {key}")
+    print(f"--- {log}: erro(s) por compatible do no (primeiros 40)")
+    for key, n in by_compat.most_common(40):
         print(f"  {n:4d}  {key}")
 PY
 

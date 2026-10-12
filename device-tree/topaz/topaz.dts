@@ -69,7 +69,7 @@
 
 &soc {
 	fpc1020 {
-		status = "ok";
+		status = "okay";
 		compatible = "fpc,fpc1020";
 		interrupt-parent = <&tlmm>;
 		interrupts = <0x00000053 0x00000000>;
@@ -178,7 +178,7 @@
 };
 
 &pm6125_adc_tm {
-	status = "ok";
+	status = "okay";
 	rf_pa1_therm {
 		reg = <0x00000003>;
 		io-channels = <&pm6125_vadc 0x00000055>;
@@ -291,7 +291,7 @@
 		pinctrl-0 = <&ant_check_div_default>;
 	};
 	vibrator_gpio {
-		status = "ok";
+		status = "okay";
 		compatible = "qcom,qpnp-vibrator-ldo-tz";
 		pinctrl-names = "default";
 		pinctrl-0 = <&vib_out_gpio8_default>;
@@ -325,7 +325,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc1_on>;
 	pinctrl-1 = <&sdc1_off>;
-	status = "ok";
+	status = "okay";
 };
 
 &sdhc_2 {
@@ -342,7 +342,7 @@
 	pinctrl-0 = <&sdc2_on>;
 	pinctrl-1 = <&sdc2_off>;
 	cd-gpios = <&tlmm 0x00000058 0x00000001>;
-	status = "ok";
+	status = "okay";
 };
 
 &ufsphy_mem {
@@ -351,7 +351,7 @@
 	vdda-pll-supply = <&L18A>;
 	vdda-phy-max-microamp = <0x00014ec4>;
 	vdda-pll-max-microamp = <0x0000477c>;
-	status = "ok";
+	status = "okay";
 };
 
 &ufshc_mem {
@@ -365,11 +365,11 @@
 	qcom,vddp-ref-clk-max-microamp = <0x00000064>;
 	reset-gpios = <&tlmm 0x00000071 0x00000001>;
 	reset-names = "rst";
-	status = "ok";
+	status = "okay";
 };
 
 &pm6125_pwm {
-	status = "ok";
+	status = "okay";
 };
 
 &qupv3_se2_i2c {
@@ -397,7 +397,7 @@
 	};
 	novatek@62 {
 		reg = <0x00000062>;
-		status = "ok";
+		status = "okay";
 		interrupt-parent = <&tlmm>;
 		interrupts = <0x00000050 0x00002008>;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
@@ -541,7 +541,7 @@
 };
 
 &qupv3_se1_i2c {
-	status = "ok";
+	status = "okay";
 	#address-cells = <0x00000001>;
 	#size-cells = <0x00000000>;
 	bq2589x: bq2589x@6A {
@@ -715,7 +715,7 @@
 };
 
 &qupv3_se1_i2c {
-	status = "ok";
+	status = "okay";
 	#address-cells = <0x00000001>;
 	#size-cells = <0x00000000>;
 	sc8551_standalone: sc8551-charger@66 {
@@ -809,14 +809,14 @@
 		pinctrl-names = "onewire_active", "onewire_sleep";
 		pinctrl-0 = <&onewire_gpio_active>;
 		pinctrl-1 = <&onewire_gpio_sleep>;
-		status = "ok";
+		status = "okay";
 	};
 	maxim_ds28e16: maxim_ds28e16 {
 		#io-channel-cells = <0x00000001>;
 		compatible = "maxim,ds28e16";
 		label = "max_ds28e16";
 		maxim,version = <0x00000001>;
-		status = "ok";
+		status = "okay";
 	};
 };
 
@@ -873,7 +873,7 @@
 };
 
 &qupv3_se4_i2c {
-	status = "ok";
+	status = "okay";
 	qcom,clk-freq-out = <0x00061a80>;
 	#address-cells = <0x00000001>;
 	#size-cells = <0x00000000>;
@@ -1926,7 +1926,7 @@
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
 		interrupts = <0x00000050 0x00002008>;
 		interrupt-parent = <&tlmm>;
-		status = "ok";
+		status = "okay";
 		reg = <0x00000062>;
 		compatible = "novatek,NVT-ts";
 	};
@@ -2221,7 +2221,7 @@
 
 &soc {
 	qcom,cam-res-mgr {
-		status = "ok";
+		status = "okay";
 		compatible = "qcom,cam-res-mgr";
 	};
 	cam_vaf_2p8: cam-vaf {
@@ -2236,9 +2236,9 @@
 };
 
 &qupv3_se1_i2c {
-	status = "ok";
+	status = "okay";
 	wl2866d@28 {
-		status = "ok";
+		status = "okay";
 		en-gpio = <&tlmm 0x0000001a 0x00000000>;
 		inits = <0x00000004 0x0000004b 0x0000000e 0x0000000f>;
 		init_num = <0x00000002>;
@@ -2252,7 +2252,7 @@
 
 &cam_cci0 {
 	actuator_rear: qcom,actuator0 {
-		status = "ok";
+		status = "okay";
 		pinctrl-1 = <&cam_sensor_rear0_vaf_suspend>;
 		pinctrl-0 = <&cam_sensor_rear0_vaf_active>;
 		pinctrl-names = "cam_default", "cam_suspend";
@@ -2271,7 +2271,7 @@
 		clock-cntl-level = "turbo";
 		clock-names = "cam_clk";
 		clocks = <&gcc 0x00000018>;
-		status = "ok";
+		status = "okay";
 		cci-master = <0x00000000>;
 		sensor-mode = <0x00000000>;
 		gpio-req-tbl-label = "CAMIF_MCLK0", "CAM_RESET0";
@@ -2298,7 +2298,7 @@
 		clock-cntl-level = "turbo";
 		clock-names = "cam_clk";
 		clocks = <&gcc 0x0000001c>;
-		status = "ok";
+		status = "okay";
 		cci-master = <0x00000001>;
 		sensor-mode = <0x00000000>;
 		gpio-req-tbl-label = "CAMIF_MCLK2", "CAM_RESET2", "CUSTOM_GPIO2";
@@ -2326,7 +2326,7 @@
 		clock-cntl-level = "turbo";
 		clock-names = "cam_clk";
 		clocks = <&gcc 0x0000001a>;
-		status = "ok";
+		status = "okay";
 		cci-master = <0x00000001>;
 		sensor-mode = <0x00000000>;
 		gpio-req-tbl-label = "CAMIF_MCLK1", "CAM_RESET1";
@@ -2353,7 +2353,7 @@
 		clock-cntl-level = "turbo";
 		clock-names = "cam_clk";
 		clocks = <&gcc 0x0000001e>;
-		status = "ok";
+		status = "okay";
 		cci-master = <0x00000000>;
 		sensor-mode = <0x00000000>;
 		gpio-req-tbl-label = "CAMIF_MCLK3", "CUSTOM_GPIO1", "CAM_RESET3";
@@ -2377,7 +2377,7 @@
 		cell-index = <0x00000003>;
 	};
 	led_flash_rear: qcom,camera-flash@0 {
-		status = "ok";
+		status = "okay";
 		gpio-no-mux = <0x00000000>;
 		rgltr-load-current = <0x0001d4c0>;
 		rgltr-max-voltage = <0x001b7740>;
@@ -2390,7 +2390,7 @@
 		cell-index = <0x00000000>;
 	};
 	qcom,camera-flash@1 {
-		status = "ok";
+		status = "okay";
 		gpio-req-tbl-label = "CUSTOM_GPIO1";
 		gpio-req-tbl-flags = <0x00000000>;
 		gpio-req-tbl-num = <0x00000000>;
@@ -2411,7 +2411,7 @@
 		cell-index = <0x00000001>;
 	};
 	qcom,camera-flash@2 {
-		status = "ok";
+		status = "okay";
 		gpio-req-tbl-label = "CUSTOM_GPIO1";
 		gpio-req-tbl-flags = <0x00000000>;
 		gpio-req-tbl-num = <0x00000000>;
@@ -2436,7 +2436,7 @@
 		clock-cntl-level = "turbo";
 		clock-names = "cam_clk";
 		clocks = <&gcc 0x00000018>;
-		status = "ok";
+		status = "okay";
 		cci-master = <0x00000000>;
 		sensor-mode = <0x00000000>;
 		gpio-req-tbl-label = "CAMIF_MCLK0", "CAM_RESET0";
@@ -2470,7 +2470,7 @@
 		clock-cntl-level = "turbo";
 		clock-names = "cam_clk";
 		clocks = <&gcc 0x0000001a>;
-		status = "ok";
+		status = "okay";
 		cci-master = <0x00000001>;
 		sensor-mode = <0x00000000>;
 		gpio-req-tbl-label = "CAMIF_MCLK1", "CAM_RESET1";
@@ -2502,7 +2502,7 @@
 		clock-cntl-level = "turbo";
 		clock-names = "cam_clk";
 		clocks = <&gcc 0x0000001c>;
-		status = "ok";
+		status = "okay";
 		cci-master = <0x00000001>;
 		sensor-mode = <0x00000000>;
 		gpio-req-tbl-label = "CAMIF_MCLK2", "CAM_RESET2", "CUSTOM_GPIO2";
@@ -2536,7 +2536,7 @@
 		clock-cntl-level = "turbo";
 		clock-names = "cam_clk";
 		clocks = <&gcc 0x0000001e>;
-		status = "ok";
+		status = "okay";
 		cci-master = <0x00000000>;
 		sensor-mode = <0x00000000>;
 		gpio-req-tbl-label = "CAMIF_MCLK3", "CUSTOM_GPIO1", "CAM_RESET3";
