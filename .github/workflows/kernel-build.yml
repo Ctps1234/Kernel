@@ -194,6 +194,9 @@ jobs:
             diag=$(sed 's/%/%25/g; s/\r/%0D/g' "$RUNNER_TEMP/diag-full.txt" | head -c 3500 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=build completo rc=$rc (diagnosticos)::$diag"
             grep -E "\*\*\* " "$LOG" | tail -n 5 | sed 's/%/%25/g' | while IFS= read -r l; do echo "::error title=make-final::$l"; done
+            # Ultimas 30 linhas do log (inclui falhas de link/BTF que nao usam 'error:'), numa anotacao so.
+            tail -n 30 "$LOG" | cut -c1-200 | sed 's/%/%25/g; s/\r/%0D/g' | sed ':a;N;$!ba;s/\n/%0A/g' | tail -c 3500 > "$RUNNER_TEMP/tail-full.txt"
+            echo "::error title=build completo - ultimas linhas::$(cat "$RUNNER_TEMP/tail-full.txt")"
           fi
           tail -n 3 "$LOG"
           exit "$rc"
