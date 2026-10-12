@@ -96,7 +96,7 @@ jobs:
             ctx=$(sed 's/%/%25/g; s/\r/%0D/g' "$RUNNER_TEMP/ctx.txt" | tail -c 3500 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=build parcial rc=$rc (erros e contexto)::$ctx"
             # Diagnosticos do compilador (error:), agrupados e contados, para ver TODOS os arquivos com falha.
-            grep -E "error:|fatal error" "$LOG" | grep -v "Werror" | cut -c1-220 | sort | uniq -c | sort -rn | head -40 > "$RUNNER_TEMP/diag.txt" || true
+            grep -E "error:|fatal error" "$LOG" | cut -c1-220 | sort | uniq -c | sort -rn | head -40 > "$RUNNER_TEMP/diag.txt" || true
             diag=$(sed 's/%/%25/g; s/\r/%0D/g' "$RUNNER_TEMP/diag.txt" | head -c 3500 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=diagnosticos do compilador::$diag"
           fi
@@ -187,7 +187,7 @@ jobs:
           rc=0
           make ARCH=arm64 LLVM=1 LLVM_IAS=1 -k -j"$(nproc)" Image dtbs < /dev/null > "$LOG" 2>&1 || rc=$?
           if [ "$rc" -ne 0 ]; then
-            grep -E "error:|fatal error|undefined reference|No such file" "$LOG" | grep -v "Werror" | cut -c1-220 | sort | uniq -c | sort -rn | head -40 > "$RUNNER_TEMP/diag-full.txt" || true
+            grep -E "error:|fatal error|undefined reference|No such file" "$LOG" | cut -c1-220 | sort | uniq -c | sort -rn | head -40 > "$RUNNER_TEMP/diag-full.txt" || true
             diag=$(sed 's/%/%25/g; s/\r/%0D/g' "$RUNNER_TEMP/diag-full.txt" | head -c 3500 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=build completo rc=$rc (diagnosticos)::$diag"
             grep -E "\*\*\* " "$LOG" | tail -n 5 | sed 's/%/%25/g' | while IFS= read -r l; do echo "::error title=make-final::$l"; done
