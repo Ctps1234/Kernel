@@ -2,17 +2,19 @@
 # Valida bindings e a DT topaz com dtschema, usando a arvore de kernel fixada
 # com a serie local de patches aplicada.
 #
-# Uso: tools/check_dt_schema.sh KERNEL_DIR PATCHES_DIR MERGED_DTB OUT_DIR
-#   KERNEL_DIR  arvore do commit fixado com os patches ja aplicados
-#   PATCHES_DIR diretorio com os patches locais (para listar bindings alterados)
-#   MERGED_DTB  DTB resultante de tools/validate_dt.sh (base + overlay)
-#   OUT_DIR     saida (relatorio e schema processado)
+# Uso: tools/check_dt_schema.sh KERNEL_DIR PATCHES_DIR MERGED_DTB OUT_DIR [CURATED_DTB]
+#   KERNEL_DIR   arvore do commit fixado com os patches ja aplicados
+#   PATCHES_DIR  diretorio com os patches locais (para listar bindings alterados)
+#   MERGED_DTB   DTB resultante de tools/validate_dt.sh (base + overlay)
+#   OUT_DIR      saida (relatorio e schema processado)
+#   CURATED_DTB  opcional: DTB da DT curada (khaje.dtsi + topaz.dts); validado com o
+#                mesmo schema processado, em log proprio
 #
 # Requer: dt-doc-validate, dt-mk-schema e dt-validate (pacote dtschema) com libfdt.
 # Etapas:
 #   1. dt-doc-validate nos bindings alterados pela serie (ainda sem validacao formal);
 #   2. dt-mk-schema sobre todos os bindings da arvore;
-#   3. dt-validate do MERGED_DTB contra o schema processado.
+#   3. dt-validate do MERGED_DTB (e do CURATED_DTB, se dado) contra o schema processado.
 # Sai com codigo != 0 se alguma etapa reportar erro.
 set -uo pipefail
 
@@ -20,6 +22,7 @@ KDIR="${1:?KERNEL_DIR}"
 PATCHES="${2:?PATCHES_DIR}"
 DTB="${3:?MERGED_DTB}"
 OUT="${4:?OUT_DIR}"
+CURATED="${5:-}"
 BIND="Documentation/devicetree/bindings"
 FAILED=0
 
@@ -75,8 +78,21 @@ else
 fi
 echo "   linhas de saida: $(wc -l < "$OUT/dt-validate.log" 2>/dev/null || echo 0)" | tee -a "$REPORT"
 
+if [ -n "$CURATED" ]; then
+    echo "== 3b. dt-validate da DT curada" | tee -a "$REPORT"
+    if [ -s "$OUT/processed-schema.json" ] && dt-validate -s "$OUT/processed-schema.json" "$CURATED" \
+        >"$OUT/dt-validate-curated.log" 2>&1; then
+        echo "   ok" | tee -a "$REPORT"
+    else
+        rc=$?
+        echo "   FALHOU (rc=${rc:-?}); log: $OUT/dt-validate-curated.log" | tee -a "$REPORT"
+        FAILED=1
+    fi
+    echo "   linhas de saida: $(wc -l < "$OUT/dt-validate-curated.log" 2>/dev/null || echo 0)" | tee -a "$REPORT"
+fi
+
 # Resumo de erros: primeiras linhas de cada log para o relatorio.
-for log in doc-validate mk-schema dt-validate; do
+for log in doc-validate mk-schema dt-validate dt-validate-curated; do
     if [ -s "$OUT/$log.log" ]; then
         {
             echo ""
@@ -91,7 +107,7 @@ cat "$REPORT"
 
 # Anotacoes do run (visiveis na pagina do run, sem login): inicio de cada log com falha.
 if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    for log in doc-validate mk-schema dt-validate; do
+    for log in doc-validate mk-schema dt-validate dt-validate-curated; do
         if [ -s "$OUT/$log.log" ] && grep -qiE 'error|fail|Traceback|invalid' "$OUT/$log.log"; then
             python3 - "$OUT/$log.log" "$log" <<'PY'
 import sys

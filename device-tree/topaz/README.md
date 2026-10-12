@@ -1,6 +1,6 @@
-# Device Tree topaz — fase 1 (conversão mecânica)
+# Device Tree topaz — fases 1 (conversão mecânica) e 2 (curadoria)
 
-Esta pasta contém a primeira etapa do item 1 do plano: transformar a base Khaje + overlay topaz em arquivos versionáveis.
+Esta pasta contém o item 1 do plano: transformar a base Khaje + overlay topaz em arquivos versionáveis. A fase 1 é a trilha de auditoria; a fase 2 é a DT curada, gerada a partir dela.
 
 ## Conteúdo
 
@@ -8,6 +8,8 @@ Esta pasta contém a primeira etapa do item 1 do plano: transformar a base Khaje
 |---|---|---|
 | [`topaz-overlay.dtso`](topaz-overlay.dtso) | Gerado por [`tools/symbolize_overlay.py`](../../tools/symbolize_overlay.py) a partir de [`topaz-overlay-51-reference.dtso`](../reference/topaz-overlay-51-reference.dtso) | Overlay `/plugin/` com referências simbólicas (`&label`). 363 referências externas à base e 170 internas foram convertidas usando apenas `__fixups__`, `__local_fixups__` e `__symbols__` do próprio dtc. |
 | Base Khaje | [`khaje-base-reference.dts`](../reference/khaje-base-reference.dts) | Ainda usada como está: phandles numéricos (`<0x126>`), sem labels. Nenhuma conversão foi feita aqui. |
+| [`khaje.dtsi`](khaje.dtsi) | Gerado por [`tools/curate_dt.py`](../../tools/curate_dt.py) a partir da base | **Fase 2.** DT da SoC reduzida: 315 de 1978 nós da base. Phandles viram `&label` quando o alvo está no arquivo. |
+| [`topaz.dts`](topaz.dts) | Gerado por `tools/curate_dt.py` a partir do overlay e do FDT ativo | **Fase 2.** Inclui `khaje.dtsi`; define as propriedades de raiz, `/memory` e um bloco `&label { … }` por fragment do overlay. |
 
 A conversão do overlay é exata por construção: cada célula `0xffffffff` apontada por `__fixups__` vira `&label`, e cada phandle local apontado por `__local_fixups__` vira `&label` do próprio overlay. Os 9 `0xffffffff` restantes são valores literais de calibração térmica (`-1`), não referências. O gerador é determinístico e o workflow confere se o arquivo versionado continua igual à saída do script.
 
@@ -55,6 +57,45 @@ Job `dt-schema` (com `continue-on-error`), na base fixada `0efd3abd3c356d644ea49
 - **DT-schema do DTB mesclado**: executado, mas as violações listadas acima ainda não foram corrigidas (fase 2). Bindings da série: sem erros.
 - **Hardware**: nada aqui foi testado no aparelho. Não flashar.
 
-## Próxima etapa (fase 2 — curadoria)
+## Fase 2 — DT curada
 
-Gerar uma DTS de SoC (`khaje.dtsi`) e uma de placa (`topaz.dts`) reduzidas aos nós usados pelo port 6.12, com bindings revisados, e manter a conversão mecânica como trilha de auditoria.
+Gerada por [`tools/curate_dt.py`](../../tools/curate_dt.py), sem edição manual:
+
+```sh
+python3 tools/curate_dt.py --out-dir device-tree/topaz          # gera e verifica
+python3 tools/curate_dt.py --out-dir device-tree/topaz --check  # só verifica
+```
+
+O que o gerador faz:
+
+- **Labels:** a base decompilada não tem labels nos nós, então eles vêm de `__symbols__`. Phandles viram `&label` só nas propriedades que o gerador conhece: listas com células do provedor (`clocks`, `resets`, `power-domains`, `interrupts-extended`, `phys`, `dmas`, `iommus`, `qcom,freq-domain`, `sound-dai` etc.), referências simples (`interrupt-parent`, `memory-region`, `operating-points-v2`, `qcom,lmh-dcvs` etc.), `*-supply` e `*-gpio(s)`. Demais valores ficam numéricos, com o `phandle` do nó preservado; assim o `dtc` produz os mesmos números.
+- **Fecho de nós:** mantém os nós referenciados pelo overlay (126 labels), o fecho transitivo por phandles, os ancestrais, `/cpus`, `/psci`, `/reserved-memory`, `/firmware`, `/chosen`, `/aliases` e os alvos dos aliases. Filhos do overlay com o mesmo nome de um nó da base também puxam esse nó, para o overlay não criar um nó parcial.
+- **`/memory`:** sai do SoC e entra em `topaz.dts` como `memory@40000000`, com o `reg` do FDT ativo.
+- **Raiz:** as propriedades de raiz que o overlay define vão para `topaz.dts`. Segundo o docstring do gerador, o `fdtoverlay` da fase 1 não as aplicava.
+- **Normalizações intencionais:** `bias-disable = <0x0>` vira a flag `bias-disable;` (o binding 6.12 define booleana; o driver só lê a presença). O `phandle` em `/aliases` não é copiado (o nó de aliases não deve carregar `phandle`).
+
+### O que é verificado localmente
+
+`--check` reanalisa `topaz.dts` (resolvendo o include, os blocos `&label` e os labels) e compara com o FDT ativo, nó por nó e valor por valor. Resultado do gerador atual:
+
+- 475 nós na curada, contra 2137 no ativo (1662 removidos por não serem usados pelo overlay nem por dependências).
+- Nenhum nó extra, nenhum `&label` sem alvo, nenhuma referência decodificada apontando para fora da curada, nenhum alias perdido (11 de 11). Phandles não decodificados ficam numéricos e são contados, não erro (1 nesta execução).
+- 4 divergências de valor, todas esperadas: `fstab/vendor status` (base `ok`, ativo `disabled`, origem em runtime, já documentado na fase 1); `/soc/xiaomi_touch get_panel_info`, `/memory ddr_manufacturer_id` e `/memory ddr_size` (só no ativo, injetados pelo bootloader ou origem não confirmada).
+
+Isso não prova que a DT compila nem que é válida pelo dt-schema. Essas provas ficam na CI.
+
+### Na CI
+
+- `compile-and-merge`: `tools/compile_curated_dt.sh` regenera a DT curada, exige que os arquivos versionados sejam idênticos à saída do gerador (geração determinística) e compila `topaz.dts` com `cpp` + `dtc`. A DT curada e o DTB entram no artefato `topaz-dt-validate`.
+- `dt-schema`: valida o DTB curado com o mesmo schema processado do DTB mesclado (log `dt-validate-curated.log`).
+
+Resultado da CI desta fase: **pendente** (ainda não executado para este commit).
+
+## Próxima etapa (fase 2, continuação)
+
+- Revisar o resultado do `dt-validate` do DTB curado e corrigir o que for da DT (não do schema).
+- Decidir o `status` de `/firmware/android/fstab/vendor` (base `ok`, ativo `disabled`).
+- Confirmar a origem de `/soc/xiaomi_touch get_panel_info` e de `/memory ddr_*`.
+- Revisar o bloco `/memory` (valores do ativo) e a licença dos arquivos gerados antes de qualquer submissão.
+- Integrar os nós curados ao kernel: drivers 6.12 para cada nó mantido, e a configuração GKI.
+- Hardware: nada aqui foi testado no aparelho. Não flashar.

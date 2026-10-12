@@ -1,6 +1,7 @@
 name: device-tree
 
-# Valida a DT topaz (base Khaje + overlay topaz) com dtc/fdtoverlay.
+# Valida a DT topaz: base Khaje + overlay topaz (dtc/fdtoverlay) e a DT curada
+# (khaje.dtsi + topaz.dts, gerada por tools/curate_dt.py) com dtc e dtschema.
 # Nao compila kernel nem gera imagem de boot.
 
 on:
@@ -35,6 +36,9 @@ jobs:
 
       - name: Validar base + overlay + merge
         run: bash tools/validate_dt.sh "$RUNNER_TEMP/topaz-dt"
+
+      - name: Gerar e compilar a DT curada (conferindo a geracao)
+        run: bash tools/compile_curated_dt.sh "$RUNNER_TEMP/topaz-dt"
 
       - name: Publicar artefatos
         if: always()
@@ -91,11 +95,13 @@ jobs:
             echo "aplicado: $(basename "$p")"
           done
 
-      - name: Gerar DTB mesclado e validar com dtschema
+      - name: Gerar DTBs (mesclado e curado) e validar com dtschema
         run: |
           bash tools/validate_dt.sh "$RUNNER_TEMP/topaz-dt"
+          bash tools/compile_curated_dt.sh "$RUNNER_TEMP/topaz-dt"
           bash tools/check_dt_schema.sh "$RUNNER_TEMP/kernel" "$GITHUB_WORKSPACE/patches" \
-              "$RUNNER_TEMP/topaz-dt/merged.dtb" "$RUNNER_TEMP/topaz-dt/schema"
+              "$RUNNER_TEMP/topaz-dt/merged.dtb" "$RUNNER_TEMP/topaz-dt/schema" \
+              "$RUNNER_TEMP/topaz-dt/curated/topaz-curated.dtb"
 
       - name: Publicar relatorio dtschema
         if: always()
