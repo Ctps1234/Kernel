@@ -16,6 +16,7 @@
 CONFIG_ARCH_QCOM=y
 
 # Pinctrl, clocks e energia (patches 0002, 0004, 0011)
+CONFIG_PINCTRL_MSM=y                 # dependencia de PINCTRL_KHAJE (Kconfig.msm: if PINCTRL_MSM)
 CONFIG_PINCTRL_KHAJE=y               # qcom,khaje-pinctrl (0002)
 CONFIG_SM_GCC_6225=y                 # qcom,khaje-gcc (0011)
 CONFIG_COMMON_CLK_QCOM=y             # dependencia dos clocks Qualcomm (0004, 0011)
@@ -33,6 +34,7 @@ CONFIG_INTERCONNECT_QCOM_BENGAL=y    # qcom,bengal-*
 
 # UFS (patch 0006 para o PHY)
 CONFIG_SCSI_UFS_QCOM=y               # qcom,ufshc
+CONFIG_PHY_QCOM_QMP=y                # dependencia de PHY_QCOM_QMP_UFS (menuconfig com if)
 CONFIG_PHY_QCOM_QMP_UFS=y            # qcom,ufs-phy-qmp-v4-khaje
 
 # Serial, I2C, SPI e DMA (GENI)
@@ -48,7 +50,7 @@ CONFIG_SPMI=y
 CONFIG_SPMI_MSM_PMIC_ARB=y           # qcom,spmi-pmic-arb
 CONFIG_MFD_SPMI_PMIC=y               # qcom,spmi-pmic
 CONFIG_REGULATOR_QCOM_SPMI=y         # reguladores SPMI do PMIC
-CONFIG_PINCTRL_SPMI_GPIO=y           # qcom,pm6125-gpio
+CONFIG_PINCTRL_QCOM_SPMI_PMIC=y      # qcom,pm6125-gpio (nome 6.12: PINCTRL_QCOM_SPMI_PMIC)
 CONFIG_QCOM_SPMI_TEMP_ALARM=y        # qcom,spmi-temp-alarm
 CONFIG_QCOM_SPMI_ADC5=y              # qcom,spmi-adc5
 CONFIG_QCOM_SPMI_ADC_TM5=y           # qcom,spmi-adc-tm5
