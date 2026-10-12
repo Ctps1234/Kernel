@@ -10,10 +10,10 @@ enumeration matches the companion driver patch.
 ---
 diff --git a/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml b/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml
 new file mode 100644
-index 0000000..b02854e
+index 0000000..2c6ace8
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml
-@@ -0,0 +1,289 @@
+@@ -0,0 +1,287 @@
 +# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 +%YAML 1.2
 +---
@@ -52,8 +52,7 @@ index 0000000..b02854e
 +      - $ref: "#/$defs/qcom-khaje-tlmm-state"
 +      - type: object
 +        properties:
-+          phandle:
-+            $ref: /schemas/types.yaml#/definitions/phandle
++          phandle: true
 +          linux,phandle:
 +            $ref: /schemas/types.yaml#/definitions/phandle
 +          name:
@@ -72,8 +71,7 @@ index 0000000..b02854e
 +    unevaluatedProperties: false
 +
 +    properties:
-+      phandle:
-+        $ref: /schemas/types.yaml#/definitions/phandle
++      phandle: true
 +      linux,phandle:
 +        $ref: /schemas/types.yaml#/definitions/phandle
 +      pins:
