@@ -93,12 +93,13 @@ Resultado da CI desta fase (run [`38283896478`](https://github.com/Ctps1234/Kern
 
 - `compile-and-merge` e `dt-schema`: **success** (o job `dt-schema` segue `continue-on-error`).
 - Verificação da DT curada gerada: idêntica aos arquivos versionados; `cpp` + `dtc` sem erro.
-- `dt-validate` do DTB curado: **1529 erros** (mesclado: 2761). Principais categorias no DTB curado:
-  - `status = "ok"` (38): dt-schema aceita só `okay`/`disabled`/`reserved`/`fail`/`fail-needs-probe`. Linux aceita `ok`, mas a DT curada ainda não normalizou.
+- `dt-validate` do DTB curado: **1491 erros** (mesclado: 2761; run [`38284596380`](https://github.com/Ctps1234/Kernel/actions/runs/38284596380), commit `841fa41`, com `status = "ok"` já normalizado). Principais categorias no DTB curado:
+  - `status = "ok"`: resolvido na curada (normalizado para `okay`; era 38 erros).
   - Propriedades vendor sem binding na base 6.12 (ficam como bytes): `rgltr-*` (36), `cci-master` (12), `gpio-req-tbl-*` (33), `gpio-no-mux` (11), `clock-rates` e `clock-cntl-level` (18), `qcom,lpi-gpios`, `qcom,codec-*` e `timing@0: qcom,mdss-dsi-*` (DSI do painel).
   - `qcom,freq-domain` (8) e `qcom,lmh-dcvs` (8) em `cpu@N`: a base 6.12 não documenta essas propriedades em `cpus.yaml`, então o `dt-validate` não decodifica o phandle. A conversão está correta (`&label` no fonte, valor numérico no DTB).
   - `compatible` (16), `status` (15), `'ranges' is a required property` (7), `$nodename` (7): precisam de revisão caso a caso.
-- Os erros de `mk-schema` que aparecem no log são da base (`fsl,liodn`, `gunyah-cma-mem`), não da DT topaz.
+- Por compatível do nó (curada, top): `qcom,sde-kms` (86), `qcom,cam-sensor` (70), `qcom,eeprom` (46), `qcom,nopmi-chg` (32), `qcom,sdhci-msm-v5` (23), `qcom,swr-mstr` (22), `qcom,bengal-asoc-snd` (22), `qcom,audio-ref-clk` (22), `qcom,ufshc` (19), `qcom,cci-v1.2` (19), `qcom,geni-se-qup` (18), `sm,sm5602` (18), `qcom,wcd937x-codec` (18), `sc,sc8551-standalone` (17), `arm,armv8` (16), `ti,bq2589x-1` (12), `richtek,rt1711h` (10), `lionsemi,ln8000-master` (9), `qcom,dwc-usb3-msm` (7).
+  Quase todos são subsistemas vendor (display, câmera, carregador, áudio, UFS/SDHCI/USB) sem driver 6.12 nesta série. Escrever binding para eles exige o código do driver vendor, que não está no repositório.- Os erros de `mk-schema` que aparecem no log são da base (`fsl,liodn`, `gunyah-cma-mem`), não da DT topaz.
 - A contagem por propriedade agora é publicada como anotação `notice` (`dtschema erros por propriedade`), porque a anotação do log completo é truncada na página do run.
 
 Nada disso bloqueia a CI. Corrigir os erros exige decidir entre bindings novos (série de patches) e reduzir ainda mais a DT curada (ver próxima etapa).
