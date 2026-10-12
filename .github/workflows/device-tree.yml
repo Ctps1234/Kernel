@@ -10,12 +10,14 @@ on:
       - "device-tree/**"
       - "tools/**"
       - "patches/**"
+      - "configs/**"
       - ".github/workflows/device-tree.yml"
   pull_request:
     paths:
       - "device-tree/**"
       - "tools/**"
       - "patches/**"
+      - "configs/**"
   workflow_dispatch:
 
 permissions:
@@ -109,5 +111,68 @@ jobs:
         with:
           name: topaz-dt-schema
           path: ${{ runner.temp }}/topaz-dt
+          if-no-files-found: warn
+          retention-days: 14
+
+  defconfig:
+    # Verifica o fragmento de defconfig do topaz contra o Kconfig da base 6.12
+    # (gki_defconfig + merge_config + olddefconfig). Nao compila o kernel.
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    env:
+      BASE_SHA: 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar ferramentas de Kconfig
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flex bison bc
+
+      - name: Obter a base 6.12 fixada (Kconfig, arch/arm64, scripts, bindings)
+        run: |
+          mkdir "$RUNNER_TEMP/kernel" && cd "$RUNNER_TEMP/kernel"
+          git init -q
+          git remote add origin https://github.com/EdMory/android_kernel_common_sm8850.git
+          git fetch -q --depth=1 --filter=blob:none origin "$BASE_SHA"
+          git sparse-checkout init --no-cone
+          git sparse-checkout set --no-cone \
+              '/Makefile' '/Kconfig' '/scripts/' '/arch/arm64/' \
+              '/Documentation/devicetree/bindings/' '/include/dt-bindings/' \
+              '/drivers/clk/qcom/' '/drivers/interconnect/qcom/' \
+              '/drivers/pinctrl/qcom/' '/drivers/phy/qualcomm/' '/drivers/regulator/' \
+              'Kconfig*'
+          git checkout -q FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+
+      - name: Aplicar a serie de patches locais
+        run: |
+          cd "$RUNNER_TEMP/kernel"
+          for p in "$GITHUB_WORKSPACE"/patches/[0-9][0-9][0-9][0-9]-*.patch; do
+            git apply --check "$p" || { echo "::error::patch nao aplica: $(basename "$p")"; exit 1; }
+            git apply "$p"
+            echo "aplicado: $(basename "$p")"
+          done
+
+      - name: Verificar o fragmento contra o Kconfig 6.12
+        run: |
+          bash tools/check_defconfig.sh "$RUNNER_TEMP/kernel" \
+              configs/topaz/topaz.fragment "$RUNNER_TEMP/defconfig"
+
+      - name: Resumo do defconfig
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/defconfig/defconfig-report.txt" ]; then
+            { echo "### Fragmento de defconfig do topaz"; echo '```'; cat "$RUNNER_TEMP/defconfig/defconfig-report.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Sem relatorio: algum passo do defconfig falhou antes do relatorio." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Publicar relatorio do defconfig
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: topaz-defconfig
+          path: ${{ runner.temp }}/defconfig
           if-no-files-found: warn
           retention-days: 14

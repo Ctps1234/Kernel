@@ -1,0 +1,61 @@
+# Fragmento de defconfig do topaz (Redmi Note 12 4G), base Android GKI 6.12.
+#
+# Aplicado sobre arch/arm64/configs/gki_defconfig da base fixada, por
+# tools/check_defconfig.sh (merge_config.sh + olddefconfig). A CI reporta os
+# simbolos que o Kconfig 6.12 nao aceita ou que o olddefconfig desativou.
+#
+# Origem: cada linha vem de um compatible da DT curada (device-tree/topaz/),
+# ou de um simbolo criado pelos patches da serie local. A configuracao 5.15
+# do aparelho (google_drive/topaz-5.15.config) e GKI generica: nao traz os
+# drivers Qualcomm de SoC (sao modulos de fornecedor no aparelho), entao nao
+# e fonte direta destes simbolos.
+#
+# Fora deste fragmento de proposito (escopo C): display, camera, audio, USB,
+# SD/eMMC, carregador, toque, impressao digital, DSP/modem, Wi-Fi/BT.
+
+CONFIG_ARCH_QCOM=y
+
+# Pinctrl, clocks e energia (patches 0002, 0004, 0011)
+CONFIG_PINCTRL_KHAJE=y               # qcom,khaje-pinctrl (0002)
+CONFIG_SM_GCC_6225=y                 # qcom,khaje-gcc (0011)
+CONFIG_QCOM_CLK_SMD_RPM=y            # qcom,rpmcc-khaje: provider RPM-SMD (0004)
+CONFIG_QCOM_SMD_RPM=y                # qcom,rpm-smd
+CONFIG_REGULATOR_QCOM_SMD_RPM=y      # qcom,rpm-smd-regulator(-resource) (0008, 0009)
+CONFIG_QCOM_SMEM=y                   # memoria compartilhada (RPM-SMD, glink)
+CONFIG_QCOM_SCM=y                    # qcom,scm
+CONFIG_QCOM_CPUFREQ_HW=y             # qcom,cpufreq-hw
+CONFIG_QCOM_MPM=y                    # qcom,mpm-khaje, qcom,mpm
+
+# Interconexao (patch 0007)
+CONFIG_INTERCONNECT=y
+CONFIG_INTERCONNECT_QCOM_BENGAL=y    # qcom,bengal-*
+
+# UFS (patch 0006 para o PHY)
+CONFIG_SCSI_UFS_QCOM=y               # qcom,ufshc
+CONFIG_PHY_QCOM_QMP_UFS=y            # qcom,ufs-phy-qmp-v4-khaje
+
+# Serial, I2C, SPI e DMA (GENI)
+CONFIG_QCOM_GENI_SE=y                # qcom,geni-se-qup
+CONFIG_SERIAL_QCOM_GENI=y            # qcom,geni-debug-uart, qcom,msm-geni-serial-hs
+CONFIG_SERIAL_QCOM_GENI_CONSOLE=y    # console serial do boot
+CONFIG_I2C_QCOM_GENI=y               # qcom,i2c-geni
+CONFIG_SPI_QCOM_GENI=y               # qcom,spi-geni
+CONFIG_QCOM_GPI_DMA=y                # qcom,gpi-dma
+
+# PMIC via SPMI e GPIO/ADC/temperatura
+CONFIG_SPMI=y
+CONFIG_SPMI_MSM_PMIC_ARB=y           # qcom,spmi-pmic-arb
+CONFIG_MFD_SPMI_PMIC=y               # qcom,spmi-pmic
+CONFIG_REGULATOR_QCOM_SPMI=y         # reguladores SPMI do PMIC
+CONFIG_PINCTRL_SPMI_GPIO=y           # qcom,pm6125-gpio
+CONFIG_QCOM_SPMI_TEMP_ALARM=y        # qcom,spmi-temp-alarm
+CONFIG_QCOM_SPMI_ADC5=y              # qcom,spmi-adc5
+CONFIG_QCOM_SPMI_ADC_TM5=y           # qcom,spmi-adc-tm5
+
+# IOMMU e memoria
+CONFIG_ARM_SMMU_QCOM=y               # qcom,qsmmu-v500
+
+# Entrada e depuracao de boot
+CONFIG_GPIO_KEYS=y                   # gpio-keys
+CONFIG_PSTORE=y
+CONFIG_PSTORE_RAM=y                  # ramoops (depuracao de panico)
