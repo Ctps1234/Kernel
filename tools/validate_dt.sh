@@ -79,8 +79,12 @@ diff -u "$OUT/live.dts" "$OUT/merged.dts" > "$OUT/live-vs-merged.diff" 2>/dev/nu
 DIFFLINES=$(grep -c '^[-+][^-+]' "$OUT/live-vs-merged.diff" 2>/dev/null || true)
 echo "linhas de diff com o FDT ativo (informativo): ${DIFFLINES:-0}"
 summary "- diff informativo com o FDT ativo: ${DIFFLINES:-0} linhas"
+python3 "$ROOT/tools/dts_diff_summary.py" "$OUT/live.dts" "$OUT/merged.dts" --top 12 \
+    > "$OUT/live-vs-merged.summary.txt" 2>&1 || true
+cat "$OUT/live-vs-merged.summary.txt"
 if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    echo "::notice title=DT topaz::merge OK; diff informativo vs FDT ativo: ${DIFFLINES:-0} linhas"
+    echo "::notice title=DT topaz merge::diff bruto ${DIFFLINES:-0} linhas; ver resumo no log do job"
+    summary '```' "$(cat "$OUT/live-vs-merged.summary.txt")" '```'
 fi
 
 if [ "$FAILED" -ne 0 ]; then
