@@ -1,0 +1,62 @@
+# Validação da base Android Common/GKI 6.12
+
+## Escopo
+
+O alvo do projeto é Linux 6.12 com Android/GKI para Android 17 sobre vendor/base Android 15. A branch `android16-6.12` é candidata para esse alvo, de acordo com o histórico de compatibilidade já levantado. O requisito explícito do projeto continua sendo Linux 6.12; a branch Android 17/6.18 não foi adotada.
+
+## Proveniência e revisão das fontes
+
+### Base AOSP de referência
+
+- Repositório-mirror: [`aosp-mirror/kernel_common`](https://github.com/aosp-mirror/kernel_common).
+- Branch `android16-6.12`: commit `105b5745f1d771060aa9fb7f75821f69bb2298fd`, datado de 2025-11-19.
+- O repositório do mirror está arquivado; essa branch é útil para comparação de ancestralidade, não deve ser tratada como a cópia mais recente de segurança em 2026.
+
+### Mirror mantido da linha CodeLinaro `android16-6.12-lts`
+
+- Repositório GitHub encontrado: [`EdMory/android_kernel_common_sm8850`](https://github.com/EdMory/android_kernel_common_sm8850), que se descreve como cópia da linha CodeLinaro `aosp-new/android16-6.12-lts`.
+- Branch observada: `aosp-new/android16-6.12-lts` (também publicada como `main`). Commit: `0efd3abd3c356d644ea49f6ed37e9830b78d34e3`, datado de 2026-08-21.
+- A comparação do GitHub com o commit AOSP acima informa `ahead_by=9313`, `behind_by=0`: o commit é descendente da base Android Common `android16-6.12`, não um snapshot sem relação.
+- `build.config.constants` mantém `BRANCH=android16-6.12`, `KMI_GENERATION=6`, `CLANG_VERSION=r536225` e `RUSTC_VERSION=1.82.0.p2`.
+- A linhagem e a configuração fazem desse mirror a base 6.12 mantida publicamente verificável mais adequada no momento. Ainda é um mirror de terceiro; antes de uma imagem de uso diário, a referência direta da branch CodeLinaro e a autenticidade do commit devem ser confirmadas. Para um primeiro build genérico, fixar o hash acima torna o teste reproduzível. A Platform 5.0 R47 descrita abaixo é uma referência de implementação Qualcomm/SoC com branch de build rotulada R67; o `kernel/common` não pôde ser recuperado no mirror público e a versão efetiva da base não foi validada, portanto ela não demonstra uma base GKI alternativa 6.12.
+
+### Referência de product/vendor Bengal 6.12
+
+- O espelho GitHub do projeto CodeLinaro `clo/la/platform/vendor/qcom/bengal_612` está em [`CodeLinaro-mirror/la_platform_vendor_qcom_bengal_612`](https://github.com/CodeLinaro-mirror/la_platform_vendor_qcom_bengal_612). Foram comparadas as branches `qcom-devices.lnx.16.0.r6-rel` (commit `18071a12d8a1d81c6f1303b2f89be30d75f58f34`, 2026-07-28) e `qcom-devices.lnx.16.0.r18-rel` (commit `a940290c68dcbc8d0bfd4721ef6923743a52786b`, 2026-09-02).
+- Na árvore r18 examinada, há configuração de produto Android/vendor (`BoardConfig.mk`, fstab, init e manifests), não fontes de kernel; não aparecem drivers, DTS ou defconfig. `BoardConfig.mk` define `TARGET_BOARD_PLATFORM := bengal`, boot header v4 e flags de DTB/DTBO/DLKM que podem servir como referência de empacotamento.
+- Limitação decisiva: `bengal_612.mk` nas branches r6 e r18 fixa `TARGET_KERNEL_VERSION := 5.15` e `TARGET_KERNEL_DLKM_DISABLE := true`. A r18 informa `PRODUCT_SHIPPING_API_LEVEL := 37`, mas isso não torna o kernel 6.12 nem o hardware topaz compatíveis. Também não se deve copiar suas flags de DTB/DTBO: a configuração é genérica e o aparelho desta investigação usa base DTB em `vendor_boot` e overlay em partição DTBO.
+- Portanto, é útil como referência futura para configurações genéricas de Android/vendor e imagens; **não** resolve o port de clocks/votos de tensão, Bengal ICC, UFS PHY, DTS/DTBO topaz ou drivers Khaje.
+
+### Manifest de kernel Qualcomm 5.15
+
+- O arquivo CodeLinaro [`AU_LINUX_KERNEL.PLATFORM.2.0.R12.00.00.00.019.067.xml`](https://github.com/CodeLinaro-mirror/la_kernelplatform_manifest/blob/release/AU_LINUX_KERNEL.PLATFORM.2.0.R12.00.00.00.019.067.xml) foi conferido no mirror `CodeLinaro-mirror/la_kernelplatform_manifest`, branch `release` (snapshot consultado no commit `06b8d1edb7c49070e4af94309e9dab91ff9dd76f`). O manifest fixa revisões reproduzíveis do kernel/build e da toolchain.
+- Ele aponta `kernel/msm-5.15` para `5cd2456eefe07127ef63214f161c1584374e2368` (`kernel.lnx.5.15.r16-rel`), `kernel/common` para `fd09835701b386f28b0abd62b6cfa1e5d0a84897` (`ks-kernel.lnx.2.0.r14-rel`) e `kernel/build` para `90a91ef9d5ec3bf136d3d7e27f7087b5c3040452`. Fixa também o checkout Clang `b75008e4544bc723b147032b2dbcbc85ef54365f` e `external/dtc` `4646211a9a73d551bce2ba79f803eee2fa41f29c`.
+- **Utilidade:** é uma referência concreta para comparar a base Qualcomm 5.15, seus pins de build e APIs com a árvore Xiaomi/topaz, e pode apoiar futuramente uma reprodução do kernel vendor 5.15.
+- **Limite:** não é o alvo 6.12, não contém uma placa topaz nem o DTS/DTBO do aparelho; não substitui o commit Android Common 6.12 já fixado nem resolve drivers Khaje/Bengal. Tratar como baseline histórico/vendor, não como fonte para a imagem alvo.
+
+### Manifest Qualcomm Platform 5.0 R47 / candidato R67
+
+- A mesma branch `release` do mirror contém [`KERNEL.PLATFORM.5.0.r47-01600-kernel.0.xml`](https://github.com/CodeLinaro-mirror/la_kernelplatform_manifest/blob/06b8d1edb7c49070e4af94309e9dab91ff9dd76f/KERNEL.PLATFORM.5.0.r47-01600-kernel.0.xml), blob `80a5131cea9435305b84a2c629bea29233eaa2a9` (snapshot da branch consultado em `06b8d1edb7c49070e4af94309e9dab91ff9dd76f`). É um manifest de plataforma/kernel, não um manifest de produto topaz.
+- Pins de código relevantes: `kernel/build` `5ddc360e7eef5a6ecd579998d775ef6ef17a27d8` (`kernel.lnx.6.12.r67-rel`); `kernel/qcom` `1c96d1325813d872d0206ffafe70c88823c86d6c` (`kernel.lnx.6.12.r67-rel`); `kernel/common` `b59c8325affab5359b3438ddafcf0a74ff7bff97` (`ks-kernel.lnx.5.0.r79-rel`); `platform/vendor/qcom-opensource/devicetree` `66167e56588bd7c0c9ec91e1e5c464512f6c4db6` (`kernel.lnx.6.12.r67-rel`). Os commits de build, SoC repo e devicetree foram encontrados nos mirrors GitHub; o pin de `kernel/common` não foi.
+- Pins da toolchain R47 (não devem ser presumidos para o alvo GKI separado): Clang prebuilt `892935249976621319cd738fdc69a45c25014bd6`; kernel build-tools `ebbeac5d2db504f4b036b3899499b2b1b0df56e1`; `external/dtc` `edd020ac81db8c68a7dfd38d5993001aeadedd5e`; Rust prebuilt `2793d365d8a0e5a6a2b3303aac18105254390220`; clang-tools `e119087c11c2894688a0b20a448fb8e875fab330`. O `soc-repo` declara Clang `r536225` e Rust `1.81.0.u1`.
+- **Comparação de linhagem:** a API do mirror GitHub `CodeLinaro-mirror/la_kernel_common` não resolve `b59c8325...` nem publica a ref `ks-kernel.lnx.5.0.r79-rel`; também não resolve o commit fixado `0efd3abd...` do mirror EdMory. Portanto, não foi possível calcular ancestralidade, verificar o `BRANCH`/KMI do `kernel/common` R79, nem demonstrar que esse source é a mesma base GKI `android16-6.12-lts`. O nome do branch e o número 6.12, sozinhos, não demonstram compatibilidade Android 17/API 37 nem KMI com o vendor Android 15.
+- **Configuração/versão comparadas:** os arquivos em `soc-repo` têm `build.config.common` com `BRANCH=android-mainline`; seus `build.config.constants` declaram Clang `r536225` e Rust `1.81.0.u1`. O alvo fixado declara `BRANCH=android16-6.12`, `KMI_GENERATION=6`, o mesmo Clang `r536225`, mas Rust `1.82.0.p2`. Isso compara configurações de repositórios distintos, não prova quais valores a build R47 realmente usa para o common kernel. O config `build.config.msm.bengal` seleciona `MSM_ARCH=bengal`, header de boot v4, vendor/system DLKM e DT overlays: é de plataforma Bengal, não de produto topaz. Além disso, o [`Makefile` do `soc-repo` R67](https://github.com/CodeLinaro-mirror/la_kernel_qcom/blob/1c96d1325813d872d0206ffafe70c88823c86d6c/Makefile) declara `VERSION=6`, `PATCHLEVEL=11`, `SUBLEVEL=0`. Porém o manifest synca `kernel/common` separadamente em `kernel_platform/common`, e a regra [Bazel Bengal](https://github.com/CodeLinaro-mirror/la_kernel_qcom/blob/1c96d1325813d872d0206ffafe70c88823c86d6c/kleaf-scripts/targets/bengal.bzl) aponta `kernel_build = "//common:kernel_aarch64"`; portanto, o Makefile do `soc-repo` não prova sozinho a versão efetivamente construída. Como o pin `kernel/common` R79 não está acessível, a versão/linhagem da base que alimenta essa regra continua sem validação. As diferenças de branch/toolchain e esse Makefile são motivos para não tratar a etiqueta R67 como prova de uma base Android Common 6.12 equivalente.
+- **Valor direto para o port:** o `soc-repo` R67 expõe fontes de plataforma Khaje/Bengal, incluindo [`pinctrl-khaje.c`](https://github.com/CodeLinaro-mirror/la_kernel_qcom/blob/1c96d1325813d872d0206ffafe70c88823c86d6c/drivers/pinctrl/qcom/pinctrl-khaje.c), clocks Khaje, interconnect Bengal e UFS PHY Khaje. Os dados são úteis para conferir hardware e sequências, mas o Makefile local 6.11.0 e o common R79 inacessível impedem tratá-los como prova de uma API/build 6.12 idêntica ao alvo. O commit de devicetree contém `qcom/khaje.dtsi`, `qcom/khaje-pinctrl.dtsi` e referências `khaje-idp-nopmi.*`. Não há DTS/DTBO de `topaz`/`tapas`: o IDP Qualcomm é referência de SoC/placa, não substitui o par FDT/DTBO do aparelho.
+- A tabela Khaje R67 coincide com a série local nos 113 primeiros conjuntos `PINGROUP` e nos 56 pares de `wakeirq_map`; a fonte R67 acrescenta o mux virtual `egpio` (seletor 11, GPIO98–112) e marca GPIO0–3 como reservados para o gpiochip. A série foi ampliada para documentar/implementar `egpio` no core 6.12 e adota a reserva 0–3: no core fixado `reserved_gpios` só altera a máscara de linhas exportadas pelo gpiochip, sem retirar os grupos pinctrl; o FDT ativo usa 0–3 em estados QUP0 e não contém consumidor GPIO direto nessas linhas. A fonte Qualcomm também inclui `.wake_reg`/`.wake_bit` e `msm_gpio_mpm_wake_set()`, ausentes no core 6.12 alvo; essa parte vendor não foi copiada e o wake de hardware continua sem validação.
+- **Decisão:** conservar `EdMory/...` no commit `0efd3abd...` como alvo de API/build que possui linhagem e metadados inspecionáveis; usar R47 como referência de implementação SoC Qualcomm e de build tooling, sem presumir que o kernel efetivamente gerado seja 6.12. Só reconsiderar o alvo se o commit R79 oficial puder ser obtido e sua versão Linux, linhagem, build config e KMI forem comparados explicitamente.
+
+## Estado do build no ambiente
+
+Foram usadas sparse checkouts/worktrees temporárias da base fixada em `/tmp/android16-6.12` para aplicar e conferir a série local 0001–0011 (pinctrl, RPMCC, PHY UFS, interconnect Bengal, reguladores RPM-SMD e clocks Khaje); cada `git apply --check` e o `git diff --check` acumulado passaram. Essas árvores não estão incluídas no repositório do projeto. Nenhum build foi iniciado. O ambiente não tem `clang`/`ld.lld`, compilador AArch64, `flex`, `bison` ou `bc`; portanto, não há build arm64 Android/GKI confiável disponível neste host. Não vamos substituir silenciosamente a toolchain Android especificada pela branch por uma qualquer.
+
+## Próximos passos (ordem escolhida pelo usuário)
+
+1. Concluir a fundação de boot primeiro: traduzir a base Khaje + overlay topaz para DTS/DTBO validáveis, revisar a série 0001–0011 e fechar a configuração GKI/defconfig; os providers GCC/DISPCC/GPUCC/debugcc e o framework de votos de tensão estão portados estaticamente, ainda sem validação formal/build. A matriz de compatibilidade está em [`driver-port-matrix.md`](driver-port-matrix.md).
+2. Só depois avançar para os drivers de periféricos/paridade Android. A integração solicitada deve estar concluída antes de compilar; não iniciar build nesta fase.
+3. Quando a integração estiver pronta para validar, obter a toolchain/dependências que correspondem à base e configurar GitHub Actions para clonar esse hash, construir e guardar logs/hashes. O usuário indicou Actions como ambiente de build posterior; nenhuma compilação deve ser presumida agora.
+4. Registrar o resultado do build (hashes, toolchain, config e artefatos) antes de qualquer teste no aparelho; manter ferramentas e outputs fora do Git.
+5. Confirmar backups verificáveis das partições e recuperação antes de testar qualquer imagem; não flashar durante a fase atual.
+
+A decisão de fazer primeiro a integração DTS/drivers substitui a ordem preliminar de estabelecer um build genérico local antes do port. O alvo continua Android/GKI 6.12.
+
+Essa checagem valida a linhagem e metadados da base candidata; **não** demonstra que ela compile neste ambiente, que o mirror esteja perfeitamente sincronizado com CodeLinaro, ou que o hardware topaz funcione sem port adicional.
