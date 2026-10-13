@@ -76,3 +76,24 @@ das notas anteriores.
    init do vendor. Até lá, o driver `panel-novatek-nt36672e` é só candidato.
 4. **Wi-Fi:** decidir se o caminho é ath10k (exige firmware upstream, que não está no aparelho)
    ou se fica como “não resolvido” até haver fonte do QCACLD.
+
+## Painel m7: identificação do IC (investigação de 2026-10-13)
+
+Estado: **IC não identificado.** Nenhuma hipótese foi confirmada.
+
+- **Pista do irmão k7.** O driver MTK `dsi_panel_k7_38_0c_0a_fhdp_video.c` (repositório público
+  `agostino64/android_kernel_xiaomi_mtk`) lê o ID com `0x82` e identifica o IC como **ICNL9911C**
+  (esperado `0x31 0x41`). É a mesma convenção de nome "38 0c 0a", mas é outro painel.
+- **Hipótese descartada 1: ICNL9911C.** A tabela de init do k7 não tem nenhum `0xB6`, e o m7 da stock
+  começa com `b6 30 6b 00 06 03 0a 13 1a 6c 18 19 02`. Também usa `f0 5a 59` (k7) contra `f0 5a 5a` (m7).
+  Não confirma o mesmo IC.
+- **Hipótese descartada 2: NT36672E.** `drivers/gpu/drm/panel/panel-novatek-nt36672e.c` (base 6.12) começa
+  com `b0 00` e `c1` com 16 bytes, o que não bate com a sequência do m7. Não é o mesmo IC.
+- **Base 6.12:** não há driver upstream `chipone`/`icnl` (busca em `drivers/gpu/drm/panel/`).
+- **Dmesg e linha de comando:** nenhum nome de IC ou ID de painel aparece no boot.
+- **`lista-vendor-device.txt`:** sem arquivo de painel ou display.
+
+Para fechar a identificação, falta uma destas informações:
+1. Nome do IC gravado na etiqueta ou na FPC do painel (foto, sem abrir o aparelho).
+2. Leitura do ID do DDIC (comandos DCS `0xDA`/`0xDB`/`0xDC` ou `0x04`) feita pelo driver de stock.
+3. Saída de `dumpsys display` no Termux ou em um app de informações de hardware, se o IC aparecer lá.
