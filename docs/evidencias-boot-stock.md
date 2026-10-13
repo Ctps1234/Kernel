@@ -106,3 +106,25 @@ Para fechar a identificação, falta uma destas informações:
 - `getprop`: `ro.vendor.display.type=oled`, o que bate com o painel de video.
 - O build em execucao e RisingOS 9 para o codinome `tapas`. Confirmado pelo usuario: `topaz` e `tapas` sao o
   mesmo aparelho e usam o mesmo kernel; so o NFC muda. Logo, essas propriedades valem como evidencia para `topaz`.
+
+## Engenharia reversa do vendor_boot e do dtbo_b (IC do painel m7 continua nao confirmado)
+
+Feita sem tocar no aparelho. Arquivos locais em `google_drive/` (gitignored); extracoes em `/tmp`.
+
+- **vendor_boot_b.img** (`VNDRBOOT` v4). Ramdisk vendor (LZ4 legacy) extraido: 266 arquivos, 258 `.ko`.
+- **msm_drm.ko** (driver de display do vendor) tem a logica `mi_disp` de ID de painel: `mi,panel-id`,
+  `mi_get_panel_id_by_dsi_panel`, `panel_build_id`, e a mensagem `mi,panel-id not specified`.
+  O FDT de referencia **nao define** `mi,panel-id` nem build-id para o `m7`, entao esse caminho nao le o IC.
+- **topaz-module-map.txt**: sem modulo de painel separado (so `dispcc-khaje.ko` e `panel_event_notifier.ko`).
+  O codigo do `m7` esta dentro do `msm_drm`.
+- **dtbo_b.img** (FDT overlay, tabela `d7b7ab1e`, 52 entradas, 4096 bytes de pagina). Os overlays definem
+  os paineis `m7 38 0c 0a` e `m7 38 0c 0b` (`qcom,mdss-dsi-panel-name` com texto
+  "m7 38 0c 0a video mode fhdp dsi panel"), alem de `nt36672e` (120/90 Hz) e `td4330`.
+  Busca por `icnl`, `chipone`, `ilitek`, `hx83`, `ili9`, `panel-id`, `build-id` nos DTBs: **nenhum nome de IC
+  para o `m7`**. O `novatek,NVT-ts` aparece junto dos overlays de `nt36672e` (touch do painel novatek, nao o FT5452).
+- No FDT de referencia, o trecho do `m7` lido (linhas ~11040-11200) nao tem comando de leitura de ID do DDIC.
+  O comando `qcom,mdss-dsi-panel-status-command` so aparece no `td4330`. Nao verificado o bloco inteiro do `m7`.
+
+**Conclusao:** o IC do painel `m7` nao esta codificado em nenhum software extraido (driver, modulos, DTBO).
+O nome so pode ser obtido lendo o ID do controlador (via debugfs/DSI em kernel de debug) ou pela etiqueta/FPC do painel.
+Pendente para decidir: `dbg-ls` do debugfs, ou abertura do aparelho (sem decisao tomada).
