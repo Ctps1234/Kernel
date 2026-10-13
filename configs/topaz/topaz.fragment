@@ -10,8 +10,10 @@
 # drivers Qualcomm de SoC (sao modulos de fornecedor no aparelho), entao nao
 # e fonte direta destes simbolos.
 #
-# Fora deste fragmento de proposito (escopo C): display, camera, audio, USB,
-# SD/eMMC, carregador, toque, impressao digital, DSP/modem, Wi-Fi/BT.
+# Fora deste fragmento de proposito (escopo C): camera, audio, USB,
+# SD/eMMC, carregador, toque, impressao digital, DSP/modem, Wi-Fi/BT, GPU
+# (KGSL nao tem fonte) e driver do painel (IC do m7 ainda nao identificado).
+# Display entrou aqui so com clocks e pilha DRM/MSM/DSI, sem painel.
 
 CONFIG_ARCH_QCOM=y
 
@@ -63,3 +65,13 @@ CONFIG_ARM_SMMU_QCOM=y               # qcom,qsmmu-v500
 CONFIG_KEYBOARD_GPIO=y               # gpio-keys (o simbolo 6.12 se chama KEYBOARD_GPIO)
 CONFIG_PSTORE=y
 CONFIG_PSTORE_RAM=y                  # ramoops (depuracao de panico)
+
+# Display: clocks (patch 0011) e pilha DRM/MSM/DSI da base 6.12 (sem GPU, sem painel)
+CONFIG_SM_DISPCC_6225=y              # qcom,dispcc-khaje (0011)
+CONFIG_SM_GPUCC_6225=y               # qcom,gpucc-khaje (0011; clock da GPU, nao o driver)
+CONFIG_SM_DEBUGCC_6225=y             # debugcc-khaje (0011)
+CONFIG_DRM=y                         # DRM core
+CONFIG_DRM_MSM=y                     # MSM DRM (MDSS/DPU)
+CONFIG_DRM_MSM_DPU=y                 # DPU; catalogo sm6125 na base, Khaje ainda nao confirmado
+CONFIG_DRM_MSM_DSI=y                 # host DSI
+CONFIG_DRM_MSM_DSI_14NM_PHY=y        # PHY DSI 14nm; base tem qcom,sm6125-dsi-phy-14nm (Khaje nao confirmado)
