@@ -95,20 +95,6 @@
 };
 
 &thermal_zones {
-	rf-pa1-therm-usr {
-		polling-delay-passive = <0x00000000>;
-		polling-delay = <0x00000000>;
-		thermal-governor = "user_space";
-		thermal-sensors = <&pm6125_adc_tm 0x00000003>;
-		wake-capable-sensor;
-		trips {
-			active-config0 {
-				temperature = <0x0001e848>;
-				hysteresis = <0x000003e8>;
-				type = "passive";
-			};
-		};
-	};
 };
 
 &pm6125_gpios {
@@ -183,37 +169,6 @@
 			gpio-key,wakeup;
 		};
 	};
-	ant_check {
-		compatible = "ant_check";
-		interrupt-parent = <&tlmm>;
-		ant_check_gpio = <&tlmm 0x0000006b 0x00000000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&ant_check_default>;
-	};
-	ant_check_div {
-		compatible = "ant_check_div";
-		interrupt-parent = <&tlmm>;
-		ant_check_div_gpio = <&tlmm 0x00000019 0x00000000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&ant_check_div_default>;
-	};
-	vibrator_gpio {
-		status = "okay";
-		compatible = "qcom,qpnp-vibrator-ldo-tz";
-		pinctrl-names = "default";
-		pinctrl-0 = <&vib_out_gpio8_default>;
-		vib,en-gpio = <&pm6125_gpios 0x00000008 0x00000001>;
-	};
-	vdda_usb_ss_dp_core: vdda_usb_ss_dp_core {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_supply";
-		regulator-min-microvolt = <0x000d6d80>;
-		regulator-max-microvolt = <0x000d6d80>;
-		enable-active-high;
-		gpio = <&pm6125_gpios 0x00000001 0x00000000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb_eldo9>;
-	};
 };
 
 &ufsphy_mem {
@@ -257,10 +212,6 @@
 };
 
 &soc {
-	xm_pd_adapter {
-		compatible = "xiaomi,pd_adapter";
-		adapter_name = "pd_adapter";
-	};
 };
 
 &tlmm {
@@ -303,13 +254,6 @@
 };
 
 &soc {
-	simtray {
-		compatible = "xiaomi,simtray-status";
-		status-gpio = <&tlmm 0x0000004f 0x00000000>;
-	};
-	thermal-message {
-		board-sensor = "VIRTUAL-SENSOR";
-	};
 };
 
 &qupv3_se4_2uart {
@@ -321,25 +265,9 @@
 	qcom,clk-freq-out = <0x00061a80>;
 	#address-cells = <0x00000001>;
 	#size-cells = <0x00000000>;
-	st_st21nfc@08 {
-		compatible = "st,st21nfc";
-		reg = <0x00000008>;
-		st,irq-gpio = <&tlmm 0x00000046 0x00000000>;
-		st,reset-gpio = <&tlmm 0x00000045 0x00000000>;
-		st,clkreq-gpio = <&tlmm 0x00000047 0x00000000>;
-		interrupt-parent = <&tlmm>;
-		interrupts = <0x00000046 0x00000000>;
-		interrupt-names = "nfc_irq";
-		clock-names = "nfc_ref_clk";
-		st,clk_pinctrl;
-	};
 };
 
 &soc {
-	dsi_pll_codes_data: dsi_pll_codes {
-		label = "dsi_pll_codes";
-		reg = <0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000>;
-	};
 };
 
 &soc {
@@ -353,34 +281,15 @@
 };
 
 &soc {
-	dsi_panel_pwr_supply_no_labibb: dsi_panel_pwr_supply_no_labibb {
-		#size-cells = <0x00000000>;
-		#address-cells = <0x00000001>;
-		qcom,panel-supply-entry@0 {
-			qcom,supply-post-on-sleep = <0x00000014>;
-			qcom,supply-disable-load = <0x00000050>;
-			qcom,supply-enable-load = <0x0000f230>;
-			qcom,supply-max-voltage = <0x001b7740>;
-			qcom,supply-min-voltage = <0x001b7740>;
-			qcom,supply-name = "vddio";
-			reg = <0x00000000>;
-		};
-	};
 	qcom,wb-display@0 {
 		label = "wb_display";
 		cell-index = <0x00000000>;
 		compatible = "qcom,wb-display";
 		status = "disabled";
 	};
-	qcom,msm_notifier@0 {
-		compatible = "qcom,msm-notifier";
-	};
 };
 
 &soc {
-	thermal-message {
-		board-sensor = "VIRTUAL-SENSOR";
-	};
 };
 
 &soc {
@@ -412,35 +321,12 @@
 };
 
 &qupv3_se1_i2c {
-	fs16xx@34 {
-		reg = <0x00000034>;
-		fsm,rst-gpio = <&tlmm 0x0000006a 0x00000000>;
-		compatible = "foursemi,fs16xx";
-		status = "okay";
-	};
-	aw87xxx_pa_59@59 {
-		status = "okay";
-		dev_index = <0x00000000>;
-		aw-rx-port-id = <0x0000b032>;
-		reset-gpio = <&tlmm 0x0000006a 0x00000000>;
-		reg = <0x00000059>;
-		compatible = "awinic,aw87xxx_pa";
-	};
 };
 
 &soc {
 };
 
 &soc {
-	cam_vaf_2p8: cam-vaf {
-		status = "okay";
-		enable-active-high;
-		gpio = <&tlmm 0x00000065 0x00000000>;
-		regulator-max-microvolt = <0x002ab980>;
-		regulator-min-microvolt = <0x002ab980>;
-		regulator-name = "cam_vaf_2p8";
-		compatible = "regulator-fixed";
-	};
 };
 
 &qupv3_se1_i2c {

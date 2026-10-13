@@ -70,6 +70,7 @@ Job `dt-schema` (com `continue-on-error`), na base fixada `0efd3abd3c356d644ea49
 - áudio (SPF/LPASS, codecs WCD, SoundWire, ref clocks, amplificador de speaker `si,sia81xx`);
 - USB (DWC3 e PHYs HS/SS), SD/eMMC (`sdhci-msm`), impressão digital;
 - depuração (CoreSight, JTAG, EUD), DSP/modem (remoteproc, FastRPC), IPA, Wi-Fi/BT, TrustZone e criptografia.
+- **Rodada de redução (2026-10-13, opção 1 do dt-validate-curated):** NFC `st,st21nfc` (só `topaz`; `tapas` difere), amplificadores `awinic,aw87xxx_pa` e `foursemi,fs16xx`, adaptador PD `xiaomi,pd_adapter`, vibrador `qcom,qpnp-vibrator-ldo-tz`, SIM tray `xiaomi,simtray-status`, `qcom,msm-notifier`, antena `ant_check`/`ant_check_div` (e os pinos `ant-check-pin`/`ant-check-div-pin` do pinctrl), `cam-vaf`, `vdda_usb_ss_dp_core`, `dsi_pll_codes`, a fonte do painel `dsi_panel_pwr_supply_no_labibb` e `thermal-message`. Também sai `rf-pa1-therm-usr` (zona térmica do PA). O `dsi_pll_codes` deixa de estar na curada, o que encerra a duplicação apontada antes.
 
 Não é exclusão da fase 1: o overlay completo continua em `topaz-overlay.dtso`, e `excluidos.txt` lista cada fragmento e nó removido, com o motivo. A regra é o regex `EXCLUDE_COMPAT` em `tools/curate_dt.py`, aplicado ao `compatible` (do overlay, da base ou do FDT ativo). Também há `EXCLUDE_PATHS` (ex.: `/soc/thermal-screen`, que não tem compatible). O fecho não traz de volta um nó excluído. Se um overlay mantido referenciar um nó excluído, o gerador para com erro.
 

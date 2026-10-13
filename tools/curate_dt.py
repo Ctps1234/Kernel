@@ -106,11 +106,22 @@ EXCLUDE_COMPAT = re.compile("|".join([
     # DSP, modem, Wi-Fi/BT, IPA, TrustZone e criptografia
     r"adsp", r"cdsp", r"modem", r"-pas", r"fastrpc", r"glinkpkt", r"ipa", r"icnss", r"wcn",
     r"qseecom", r"smcinvoke", r"qcedev", r"qcrypto", r"qrng", r"msm_fastrpc",
+    # NFC, amplificadores de audio, adaptador PD, vibrador e SIM tray (sem uso no bring-up)
+    r"st,st21nfc", r"awinic", r"foursemi", r"xiaomi,pd_adapter", r"qcom,qpnp-vibrator",
+    r"xiaomi,simtray", r"qcom,msm-notifier",
 ]))
 
 
 # No sem compatible que sai da curada (pelo caminho completo, em qualquer nivel).
-EXCLUDE_PATHS = ["/soc/thermal-screen"]
+EXCLUDE_PATHS = [
+    "/soc/thermal-screen",
+    # Subsistemas fora do port inicial sem compatible proprio (vendor): antena/ant-check,
+    # PD/USB-SS, camera (VAF), painel DSI (pll codes e fonte do painel), notificacao de termica.
+    "/soc/ant_check", "/soc/ant_check_div", "/soc/cam-vaf", "/soc/vdda_usb_ss_dp_core",
+    "/soc/dsi_pll_codes", "/soc/dsi_panel_pwr_supply_no_labibb", "/soc/thermal-message",
+    "/soc/pinctrl@400000/ant-check-pin", "/soc/pinctrl@400000/ant-check-div-pin",
+    "/soc/thermal-zones/rf-pa1-therm-usr",
+]
 
 # Port 6.12 do toque: excecao controlada ao escopo C. O no de vendor
 # `focaltech@38` (compatible "focaltech,fts", FT5452 em I2C 0x38) sai do overlay e
