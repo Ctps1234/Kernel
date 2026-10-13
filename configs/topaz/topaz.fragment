@@ -10,10 +10,12 @@
 # drivers Qualcomm de SoC (sao modulos de fornecedor no aparelho), entao nao
 # e fonte direta destes simbolos.
 #
-# Fora deste fragmento de proposito (escopo C): camera, audio, USB,
-# SD/eMMC, carregador, toque, impressao digital, DSP/modem, Wi-Fi/BT, GPU
-# (KGSL nao tem fonte) e driver do painel (IC do m7 ainda nao identificado).
+# Fora deste fragmento de proposito: camera, audio, USB, SD/eMMC, carregador,
+# impressao digital, DSP/modem, Wi-Fi/BT, GPU (KGSL nao tem fonte) e driver do
+# painel (IC do m7 ainda nao identificado).
 # Display entrou aqui so com clocks e pilha DRM/MSM/DSI, sem painel.
+# Toque entrou so com o driver EDT/FocalTech (focaltech,ft5452); o no de DT
+# ainda nao existe na DT curada.
 
 CONFIG_ARCH_QCOM=y
 
@@ -60,6 +62,9 @@ CONFIG_QCOM_SPMI_ADC_TM5=y           # qcom,spmi-adc-tm5
 # IOMMU e memoria
 CONFIG_ARM_SMMU=y                    # dependencia de ARM_SMMU_QCOM
 CONFIG_ARM_SMMU_QCOM=y               # qcom,qsmmu-v500
+
+# Toque: driver EDT/FocalTech (focaltech,ft5452; chip 0x5452 no aparelho, I2C 0x38)
+CONFIG_TOUCHSCREEN_EDT_FT5X06=y      # depende de I2C (presente); selecta REGMAP_I2C
 
 # Entrada e depuracao de boot
 CONFIG_KEYBOARD_GPIO=y               # gpio-keys (o simbolo 6.12 se chama KEYBOARD_GPIO)
