@@ -112,6 +112,47 @@ EXCLUDE_COMPAT = re.compile("|".join([
 # No sem compatible que sai da curada (pelo caminho completo, em qualquer nivel).
 EXCLUDE_PATHS = ["/soc/thermal-screen"]
 
+# Port 6.12 do toque: excecao controlada ao escopo C. O no de vendor
+# `focaltech@38` (compatible "focaltech,fts", FT5452 em I2C 0x38) sai do overlay e
+# e substituido pelo no upstream TOUCH_PORT_BLOCK (edt-ft5x06, focaltech,ft5452),
+# emitido em topaz.dts. As propriedades vendor do barramento saem. Os nos goodix e
+# synaptics continuam excluidos por EXCLUDE_COMPAT.
+TOUCH_BUS_LABEL = "qupv3_se2_i2c"
+TOUCH_NODE_NAME = "focaltech@38"
+TOUCH_BUS_VENDOR_PROPS = {"qcom,touch-active", "qcom,i2c-touch-active"}
+# Valores da stock (FDT de referencia, no focaltech@38 do barramento i2c-1):
+#   irq-gpio   <&tlmm 0x50 0x02>  -> GPIO 80, borda de descida (IRQ_TYPE_EDGE_FALLING)
+#   reset-gpio <&tlmm 0x56 0x01>  -> GPIO 86, active low (flag 1 do vendor)
+#   avdd-gpio  <&tlmm 0x24 0x00>  -> GPIO 36, active high; ligado como regulador fixo
+#   display-coords 0x2a2f 0x5dbf  -> 10799 x 23999
+# Pendencias (nao confirmadas em hardware): pinctrl do touch (ts_int_active etc.
+# do vendor nao entram aqui), polaridade do reset e o uso do avdd como regulador.
+TOUCH_PORT_BLOCK = [
+    "/ {",
+    "\ttouch_avdd: regulator-touch-avdd {",
+    "\t\tcompatible = \"regulator-fixed\";",
+    "\t\tregulator-name = \"touch_avdd\";",
+    "\t\tgpio = <&tlmm 0x24 0x00>;",
+    "\t\tenable-active-high;",
+    "\t};",
+    "};",
+    "",
+    "&qupv3_se2_i2c {",
+    "\ttouchscreen@38 {",
+    "\t\tcompatible = \"focaltech,ft5452\";",
+    "\t\treg = <0x38>;",
+    "\t\tinterrupt-parent = <&tlmm>;",
+    "\t\tinterrupts = <0x50 0x02>;",
+    "\t\treset-gpios = <&tlmm 0x56 0x01>;",
+    "\t\tvcc-supply = <&touch_avdd>;",
+    "\t\ttouchscreen-size-x = <10799>;",
+    "\t\ttouchscreen-size-y = <23999>;",
+    "\t\tstatus = \"okay\";",
+    "\t};",
+    "};",
+    "",
+]
+
 
 # compatible por caminho, do FDT ativo. A base de referencia nao traz compatible em
 # alguns nos (ex.: touch sob i2c); o ativo e a fonte para decidir o corte.
@@ -142,6 +183,16 @@ EXPECTED = {
         "fase 1: base 'ok', ativo 'disabled' (runtime); o overlay nao altera o no",
     ("/memory", "ddr_manufacturer_id"): "injetada pelo bootloader; nao e DT da placa",
     ("/memory", "ddr_size"): "injetada pelo bootloader; nao e DT da placa",
+    ("/soc/qcom,qupv3_0_geni_se@4ac0000/i2c@4a88000", "qcom,touch-active"):
+        "port 6.12 do toque: propriedade vendor do barramento removida (TOUCH_BUS_VENDOR_PROPS)",
+    ("/soc/qcom,qupv3_0_geni_se@4ac0000/i2c@4a88000", "qcom,i2c-touch-active"):
+        "port 6.12 do toque: propriedade vendor do barramento removida (TOUCH_BUS_VENDOR_PROPS)",
+}
+# Nos novos da curada que nao existem no FDT ativo, de proposito (TOUCH_PORT_BLOCK).
+EXPECTED_EXTRA_NODES = {
+    "/regulator-touch-avdd": "port 6.12 do toque: regulador fixo do AVDD (GPIO 36) da stock",
+    "/soc/qcom,qupv3_0_geni_se@4ac0000/i2c@4a88000/touchscreen@38":
+        "port 6.12 do toque: no edt-ft5x06 / focaltech,ft5452 (substitui focaltech@38 de vendor)",
 }
 # Propriedades que o gerador normaliza de forma intencional.
 NORMALIZED_FLAGS = {"bias-disable"}
@@ -523,6 +574,13 @@ def generate(out_dir: Path) -> None:
                 prune(base_child, child, f"{path}/{name}")
 
     for frag, tgt in kept_frags:
+        if tgt is bt.labels[TOUCH_BUS_LABEL]:
+            ov = frag.children["__overlay__"]
+            for prop in TOUCH_BUS_VENDOR_PROPS:
+                ov.props.pop(prop, None)
+            if TOUCH_NODE_NAME in ov.children:
+                dropped_log.append(f"{tgt.path()}/{TOUCH_NODE_NAME} (substituido pelo no upstream de toque, TOUCH_PORT_BLOCK)")
+                del ov.children[TOUCH_NODE_NAME]
         prune(tgt, frag.children["__overlay__"], tgt.path())
 
     # Estados de pinctrl definidos no overlay (filhos com label do tlmm) so sao mantidos
@@ -670,6 +728,7 @@ def generate(out_dir: Path) -> None:
         topaz.extend(render_overlay_body(ovl, 1))
         topaz.append("};")
         topaz.append("")
+    topaz.extend(TOUCH_PORT_BLOCK)
     (out_dir / "topaz.dts").write_text("\n".join(topaz), encoding="utf-8")
     excl = [
         "Nos excluidos da DT curada (escopo C: subsistemas fora do port 6.12).",
@@ -762,7 +821,10 @@ def check(out_dir: Path) -> int:
     cur_nodes = {path_key(n): n for n in walk(cur_root) if n.parent is not None}
     live_nodes = {path_key(n): n for n in walk(live_root) if n.parent is not None}
 
-    extra = sorted(set(cur_nodes) - set(live_nodes))
+    extra = sorted(set(cur_nodes) - set(live_nodes) - set(EXPECTED_EXTRA_NODES))
+    for k in EXPECTED_EXTRA_NODES:
+        if k not in cur_nodes:
+            notes.append(f"excecao de no sem no correspondente na curada (revisar EXPECTED_EXTRA_NODES): {k}")
     if extra:
         errors.append(f"nos extras na DT curada (ausentes no ativo): {extra[:20]}")
     removed = len(set(live_nodes) - set(cur_nodes))

@@ -33,7 +33,7 @@ Regex: EXCLUDE_COMPAT em tools/curate_dt.py. Fragmentos e filhos do overlay remo
 - /soc/qcom,dsi-display-primary (compatible "qcom,dsi-display")
 - /soc/thermal-screen (compatible None)
 - /soc/xiaomi_touch (compatible "xiaomi-touch")
-- /soc/qcom,qupv3_0_geni_se@4ac0000/i2c@4a88000/focaltech@38 (compatible "focaltech,fts")
+- /soc/qcom,qupv3_0_geni_se@4ac0000/i2c@4a88000/focaltech@38 (substituido pelo no upstream de toque, TOUCH_PORT_BLOCK)
 - /soc/qcom,qupv3_0_geni_se@4ac0000/i2c@4a88000/goodix-sunrise@5d (compatible "goodix,gt9896")
 - /soc/qcom,qupv3_0_geni_se@4ac0000/i2c@4a84000/wsa881x-i2c-codec@e (compatible "qcom,wsa881x-i2c-codec")
 - /soc/qcom,qupv3_0_geni_se@4ac0000/i2c@4a84000/wsa881x-i2c-codec@44 (compatible "qcom,wsa881x-i2c-codec")

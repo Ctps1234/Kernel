@@ -245,7 +245,6 @@
 
 &qupv3_se2_i2c {
 	status = "okay";
-	qcom,i2c-touch-active = "synaptics,tcm-i2c";
 };
 
 &qupv3_se2_i2c {
@@ -402,13 +401,10 @@
 };
 
 &qupv3_se2_i2c {
-	qcom,touch-active = "goodix,gt9896";
-	qcom,i2c-touch-active = "focaltech,fts";
 	status = "okay";
 };
 
 &qupv3_se2_i2c {
-	qcom,i2c-touch-active = "synaptics,tcm-i2c";
 	status = "okay";
 };
 
@@ -449,4 +445,27 @@
 
 &qupv3_se1_i2c {
 	status = "okay";
+};
+
+/ {
+	touch_avdd: regulator-touch-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "touch_avdd";
+		gpio = <&tlmm 0x24 0x00>;
+		enable-active-high;
+	};
+};
+
+&qupv3_se2_i2c {
+	touchscreen@38 {
+		compatible = "focaltech,ft5452";
+		reg = <0x38>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <0x50 0x02>;
+		reset-gpios = <&tlmm 0x56 0x01>;
+		vcc-supply = <&touch_avdd>;
+		touchscreen-size-x = <10799>;
+		touchscreen-size-y = <23999>;
+		status = "okay";
+	};
 };
