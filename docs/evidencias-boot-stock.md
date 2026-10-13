@@ -145,3 +145,9 @@ Stock kernel do log: `Linux 5.15.211` (nao 6.12).
 
 **Atualizacao 4:** `/proc/mi_display` existe no aparelho (diretorio). No codigo de referencia as entradas ficam na raiz de `/proc`,
 entao no stock elas podem estar dentro desse diretorio. Proximo passo: listar `/proc/mi_display` (somente leitura).
+
+**INCIDENTE (leitura DSI via /proc/mi_display):** um dos comandos de leitura DCS deixou a tela colorida e o aparelho reiniciou.
+Comandos enviados ao painel nesta sequencia: `0x04`, `0xDA`, `0xDB`, `0xDC` (leitura, formato do `mi_dsi_display_set_mipi_rw`
+de outro kernel, nao verificado no topaz). Quais chegaram ao painel e em que ordem: nao confirmado.
+Regra: nenhuma nova escrita/leitura DSI no aparelho ate analise dos logs (pstore/dmesg apos o reboot).
+Nao flashar. Nao montar debugfs. Nao abrir o aparelho sem decisao explicita.
