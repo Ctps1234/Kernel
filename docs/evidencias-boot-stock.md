@@ -166,3 +166,24 @@ Nao flashar. Nao montar debugfs. Nao abrir o aparelho sem decisao explicita.
 
 **Estado apos o incidente:** aparelho estavel apos o reboot (confirmado pelo usuario). Nenhum comando DSI de leitura ou escrita foi enviado depois.
 Leituras DSI pelo `mipi_rw` ficam suspensas. IC do painel m7 segue nao identificado.
+
+## Touch e Wi-Fi (sem tocar no aparelho; IC do m7 segue pendente)
+
+**Touch (FT5452, `focaltech,ft5452`, I2C `0x38`):**
+- Pinos do FDT de referencia (`pmx_ts_*`, linhas ~7485-7556 do `topaz-live-reference.dts`):
+  INT no GPIO 80 (mux gpio, pull-up, drive 8; suspend pull-down), reset no GPIO 86 (mux gpio, pull-up, drive 8; suspend pull-down),
+  AVDD no GPIO 36 (gpio, pull-up, saida em nivel alto).
+- Driver upstream `edt-ft5x06.c` (base `0efd3abd`): usa `devm_gpiod_get_optional(..., "reset", GPIOD_OUT_HIGH)` e nao pede pinctrl.
+  Os pinos ficam com a configuracao do bootloader. Requer `vcc` (ok, `touch_avdd`) e `iovcc`.
+  Sem `iovcc-supply` na DT, o kernel usa regulador ficticio. Isso so funciona se o rail de IO ja estiver ligado (nao confirmado).
+- Estado na DT (`b43fee4`): `interrupts = <0x50 0x02>`, `reset-gpios = <&tlmm 0x56 0x01>` (ativo em nivel baixo, nao confirmado),
+  `vcc-supply = <&touch_avdd>`. Faltam: pinctrl (opcional), `iovcc-supply` (a confirmar), polaridade do reset (a confirmar em hardware).
+
+**Wi-Fi:**
+- Stock: `qcom,icnss@c800000` (linha ~12726) com `qcom,wlan`, CE IRQs `0x166..0x169...`, iommus `0x7e 0x1a0 0x1`,
+  reg `0x0c800000 0x00800000` e `0xb0000000 0x10000`, supplies `vdd-3.3-ch0`, `vdd-1.3-rfa`, `vdd-1.8-xo`, `vdd-cx-mx`.
+  Este no e do driver de stock (`icnss2` + QCACLD-3), nao do upstream.
+- Upstream (`qcom,ath10k.yaml` da base 6.12): `compatible = "qcom,wcn3990-wifi"`, `reg` (membase), 12 IRQs de CE,
+  `memory-region` (o `wlan_msa_region` existe em `khaje.dtsi`, linha ~385), `iommus`, `clocks` (`cxo_ref_clk_pin`, `qdss`).
+- Nao existe no de Wi-Fi na DT atual. O rascunho depende de firmware e de calibracao do vendor (privados; nao copiar sem pedido explicito).
+- Decisao pendente: rascunho do no ath10k (sem firmware) ou aguardar a decisao sobre o caminho QCACLD-3.
