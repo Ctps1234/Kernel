@@ -187,3 +187,8 @@ Leituras DSI pelo `mipi_rw` ficam suspensas. IC do painel m7 segue nao identific
   `memory-region` (o `wlan_msa_region` existe em `khaje.dtsi`, linha ~385), `iommus`, `clocks` (`cxo_ref_clk_pin`, `qdss`).
 - Nao existe no de Wi-Fi na DT atual. O rascunho depende de firmware e de calibracao do vendor (privados; nao copiar sem pedido explicito).
 - Decisao pendente: rascunho do no ath10k (sem firmware) ou aguardar a decisao sobre o caminho QCACLD-3.
+
+**Atualizacao do touch (commit db4dcad):** pinctrl adicionado na DT a partir do `pmx_ts_*` da stock (`ts_int_active` GPIO 80, `ts_reset_active` GPIO 86).
+CI: `device-tree` ✓ (compile-and-merge, dt-schema, defconfig); `kernel-build` ✓ (partial-build e full-build).
+Contagem sem regressao: `dt-validate` 2745 e `dt-validate-curated` 170 (iguais ao `b43fee4`).
+Pendencias do touch: `iovcc-supply` (regulador a confirmar) e polaridade do reset (a confirmar em hardware).
