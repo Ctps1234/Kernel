@@ -142,3 +142,6 @@ Stock kernel do log: `Linux 5.15.211` (nao 6.12).
 
 **Atualizacao 3:** `su -c "ls -l /proc/mipi_rw_prim"` no aparelho: `No such file or directory`. O no criado no boot do log nao existe no boot atual
 (ou foi renomeado/removido). Todas as tentativas de leitura DCS por `/proc` falharam pelo mesmo motivo. Nao houve envio de comando DSI.
+
+**Atualizacao 4:** `/proc/mi_display` existe no aparelho (diretorio). No codigo de referencia as entradas ficam na raiz de `/proc`,
+entao no stock elas podem estar dentro desse diretorio. Proximo passo: listar `/proc/mi_display` (somente leitura).
