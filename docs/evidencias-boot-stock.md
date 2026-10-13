@@ -104,5 +104,5 @@ Para fechar a identificação, falta uma destas informações:
   **Nome do IC nao aparece.** A configuracao do display e lida de
   `/vendor/etc/displayconfig/display_id_4630946444529356673.xml`. Ainda nao foi lida.
 - `getprop`: `ro.vendor.display.type=oled`, o que bate com o painel de video.
-- **Atencao:** o build em execucao no aparelho e RisingOS 9 para o codinome `tapas`, nao `topaz`.
-  Antes de usar essas propriedades como prova para `topaz`, confirmar `ro.product.device` e `ro.product.model`.
+- O build em execucao e RisingOS 9 para o codinome `tapas`. Confirmado pelo usuario: `topaz` e `tapas` sao o
+  mesmo aparelho e usam o mesmo kernel; so o NFC muda. Logo, essas propriedades valem como evidencia para `topaz`.
