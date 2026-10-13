@@ -46,3 +46,8 @@
 5. **Build depois da integração:** somente após concluir a integração solicitada, usar GitHub Actions conforme a decisão do usuário. A série 0001–0011 aplica numa worktree temporária sparse, mas não foi compilada; não houve validação formal de DT-schema, `dtbs_check` nem imagem flashada.
 
 Os módulos atuais são de 5.15 e não devem ser carregados no KMI 6.12. Os arquivos `.ko` identificam interfaces/dependências, mas não provam que seu código-fonte esteja disponível nem que uma alternativa upstream preserve as funções Android atuais.
+
+## Evidências de boot de stock
+
+Ver `docs/evidencias-boot-stock.md`: confirma o painel ativo, o chip de touch `0x5452`,
+o firmware de touch do vendor e o stack de Wi-Fi QCACLD-3. Corrige o PHY (`dsi_pll_5nm`).
