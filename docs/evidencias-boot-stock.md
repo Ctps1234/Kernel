@@ -128,3 +128,7 @@ Feita sem tocar no aparelho. Arquivos locais em `google_drive/` (gitignored); ex
 **Conclusao:** o IC do painel `m7` nao esta codificado em nenhum software extraido (driver, modulos, DTBO).
 O nome so pode ser obtido lendo o ID do controlador (via debugfs/DSI em kernel de debug) ou pela etiqueta/FPC do painel.
 Pendente para decidir: `dbg-ls` do debugfs, ou abertura do aparelho (sem decisao tomada).
+
+**Atualizacao:** `ls /sys/kernel/debug` no aparelho retornou vazio. Debugfs nao esta montado (ou o kernel de stock nao expoe o no).
+Montar debugfs altera o estado do aparelho em execucao (reverte no reboot), por isso nao foi feito sem decisao explicita.
+Proximo passo de leitura sem alterar nada: `mount | grep debugfs` e `ls /sys/class/drm/card0-DSI-1`.
