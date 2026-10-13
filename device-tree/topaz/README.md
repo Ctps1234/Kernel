@@ -136,3 +136,11 @@ Esses erros não são novos: são o estado do port 6.12 para os nós que a curad
 - Decidir o `status` de `/firmware/android/fstab/vendor` (base `ok`, ativo `disabled`) e a origem de `/memory ddr_*`.
 - Integrar os nós mantidos ao kernel: drivers 6.12 e configuração GKI.
 - Hardware: nada aqui foi testado no aparelho. Não flashar.
+
+### Resultados da CI (rodada de redução, commit `f948b08`)
+
+- Run [`38392352574`](https://github.com/Ctps1234/Kernel/actions/runs/38392352574): `compile-and-merge`, `dt-schema` e `defconfig` **success**.
+- `dt-validate-curated`: **141 erros** (antes: 170). `dt-validate`: 2745 (sem alteração).
+- Restante por categoria (`dt-validate-curated`): `compatible` (12: psci `cluster-pd*`, `qcom,scm` sem SoC, `android,vbmeta`, `qcom,rpmcc`/`qcom,cpufreq-hw`, etc.), `status` (6, rpm-regulator-*), `qcom,wrapper-core` (6), `i2c@4a84000`/`4a88000`/`4a90000` (3 cada), `spi@4a80000` (3), `qcom,iommu-dma`/`-addr-pool` (2 cada), `reg-names`, `#address-cells`/`#size-cells`, `$nodename`, `qcom,affinity` (2 cada), fstab (`parts`, `dev`, `mnt_flags`, `fsmgr_flags`), `rpm-smd`, `clock-controller`, `cpufreq-hw`, `thermal-zones`, `clocks` (1 cada).
+- Por compatível (primeiros 25): `qcom,ufshc` 19, `qcom,geni-se-qup` 18, `simple-bus` 9, `qcom,mpm-khaje` 9, `qcom,rpm-smd-regulator-resource` 6, `qcom,spmi-pmic` 6, `qcom,gpi-dma` 5.
+- Quase tudo é binding (A) ou propriedade vendor sem binding 6.12 (C). Mudança de `compatible` ou de binding exige confirmação antes. Análise completa em `google_drive/analise-dt-curated.md` (local, gitignored).
