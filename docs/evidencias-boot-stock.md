@@ -139,3 +139,6 @@ e `/proc/mipi_rw_prim`, e nao o debugfs. Formato de uso (do `mi_dsi_display_set_
 `mi_disp`, nao verificada no topaz): `<leitura 0/1> <tamanho rx> <LP 00|HS 01> <cabecalho DSI 7 bytes> <payload>`.
 Leitura proposta, so comandos DCS de leitura: `0x04` (display ID, 3 bytes), `0xDA`, `0xDB`, `0xDC` (ID1/2/3).
 Stock kernel do log: `Linux 5.15.211` (nao 6.12).
+
+**Atualizacao 3:** `su -c "ls -l /proc/mipi_rw_prim"` no aparelho: `No such file or directory`. O no criado no boot do log nao existe no boot atual
+(ou foi renomeado/removido). Todas as tentativas de leitura DCS por `/proc` falharam pelo mesmo motivo. Nao houve envio de comando DSI.
