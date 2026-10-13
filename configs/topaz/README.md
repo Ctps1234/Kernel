@@ -1,6 +1,6 @@
 # Defconfig do topaz (fragmento sobre o GKI 6.12)
 
-Estado: **43 símbolos**. Os 42 anteriores foram verificados na CI (commit `c24c3bc`, run `38326327058`). O 43º, `TOUCHSCREEN_EDT_FT5X06=y`, foi adicionado depois e aguarda a verificação da CI do commit deste ajuste. Inclui display (clocks `SM_DISPCC/GPUCC/DEBUGCC_6225` e pilha `DRM_MSM` com DPU, DSI e PHY 14nm), sem painel e sem GPU. No mesmo commit, o build de kernel (run `38326327090`: parcial e completo) passou e os clocks de display compilaram. Isso prova que o código compila na CI; não prova que a tela acende, e nada foi flashado.
+Estado: **43 símbolos**. Os 42 anteriores foram verificados na CI (commit `c24c3bc`, run `38326327058`). O 43º, `TOUCHSCREEN_EDT_FT5X06=y`, foi verificado no commit `497fad7` (run `38329809858`: `defconfig` com a verificação de símbolos ✓; run `38329809863`: `partial-build` ✓ e `full-build` ✓). Inclui display (clocks `SM_DISPCC/GPUCC/DEBUGCC_6225` e pilha `DRM_MSM` com DPU, DSI e PHY 14nm), sem painel e sem GPU. No mesmo commit, o build de kernel (run `38326327090`: parcial e completo) passou e os clocks de display compilaram. Isso prova que o código compila na CI; não prova que a tela acende, e nada foi flashado.
 
 ## Arquivos
 
