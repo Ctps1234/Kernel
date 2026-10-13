@@ -163,3 +163,6 @@ Nao flashar. Nao montar debugfs. Nao abrir o aparelho sem decisao explicita.
 - Causa mais provavel: o formato de pacote DSI copiado de outro kernel nao bate com o m7 e gerou pacotes invalidos; o
   controlador ficou com o motor de comando travado durante o video, e o DPU travou no commit. Nao ha prova de dano ao painel.
 - Licao: o caminho `mipi_rw` nao deve ser usado de novo sem validar o formato no proprio aparelho (fora do boot de producao).
+
+**Estado apos o incidente:** aparelho estavel apos o reboot (confirmado pelo usuario). Nenhum comando DSI de leitura ou escrita foi enviado depois.
+Leituras DSI pelo `mipi_rw` ficam suspensas. IC do painel m7 segue nao identificado.
