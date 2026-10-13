@@ -97,3 +97,12 @@ Para fechar a identificação, falta uma destas informações:
 1. Nome do IC gravado na etiqueta ou na FPC do painel (foto, sem abrir o aparelho).
 2. Leitura do ID do DDIC (comandos DCS `0xDA`/`0xDB`/`0xDC` ou `0x04`) feita pelo driver de stock.
 3. Saída de `dumpsys display` no Termux ou em um app de informações de hardware, se o IC aparecer lá.
+
+### Resultado de dumpsys e getprop (2026-10-13)
+
+- `dumpsys display`: painel "Tela integrada", 1080x2400, modos 120/90/60 Hz, `manufacturerPnpId=QCM`.
+  **Nome do IC nao aparece.** A configuracao do display e lida de
+  `/vendor/etc/displayconfig/display_id_4630946444529356673.xml`. Ainda nao foi lida.
+- `getprop`: `ro.vendor.display.type=oled`, o que bate com o painel de video.
+- **Atencao:** o build em execucao no aparelho e RisingOS 9 para o codinome `tapas`, nao `topaz`.
+  Antes de usar essas propriedades como prova para `topaz`, confirmar `ro.product.device` e `ro.product.model`.
