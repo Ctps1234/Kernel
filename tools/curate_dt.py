@@ -137,6 +137,21 @@ TOUCH_PORT_BLOCK = [
     "\t};",
     "};",
     "",
+    "&tlmm {",
+    "\tts_int_active: ts-int-active-state {",
+    "\t\tpins = \"gpio80\";",
+    "\t\tfunction = \"gpio\";",
+    "\t\tdrive-strength = <8>;",
+    "\t\tbias-pull-up;",
+    "\t};",
+    "\tts_reset_active: ts-reset-active-state {",
+    "\t\tpins = \"gpio86\";",
+    "\t\tfunction = \"gpio\";",
+    "\t\tdrive-strength = <8>;",
+    "\t\tbias-pull-up;",
+    "\t};",
+    "};",
+    "",
     "&qupv3_se2_i2c {",
     "\ttouchscreen@38 {",
     "\t\tcompatible = \"focaltech,ft5452\";",
@@ -144,6 +159,8 @@ TOUCH_PORT_BLOCK = [
     "\t\tinterrupt-parent = <&tlmm>;",
     "\t\tinterrupts = <0x50 0x02>;",
     "\t\treset-gpios = <&tlmm 0x56 0x01>;",
+    "\t\tpinctrl-names = \"default\";",
+    "\t\tpinctrl-0 = <&ts_int_active &ts_reset_active>;",
     "\t\tvcc-supply = <&touch_avdd>;",
     "\t\ttouchscreen-size-x = <10799>;",
     "\t\ttouchscreen-size-y = <23999>;",
@@ -193,6 +210,10 @@ EXPECTED_EXTRA_NODES = {
     "/regulator-touch-avdd": "port 6.12 do toque: regulador fixo do AVDD (GPIO 36) da stock",
     "/soc/qcom,qupv3_0_geni_se@4ac0000/i2c@4a88000/touchscreen@38":
         "port 6.12 do toque: no edt-ft5x06 / focaltech,ft5452 (substitui focaltech@38 de vendor)",
+    "/soc/pinctrl@400000/ts-int-active-state":
+        "port 6.12 do toque: pinctrl do INT (GPIO 80) copiado da stock (pmx_ts_int_active), flat no tlmm",
+    "/soc/pinctrl@400000/ts-reset-active-state":
+        "port 6.12 do toque: pinctrl do reset (GPIO 86) copiado da stock (pmx_ts_reset_active), flat no tlmm",
 }
 # Propriedades que o gerador normaliza de forma intencional.
 NORMALIZED_FLAGS = {"bias-disable"}
