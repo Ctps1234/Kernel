@@ -37,11 +37,11 @@ das notas anteriores.
 
 ## Touch
 
-- Driver de stock: `fts_ts` (FocalTech, versão `V3.4 20211214`), I²C `1-0038` (bus 0x18, 0x38 no FDT).
+- Driver de stock: `fts_ts` (FocalTech, versão `V3.4 20211214`), I²C `1-0038` (adaptador i2c-1, endereço 0x38).
 - `TP info: [Vendor]samsung [IC]ft3519t`, `verify id:0x5452`.
 - IRQ GPIO 478, reset GPIO 484 (numeração global). No FDT: `focaltech,irq-gpio = <&tlmm 0x50>`
   (GPIO 80), `reset-gpio = <&tlmm 0x56>` (GPIO 86), `avdd-gpio = <&tlmm 0x24>` (GPIO 36).
-  A diferença de 398 é a base do TLMM, e está consistente entre IRQ e reset.
+  A diferença é constante (398) entre IRQ e reset. Provavelmente é o offset de base do TLMM, não confirmado.
 - Tamanho de coordenadas: `display x(0 10799) y(0 23999)`. Confirma que o FDT de referência
   usa `display-coords` `0x2a2f 0x5dbf` (10799 e 23999), com `max-touch-number = 10`.
 - Firmware: `fw version in tp:32, host:36`. O driver atualizou o firmware do controlador no boot.
