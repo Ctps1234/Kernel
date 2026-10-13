@@ -151,3 +151,15 @@ Comandos enviados ao painel nesta sequencia: `0x04`, `0xDA`, `0xDB`, `0xDC` (lei
 de outro kernel, nao verificado no topaz). Quais chegaram ao painel e em que ordem: nao confirmado.
 Regra: nenhuma nova escrita/leitura DSI no aparelho ate analise dos logs (pstore/dmesg apos o reboot).
 Nao flashar. Nao montar debugfs. Nao abrir o aparelho sem decisao explicita.
+
+**Analise do pstore (console-ramoops-0, boot anterior, arquivos no Drive: pstore-tail, pstore-grep, pstore-console):**
+- Em ~7554 s, o driver `msm_drm` passou a falhar em todo envio DSI: `dsi-ctrl-0: Failed to create message packet, rc=-22`,
+  depois `Message transmission failed` e `read message failed read length, rc=-22`. Eventos repetidos em ~7564, ~7595 e ~7614 s,
+  cada um com `mi_dsi_display_set_mipi_rw: read dsi cmd transfer failed` (as nossas leituras; o `rc = 0` impresso e so o valor da variavel, nao o erro real).
+- O controlador DSI ficou com o estado do motor de comando inconsistente: `No change in state, cmd_state=0`,
+  `Controller state check failed`, `Failed to disable command engine`.
+- Em ~7614.67 s, o DPU passou a dar timeout de commit: `sde_encoder_wait_for_event ... failed:-110` e
+  `wait for commit done failed`. A tela parou de atualizar (colorida) e o log termina ali; o reboot veio depois.
+- Causa mais provavel: o formato de pacote DSI copiado de outro kernel nao bate com o m7 e gerou pacotes invalidos; o
+  controlador ficou com o motor de comando travado durante o video, e o DPU travou no commit. Nao ha prova de dano ao painel.
+- Licao: o caminho `mipi_rw` nao deve ser usado de novo sem validar o formato no proprio aparelho (fora do boot de producao).
