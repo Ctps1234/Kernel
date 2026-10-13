@@ -132,3 +132,10 @@ Pendente para decidir: `dbg-ls` do debugfs, ou abertura do aparelho (sem decisao
 **Atualizacao:** `ls /sys/kernel/debug` no aparelho retornou vazio. Debugfs nao esta montado (ou o kernel de stock nao expoe o no).
 Montar debugfs altera o estado do aparelho em execucao (reverte no reboot), por isso nao foi feito sem decisao explicita.
 Proximo passo de leitura sem alterar nada: `mount | grep debugfs` e `ls /sys/class/drm/card0-DSI-1`.
+
+**Atualizacao 2:** `/sys/class/drm/card0-DSI-1` aponta para `/sys/devices/platform/soc/5e00000.qcom,mdss_mdp/drm/card0/card0-DSI-1`
+(so o link; sem atributo com nome de IC). O `dmesg-boot.txt` confirma `create procfs mipi_rw_prim success!`, entao o caminho de leitura
+e `/proc/mipi_rw_prim`, e nao o debugfs. Formato de uso (do `mi_dsi_display_set_mipi_rw`, fonte publica de outro kernel Xiaomi da mesma familia
+`mi_disp`, nao verificada no topaz): `<leitura 0/1> <tamanho rx> <LP 00|HS 01> <cabecalho DSI 7 bytes> <payload>`.
+Leitura proposta, so comandos DCS de leitura: `0x04` (display ID, 3 bytes), `0xDA`, `0xDB`, `0xDC` (ID1/2/3).
+Stock kernel do log: `Linux 5.15.211` (nao 6.12).
