@@ -192,3 +192,6 @@ Leituras DSI pelo `mipi_rw` ficam suspensas. IC do painel m7 segue nao identific
 CI: `device-tree` ✓ (compile-and-merge, dt-schema, defconfig); `kernel-build` ✓ (partial-build e full-build).
 Contagem sem regressao: `dt-validate` 2745 e `dt-validate-curated` 170 (iguais ao `b43fee4`).
 Pendencias do touch: `iovcc-supply` (regulador a confirmar) e polaridade do reset (a confirmar em hardware).
+
+**Iovcc do touch (verificado):** o no `focaltech,fts` da stock (linha ~8353 do `topaz-live-reference.dts`) nao tem `supply`, e o barramento
+`qupv3_se2_i2c` (`i2c@4a88000`) tambem nao declara regulador. Sem evidencia, nao se adiciona `iovcc-supply`. Pendencia que resta no touch: polaridade do reset.
