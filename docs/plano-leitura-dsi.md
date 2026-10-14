@@ -50,7 +50,7 @@ Comando exato: **não definido até a checagem offline da interface do `mipi_rw`
    - 6.2 Confirmar qual registro é o ID padrão da especificação MIPI DCS. **Status: feito.** O `0xDA` não foi confirmado. O padrão é o `0xA1` (`read_DDB_start`), com retorno de cerca de 5 bytes. O plano foi revisto (seção 5).
    - 6.3 Registrar o resultado neste documento antes de pedir a autorização. **Status: feito nesta revisão.**
 2. **Aparelho, leitura apenas:** captura de `dmesg` e `pstore` como linha de base (comandos do Termux, uma linha por vez, redirecionados para `/sdcard/Download/`).
-3. **Aparelho, passo único:** uma leitura de 1 byte do `0xDA`. Nada mais.
+3. **Aparelho, passo único:** uma leitura do `0xA1` (DDB, retorno de cerca de 5 bytes). Nada mais.
 4. **Captura imediata** de `dmesg` depois da leitura, na mesma sessão.
 5. **Análise offline** do resultado, antes de qualquer outro passo.
 6. **Parar.** Nenhuma segunda tentativa sem nova autorização.
@@ -72,7 +72,7 @@ Comando exato: **não definido até a checagem offline da interface do `mipi_rw`
 
 - [ ] Autorizo **somente** o passo 1 da seção 6 (offline, sem aparelho).
 - [ ] Autorizo o passo 2 da seção 6 (captura de linha de base, leitura apenas).
-- [ ] Autorizo o passo 3 da seção 6 (uma leitura de 1 byte do `0xDA`), somente depois da análise offline do passo 5.
+- [ ] Autorizo o passo 3 da seção 6 (uma leitura do `0xA1`, DDB), somente depois da análise offline do passo 5.
 - [ ] Não autorizo nenhuma leitura DSI. Seguir pela identificação por fonte externa.
 
 Registro da decisão: _(preencher com data e escolha)_
