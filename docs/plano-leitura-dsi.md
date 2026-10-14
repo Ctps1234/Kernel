@@ -32,20 +32,23 @@ Identificar o chip (IC) do DDIC do painel `m7_38_0c_0a_fhdp_video`, que hoje é 
 
 ## 5. Passo único proposto (se autorizado)
 
-Só **uma** leitura, de **um** byte, de um registro de identificação padrão do MIPI DCS (`0xDA`, ID1). É um registro somente de leitura, previsto na especificação MIPI DCS para todos os painéis.
+**Revisado após a checagem offline (passo 6.2):** o `0xDA` não foi confirmado como ID1 padrão. O registro padrão de identificação é o `0xA1` (`read_DDB_start`), que devolve o bloco DDB: ID do fornecedor (2 bytes), ID do produto (2 bytes) e um byte de controle, ou seja, cerca de 5 bytes. A especificação MIPI DCS e a documentação de fabricantes confirmam o `0xA1`. O `msm_drm.ko` também usa a constante `MIPI_DCS_READ_DDB_START`, ou seja, a mesma família.
+
+Passo proposto, se autorizado: **uma** leitura do `0xA1` com retorno de 5 bytes, nada mais.
 
 Ressalvas:
-- A especificação não garante que o DDIC do `m7` responda ao `0xDA` nem que o valor seja o ID esperado.
-- A leitura só é tentada pela interface padrão do kernel, sem montar pacote manual, e apenas se `/proc/mi_display/mipi_rw_prim` existir. Se o nó não existir ou o formato do comando não for claramente aceito, o plano para aqui.
+- O DDB identifica o **fornecedor** (ID do fornecedor), não necessariamente o chip. Pode não bastar para fechar o IC do `m7`.
+- O DDIC do `m7` pode não responder ao `0xA1` com o formato esperado.
+- A leitura só é tentada pela interface padrão do kernel, sem montar pacote manual, e apenas se `/proc/mi_display/mipi_rw_prim` existir e aceitar o formato. Se não houver resposta clara ou o formato não for aceito, o plano para aqui.
 
-Comando exato: **não definido até a checagem offline da interface do `mipi_rw` no `msm_drm.ko`** (passo 6.1 abaixo).
+Comando exato: **não definido até a checagem offline da interface do `mipi_rw` no `msm_drm.ko`** (passo 6.1 abaixo). O `msm_drm.ko` mostra mensagens de erro como `rx cmd transfer failed` e `invalid rx length`, mas o formato exato de entrada do `mipi_rw` ainda não foi decodificado.
 
 ## 6. Sequência
 
 1. **Offline (sem aparelho):**
-   - 6.1 Confirmar no `msm_drm.ko` o formato aceito pelo `mipi_rw` (quantos bytes de comando, quantos de retorno).
-   - 6.2 Confirmar que o `0xDA` é o registro ID1 da especificação MIPI DCS.
-   - 6.3 Registrar o resultado neste documento antes de pedir a autorização.
+   - 6.1 Confirmar no `msm_drm.ko` o formato aceito pelo `mipi_rw` (quantos bytes de comando, quantos de retorno). **Status: parcial.** Achadas mensagens de erro (`read message failed read length`, `rx cmd transfer failed`, `invalid rx length`) e constantes de DCS, mas o formato de entrada do `mipi_rw` não foi decodificado.
+   - 6.2 Confirmar qual registro é o ID padrão da especificação MIPI DCS. **Status: feito.** O `0xDA` não foi confirmado. O padrão é o `0xA1` (`read_DDB_start`), com retorno de cerca de 5 bytes. O plano foi revisto (seção 5).
+   - 6.3 Registrar o resultado neste documento antes de pedir a autorização. **Status: feito nesta revisão.**
 2. **Aparelho, leitura apenas:** captura de `dmesg` e `pstore` como linha de base (comandos do Termux, uma linha por vez, redirecionados para `/sdcard/Download/`).
 3. **Aparelho, passo único:** uma leitura de 1 byte do `0xDA`. Nada mais.
 4. **Captura imediata** de `dmesg` depois da leitura, na mesma sessão.
