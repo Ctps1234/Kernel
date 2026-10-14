@@ -75,4 +75,6 @@ Comando exato: **não definido até a checagem offline da interface do `mipi_rw`
 - [ ] Autorizo o passo 3 da seção 6 (uma leitura do `0xA1`, DDB), somente depois da análise offline do passo 5.
 - [ ] Não autorizo nenhuma leitura DSI. Seguir pela identificação por fonte externa.
 
-Registro da decisão: _(preencher com data e escolha)_
+Registro da decisão: 2026-10-14, usuário autorizou o **passo 2** (captura de linha de base, só leitura). Passos 1 e 3 ainda sem autorização para o passo 3.
+
+**Pendências na data da autorização (seção 4):** sha256 de referência da `vendor_dlkm_b` (não enviado); cópias de `boot_b`/`vendor_boot_b`/`dtbo_b` ainda não conferidas por sha256; caminho de recuperação não definido; nível de bateria não informado. O passo 2 é só leitura de logs, então segue; o passo 3 fica bloqueado até estes itens.
