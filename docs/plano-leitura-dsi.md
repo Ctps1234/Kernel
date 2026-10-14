@@ -78,3 +78,15 @@ Comando exato: **não definido até a checagem offline da interface do `mipi_rw`
 Registro da decisão: 2026-10-14, usuário autorizou o **passo 2** (captura de linha de base, só leitura). Passos 1 e 3 ainda sem autorização para o passo 3.
 
 **Pendências na data da autorização (seção 4):** sha256 de referência da `vendor_dlkm_b` (não enviado); cópias de `boot_b`/`vendor_boot_b`/`dtbo_b` ainda não conferidas por sha256; caminho de recuperação não definido; nível de bateria não informado. O passo 2 é só leitura de logs, então segue; o passo 3 fica bloqueado até estes itens.
+
+## 10. Resultado do passo 2 (linha de base, só leitura, 2026-10-14)
+
+- Bateria: 60%. Uptime: 1 dia 4h58, carga média 4,11.
+- `/sys/fs/pstore`: `console-ramoops-0` (482 KB) e `pmsg-ramoops-0` (1 MB), de um boot anterior, já analisados antes.
+- `/proc/mi_display/`: `mipi_rw_prim` e `tx_cmd_set_prim` existem (root, 0644, 0 bytes). **Nenhum dos dois foi lido.**
+- `dmesg` (23294 linhas, janela de 46959 s a 49890 s de uptime do kernel): **nenhum erro de DSI, DPU ou painel**. Há sequência normal de ligar painel (1080x2400, 120 Hz) e troca para 60 Hz, sem `rc=` negativo, sem `commit done`, sem timeout. Os erros que aparecem (binder, `fsm_speaker`, `wlan`) não são do display.
+- Não há chamada de `mipi_rw` nessa janela.
+- Limitação: o buffer circular não cobre o boot inteiro. Esta é uma linha de base da janela, não do boot completo.
+- Revisão de dados pessoais no `dmesg` (seriais, MAC): pendente antes de compartilhar o arquivo além do Drive pessoal.
+
+**Status:** passo 2 concluído. Passo 3 continua bloqueado pelos pré-requisitos da seção 4 (sha256 da `vendor_dlkm_b`, cópias de segurança conferidas, caminho de recuperação, decisão explícita).
