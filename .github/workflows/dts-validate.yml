@@ -1,0 +1,63 @@
+name: DTS/DTBO validation (topaz/tapas)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Kernel project
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang lld llvm make gcc-aarch64-linux-gnu \
+            device-tree-compiler python3 flex bison bc libssl-dev
+
+      - name: Clone base Android Common 6.12 (fixed commit)
+        run: |
+          git clone --depth 1 https://github.com/EdMory/android_kernel_common_sm8850 basekernel
+          cd basekernel
+          git fetch --depth 1 origin 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
+          git checkout 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
+
+      - name: Apply local patch series 0001-0012
+        run: |
+          cd basekernel
+          for p in ../patches/[0-9][0-9][0-9][0-9]-*.patch; do
+            echo "Applying $p"
+            git apply --check "$p" || exit 1
+            git apply "$p" || exit 1
+          done
+          git diff --check
+
+      - name: Integrate DTS/DTBO sources
+        run: |
+          cd basekernel
+          # Place the imported DTS tree where the kernel build expects it.
+          cp -a ../device-tree/source/qcom/* arch/arm64/boot/dts/qcom/
+          # Audio bindings live in a separate include path in this project.
+          mkdir -p include/dt-bindings
+          cp -a ../device-tree/source/bindings/* include/dt-bindings/ 2>/dev/null || true
+
+      - name: Configure (defconfig)
+        run: |
+          cd basekernel
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
+
+      - name: Build DTBs (validation)
+        run: |
+          cd basekernel
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc) dtbs 2>&1 | tee dtbs.log
+          # Optional: dtbs_check requires dt-schema; enable when available.
+          # make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- dtbs_check
+
+      - name: Archive logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dts-validation-logs
+          path: basekernel/dtbs.log

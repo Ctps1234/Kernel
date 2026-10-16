@@ -1,0 +1,43 @@
+#include "xiaomi-sm6225-common.dtsi"
+
+&soc {
+	si_pa_L: si_pa_L {
+		owi_mode = <1>;
+		channel_num = <0>;
+		timer_task_hdl = <0>;
+		si,si_pa_disable_pin = <1>;
+		si,si_pa_reset = <&tlmm 106 0x00>;
+		si,si_pa_type = "sia81x9";
+		compatible = "si,sia81xx";
+	};
+};
+
+&qupv3_se1_i2c {
+	fs16xx@34 {
+		status = "okay";
+		compatible = "foursemi,fs16xx";
+		reg = <0x34>;
+		fsm,rst-gpio = <&tlmm 106 0x00>;
+	};
+
+	aw87xxx_pa_59@59 {
+		status = "okay";
+		compatible = "awinic,aw87xxx_pa";
+		dev_index = <0>;
+		aw-rx-port-id = <45106>;
+		reset-gpio = <&tlmm 106 0x00>;
+		reg = <0x59>;
+	};
+
+	sipa_i2c_L: sipa_i2c_L@2b {
+		compatible = "si,sia81xx-i2c";
+		si,sipa-dev = <&si_pa_L>;
+		reg = <0x2b>;
+	};
+};
+
+&bengal_snd {
+    si,sia81xx-aux-devs-prefix = "SpkrMonoL";
+    si,sia81xx-aux-devs = <&si_pa_L>;
+    si,sia81xx-max-num = <1>;
+};
