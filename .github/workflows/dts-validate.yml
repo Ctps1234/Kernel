@@ -20,7 +20,7 @@ jobs:
     name: Device trees (dtbs + dt-schema)
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       issues: write
     steps:
       - name: Checkout Kernel project
@@ -115,6 +115,8 @@ jobs:
 
       - name: Publish summary as issue
         if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -o pipefail
           bash tools/ci_publish_report.sh \
@@ -122,6 +124,32 @@ jobs:
             basekernel/dtbs.log basekernel/dtbs_check.log \
             basekernel/dt_binding_check.log basekernel/configure.log \
             check_includes.log || true
+
+      - name: Publish artifacts to ci-artifacts branch
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          rm -rf /tmp/artifacts
+          mkdir -p /tmp/artifacts/dtbs /tmp/artifacts/logs /tmp/artifacts/tools
+          cd basekernel
+          cp .config /tmp/artifacts/config-khaje.config 2>/dev/null || true
+          find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
+            -exec cp --parents {} /tmp/artifacts/dtbs/ \; 2>/dev/null || true
+          for log in dtbs.log dtbs_check.log dt_binding_check.log configure.log kernel-build.log defconfig.log; do
+            cp "$log" /tmp/artifacts/logs/ 2>/dev/null || true
+          done
+          cp scripts/dtc/dtc scripts/dtc/fdtoverlay /tmp/artifacts/tools/ 2>/dev/null || true
+          cd /tmp/artifacts
+          git init -q
+          git config user.email "ci@local"
+          git config user.name "CI"
+          git add -A
+          git commit -q -m "artefatos da run ${GITHUB_RUN_ID}"
+          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:refs/heads/ci-artifacts
+          echo "artefatos publicados em ci-artifacts"
 
       - name: Archive logs and artifacts
         if: always()
@@ -145,7 +173,7 @@ jobs:
     name: Kernel build (port dos drivers)
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       issues: write
     steps:
       - name: Checkout Kernel project
@@ -192,11 +220,39 @@ jobs:
 
       - name: Publish build summary as issue
         if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -o pipefail
           bash tools/ci_publish_report.sh \
             "CI: relatorio de build do kernel (port Khaje)" ci-report \
             basekernel/kernel-build.log basekernel/configure.log || true
+
+      - name: Publish artifacts to ci-artifacts branch
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          rm -rf /tmp/artifacts
+          mkdir -p /tmp/artifacts/dtbs /tmp/artifacts/logs /tmp/artifacts/tools
+          cd basekernel
+          cp .config /tmp/artifacts/config-khaje.config 2>/dev/null || true
+          find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
+            -exec cp --parents {} /tmp/artifacts/dtbs/ \; 2>/dev/null || true
+          for log in dtbs.log dtbs_check.log dt_binding_check.log configure.log kernel-build.log defconfig.log; do
+            cp "$log" /tmp/artifacts/logs/ 2>/dev/null || true
+          done
+          cp scripts/dtc/dtc scripts/dtc/fdtoverlay /tmp/artifacts/tools/ 2>/dev/null || true
+          cd /tmp/artifacts
+          git init -q
+          git config user.email "ci@local"
+          git config user.name "CI"
+          git add -A
+          git commit -q -m "artefatos da run ${GITHUB_RUN_ID}"
+          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:refs/heads/ci-artifacts
+          echo "artefatos publicados em ci-artifacts"
 
       - name: Archive build log
         if: always()
