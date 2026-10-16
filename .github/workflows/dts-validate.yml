@@ -1,6 +1,8 @@
 name: DTS/DTBO validation (topaz/tapas)
 
 on:
+  push:
+    branches: [ "arena/**" ]
   workflow_dispatch:
 
 jobs:
