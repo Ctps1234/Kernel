@@ -16,6 +16,7 @@ Aplicar somente à `EdMory/android_kernel_common_sm8850`, branch `aosp-new/andro
 10. [`0010-clk-qcom-vdd-class-support.patch`](0010-clk-qcom-vdd-class-support.patch) adapta o suporte a voltage-corners para `regulator`/CCF do alvo, agrega votos por classe e preserva uma proxy vote máxima até `sync_state`; acrescenta hooks de taxa para PLL/RCG, sequência de regmap com rollback e o helper `qcom,critical-devices`/`qcom,critical-clocks`. Inclui suporte debug-mux/medição sem tratar qualquer seletor Khaje como sentinela; a troca de pai em debugfs é abortada se o pai não estiver disponível.
 11. [`0011-clk-qcom-khaje-clock-controllers.patch`](0011-clk-qcom-khaje-clock-controllers.patch) adiciona GCC, DISPCC, GPUCC e debugcc Khaje, IDs DT, quatro bindings e integração Kconfig/Makefile. Acrescenta ao binding comum `qcom,gcc.yaml` as propriedades de clocks críticos. Integra só os controllers ativos no FDT capturado; LPASSAONCC/LPASSAUDIOCC não entram nesta série por não haver nós controller LPASS ativos na referência topaz.
 12. [`0012-dt-bindings-phy-qcom-khaje-qmp-usb3-header.patch`](0012-dt-bindings-phy-qcom-khaje-qmp-usb3-header.patch) adiciona o header `include/dt-bindings/phy/qcom,khaje-qmp-usb3.h` com as constantes `USB3_DP_*` usadas por `khaje-usb.dtsi` (importado de fonte pública de constantes Qualcomm Khaje). Necessário para compilar/aplicar o DTB base Khaje com USB.
+13. [`0013-dt-bindings-khaje-sm6225-vendor-headers.patch`](0013-dt-bindings-khaje-sm6225-vendor-headers.patch) adiciona os headers dt-bindings que as DTS de topaz/tapas referenciam e que a base 6.12 não traz: `regulator/qcom,rpmh-regulator-levels.h`, `arm/msm/qcom_dma_heap_dt_constants.h`, `thermal/thermal_qti.h`, `input/qcom,qpnp-power-on.h`, `soc/qcom,dcc_v2.h`, `audio-codec-port-types.h`, `qcom,audio-ext-clk.h` e `qcom,bolero-clk-rsc.h`. Os cinco headers Qualcomm foram copiados da árvore pública Xiaomi `topaz-t-oss` (Android 13/5.15); os três de áudio vieram do repositório público de devicetrees usado como fonte das DTS.
 
 A revisão estática do par 0008/0009 contra `device-tree/reference/topaz-live-reference.dts` contou 30 nós de recurso, 25 filhos físicos PM6125 habilitados e 8 filhos habilitados de votos por nível; não encontrou divergências no mapeamento de nome/tipo/ID. Os filhos PMIC desabilitados que compartilham o compatible de votos não são registrados como rails físicas. No GCC (phandle `0x81`), `qcom,critical-devices` referencia o nó `0xc3`; o I²C ascendente `i2c@4a84000` usa o GCC clock índice 94 (`GCC_QUPV3_WRAP0_S1_CLK`) e o wrapper ascendente usa os índices 104/105, todos mantidos preparados/habilitados pelo handler. A varredura dos specifiers na DTS mesclada encontrou 95 IDs GCC, 11 DISPCC e 5 GPUCC distintos; todos têm entradas nos respectivos arrays. Também foram mapeados os 17 IDs RPM distintos referenciados. A GCC DISP AHB ID 60, que faltava inicialmente, foi adicionada como branch critical no CBCR `0x1700c`, conforme a implementação análoga SM6115/SM6125 do alvo. Isso é auditoria estática de fonte/FDT, não teste em hardware.
 
@@ -33,7 +34,17 @@ done
 git diff --check
 ```
 
-A série completa 0001–0011 foi aplicada em ordem numa worktree temporária sparse do commit fixado; `git apply --check` passou para cada patch e `git diff --check` passou no resultado acumulado. A worktree temporária foi removida depois da verificação. PyYAML também aceitou a sintaxe dos quatro novos schemas de clock e de `qcom,gcc.yaml`, sem validar as regras DT-schema.
+A série completa 0001–0013 foi aplicada em ordem num checkout limpo do commit fixado (`0efd3abd3c356d644ea49f6ed37e9830b78d34e3`, clone completo do repositório `EdMory/android_kernel_common_sm8850`); `git apply --check` passou para cada patch, `git diff --check` passou no resultado acumulado e a verificação estática de includes (`tools/check_dts_includes.py`) fecha em 102/102 includes resolvidos com a série aplicada. PyYAML também aceitou a sintaxe dos quatro novos schemas de clock e de `qcom,gcc.yaml`, sem validar as regras DT-schema.
+
+Depois de aplicar a série, as device trees de topaz/tapas entram na árvore com o staging determinístico:
+
+```sh
+python3 tools/integrate_dts.py --kernel-tree /path/para/basekernel
+python3 tools/check_dts_includes.py --dts-dir /path/para/basekernel/arch/arm64/boot/dts/qcom/khaje \
+    --kernel-tree /path/para/basekernel
+```
+
+O mesmo roteiro roda no CI (`.github/workflows/dts-validate.yml`).
 
 ## Validação e limites
 

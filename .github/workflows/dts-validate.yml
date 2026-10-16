@@ -34,22 +34,18 @@ jobs:
           "$HOME/dtschema-venv/bin/pip" install --quiet dtschema
           echo "$HOME/dtschema-venv/bin" >> "$GITHUB_PATH"
 
-      - name: Restore cached base kernel checkout
-        id: base-cache
-        uses: actions/cache@v4
-        with:
-          path: basekernel
-          key: basekernel-${{ env.BASE_COMMIT }}
-
       - name: Clone base Android Common 6.12 (fixed commit)
-        if: steps.base-cache.outputs.cache-hit != 'true'
         run: |
-          git clone "$BASE_REPO" basekernel
+          set -o pipefail
+          git clone --depth 1 "$BASE_REPO" basekernel
           cd basekernel
+          git fetch --depth 1 origin "$BASE_COMMIT"
           git checkout "$BASE_COMMIT"
+          git rev-parse HEAD
 
       - name: Apply local patch series
         run: |
+          set -o pipefail
           cd basekernel
           for p in ../patches/[0-9][0-9][0-9][0-9]-*.patch; do
             echo "Applying $p"
@@ -60,21 +56,24 @@ jobs:
 
       - name: Stage topaz/tapas device trees
         run: |
+          set -o pipefail
           python3 tools/integrate_dts.py --kernel-tree basekernel | tee integrate_dts.log
 
       - name: Static include check
         run: |
+          set -o pipefail
           python3 tools/check_dts_includes.py \
             --dts-dir basekernel/arch/arm64/boot/dts/qcom/khaje \
             --kernel-tree basekernel | tee check_includes.log
 
-      - name: Configure (arm64 defconfig)
+      - name: Configure (defconfig GKI + fragmento Khaje)
         run: |
-          cd basekernel
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig 2>&1 | tee defconfig.log
+          set -o pipefail
+          sh tools/configure_kernel.sh basekernel 2>&1 | tee basekernel/configure.log
 
       - name: Build device trees (dtbs)
         run: |
+          set -o pipefail
           cd basekernel
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
             arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi.dtb \
@@ -87,6 +86,7 @@ jobs:
 
       - name: Validate dtbs against DT-schema (dt-validate)
         run: |
+          set -o pipefail
           cd basekernel
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
             CHECK_DTBS=1 \
@@ -96,12 +96,14 @@ jobs:
 
       - name: Validate binding schemas (dt_binding_check)
         run: |
+          set -o pipefail
           cd basekernel
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux- \
             dt_binding_check 2>&1 | tee dt_binding_check.log
 
       - name: Build in-tree dtc/fdtoverlay (for local iteration)
         run: |
+          set -o pipefail
           cd basekernel
           make ARCH=arm64 scripts_dtc 2>&1 | tee scripts_dtc.log
 
@@ -114,7 +116,7 @@ jobs:
             basekernel/dtbs.log
             basekernel/dtbs_check.log
             basekernel/dt_binding_check.log
-            basekernel/defconfig.log
+            basekernel/configure.log
             basekernel/scripts_dtc.log
             integrate_dts.log
             check_includes.log
@@ -139,35 +141,32 @@ jobs:
           sudo update-alternatives --install /usr/bin/clang clang \
             /usr/bin/clang-14 100 2>/dev/null || true
 
-      - name: Restore cached base kernel checkout
-        id: base-cache
-        uses: actions/cache@v4
-        with:
-          path: basekernel
-          key: basekernel-${{ env.BASE_COMMIT }}
-
       - name: Clone base Android Common 6.12 (fixed commit)
-        if: steps.base-cache.outputs.cache-hit != 'true'
         run: |
-          git clone "$BASE_REPO" basekernel
+          set -o pipefail
+          git clone --depth 1 "$BASE_REPO" basekernel
           cd basekernel
+          git fetch --depth 1 origin "$BASE_COMMIT"
           git checkout "$BASE_COMMIT"
+          git rev-parse HEAD
 
       - name: Apply local patch series
         run: |
+          set -o pipefail
           cd basekernel
           for p in ../patches/[0-9][0-9][0-9][0-9]-*.patch; do
             git apply --check "$p" || exit 1
             git apply "$p" || exit 1
           done
 
-      - name: Configure (arm64 defconfig)
+      - name: Configure (defconfig GKI + fragmento Khaje)
         run: |
-          cd basekernel
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig 2>&1 | tee defconfig.log
+          set -o pipefail
+          sh tools/configure_kernel.sh basekernel 2>&1 | tee basekernel/configure.log
 
       - name: Build kernel image
         run: |
+          set -o pipefail
           cd basekernel
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image \
             2>&1 | tee kernel-build.log
