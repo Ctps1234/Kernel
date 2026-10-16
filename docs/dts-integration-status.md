@@ -56,6 +56,14 @@ drivers portados na série 0001–0012:
 
 Nenhuma divergência restante nos compatibles de fundação de boot.
 
+## Validação (GitHub Actions)
+
+A workflow `DTS/DTBO validation (topaz/tapas)` rodou com sucesso no commit
+`ab16661` (run 38969717152): clone da base fixada, aplicação da série
+0001–0012, integração dos DTS e `make dtbs` concluíram sem erros. Ou seja,
+os DTS de fundação de boot (base Khaje + overlay topaz) agora **compilam**
+com os drivers portados.
+
 ## Bloqueadores conhecidos para build/DTBS_CHECK
 
 1. ~~Header `qcom,khaje-qmp-usb3.h` ausente (USB)~~ — resolvido (patch 0012).
