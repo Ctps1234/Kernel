@@ -1,0 +1,86 @@
+#include <dt-bindings/clock/qcom,gcc-khaje.h>
+
+&tlmm {
+	ant-check-pin {
+		ant_check_default: ant_check_default {
+			mux {
+				pins = "gpio107";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio107";
+				drive-strength = <2>;
+				bias-pull-up;
+				input-enable;
+				input-debounce = <5000>;
+			};
+		};
+	};
+
+	ant-check-div-pin {
+		ant_check_div_default: ant_check_div_default {
+			mux {
+				pins = "gpio25";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio25";
+				bias-pull-up;
+				input-enable;
+				input-debounce = <5000>;
+			};
+		};
+	};
+};
+
+&qupv3_se4_i2c{
+   	st_st21nfc@08 {
+  		compatible = "st,st21nfc";
+  		reg = <8>;
+  		st,irq-gpio = <&tlmm 70 0x00>;
+  		st,reset-gpio = <&tlmm 69 0x00>;
+  		st,clkreq-gpio = <&tlmm 71 0x00>;
+  		interrupt-parent = <&tlmm>;
+  		interrupts = <70 0x00>;
+  		interrupt-names = "nfc_irq";
+  		clock-names = "nfc_ref_clk";
+  		st,clk_pinctrl;
+   	};
+};
+
+&soc {
+	simtray {
+		compatible = "xiaomi,simtray-status";
+		status-gpio = <&tlmm 79 0x00>;
+	};
+
+	thermal-message {
+		board-sensor = "VIRTUAL-SENSOR";
+	};
+
+    ant_check {
+        compatible = "ant_check";
+        interrupt-parent = <&tlmm>;
+        ant_check_gpio = <&tlmm 107 0x00>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&ant_check_default>;
+    };
+
+    ant_check_div {
+        compatible = "ant_check_div";
+        interrupt-parent = <&tlmm>;
+        ant_check_div_gpio = <&tlmm 25 0x00>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&ant_check_div_default>;
+    };
+};
+
+&qupv3_se4_2uart {
+	status = "disabled";
+};
+
+&sdhc_2 {
+	cd-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
+};

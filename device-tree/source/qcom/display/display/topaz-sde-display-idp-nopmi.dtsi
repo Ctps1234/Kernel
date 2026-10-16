@@ -1,0 +1,50 @@
+#include "dsi_panel_m7_38_0c_0a_fhdp_video.dtsi"
+#include "dsi_panel_m7_38_0c_0b_fhdp_video.dtsi"
+#include "xiaomi-sm6225-common.dtsi"
+#include "touchscreen_m7.dtsi"
+#include "khaje-sde-display-idp-nopmi.dtsi"
+
+&tlmm {
+	pmx_lcm1p8en_active {
+		lcm1p8en_active: lcm1p8en_active {
+			mux {
+				pins = "gpio54";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio54";
+				drive-strength = <2>;
+				bias-pull-up;
+				output-high;
+			};
+		};
+	};
+
+	pmx_lcm1p8en_suspend {
+		lcm1p8en_suspend: lcm1p8en_suspend {
+			mux {
+				pins = "gpio54";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio54";
+				drive-strength = <2>;
+				bias-pull-down;
+				output-low;
+			};
+		};
+	};
+};
+
+&soc {
+	thermal_screen: thermal-screen {
+		panel = <&dsi_panel_m7_38_0c_0a_fhdp_video &dsi_panel_m7_38_0c_0b_fhdp_video>;
+	};
+};
+
+&sde_dsi {
+    pinctrl-0 = <&sde_dsi_active &sde_te_active &lcm1p8en_active>;
+    qcom,dsi-default-panel = <&dsi_panel_m7_38_0c_0a_fhdp_video>;
+};

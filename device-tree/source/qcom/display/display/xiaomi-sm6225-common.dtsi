@@ -1,0 +1,88 @@
+&tlmm {
+	pmx_ts_avdd {
+		ts_avdd: ts_avdd {
+			mux {
+				pins = "gpio36";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio36";
+				drive-strength = <8>;
+				bias-pull-up;
+				output-high;
+			};
+		};
+	};
+};
+
+&soc {
+	xiaomi_touch {
+		touch,name = "xiaomi-touch";
+		compatible = "xiaomi-touch";
+		status = "okay";
+	};
+};
+
+&pm6125_gpios {
+	oled_vci {
+		oled_vci_default: oled_vci_default {
+			pins = "gpio9";
+			function = "normal";
+			input-disable;
+			power-source = <0>; // 1.8V
+			bias-disable;
+			output-high;
+			qcom,drive-strength = <2>;
+		};
+
+		oled_vci_suspend: oled_vci_suspend {
+			pins = "gpio9";
+			function = "normal";
+			input-disable;
+			power-source = <0>; // 1.8V
+			bias-disable;
+			output-low;
+			qcom,drive-strength = <2>;
+		};
+	};
+};
+
+&ts_release {
+	mux {
+		pins = "gpio80", "gpio86";
+		function = "gpio";
+	};
+
+	config {
+		pins = "gpio80", "gpio86";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+};
+
+&ts_reset_active {
+	mux {
+		pins = "gpio86";
+		function = "gpio";
+	};
+
+	config {
+		pins = "gpio86";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+};
+
+&ts_reset_suspend {
+    mux {
+    	pins = "gpio86";
+    	function = "gpio";
+    };
+
+    config {
+    	pins = "gpio86";
+    	drive-strength = <2>;
+    	bias-pull-down;
+    };
+};

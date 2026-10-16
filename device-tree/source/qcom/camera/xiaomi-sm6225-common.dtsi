@@ -1,0 +1,92 @@
+&tlmm {
+	cam_sensor_rear0_vaf_active: cam_sensor_rear0_vaf_active {
+		mux {
+			pins = "gpio101";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio101";
+			bias-pull-up;
+			drive-strength = <2>;
+			output-high;
+		};
+	};
+
+	cam_sensor_rear0_vaf_suspend: cam_sensor_rear0_vaf_suspend {
+		mux {
+			pins = "gpio101";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio101";
+			bias-pull-down;
+			drive-strength = <2>;
+			output-low;
+		};
+	};
+};
+
+&cam_sensor_csi_mux_oe_active {
+	mux {
+		pins = [00];
+		function = "gpio";
+	};
+
+	config {
+		pins = [00];
+		bias-disable;
+		drive-strength = <2>;
+		output-high;
+	};
+};
+
+&cam_sensor_csi_mux_oe_suspend {
+	mux {
+		pins = [00];
+		function = "gpio";
+	};
+
+	config {
+		pins = [00];
+		bias-pull-down;
+		drive-strength = <2>;
+		output-low;
+	};
+};
+
+&soc {
+    cam_res_mgr_label: qcom,cam-res-mgr {
+        compatible = "qcom,cam-res-mgr";
+        status = "ok";
+    };
+
+    cam_vaf_2p8: cam-vaf {
+        compatible = "regulator-fixed";
+        enable-active-high;
+        gpio = <&tlmm 101 0>;
+        regulator-max-microvolt = <0x2AB980>;
+        regulator-min-microvolt = <0x2AB980>;
+        regulator-name = "cam_vaf_2p8";
+        status = "okay";
+    };
+};
+
+&cam_cci0 {
+	actuator_rear: qcom,actuator0 {
+		cell-index = <0>;
+		compatible = "qcom,actuator";
+		cci-master = <0>;
+		cam_vaf-supply = <&cam_vaf_2p8>;
+		regulator-names = "cam_vaf";
+		rgltr-cntrl-support;
+		rgltr-min-voltage = <2800000>;
+		rgltr-max-voltage = <2800000>;
+		rgltr-load-current = <100000>;
+		pinctrl-names = "cam_default", "cam_suspend";
+		pinctrl-0 = <&cam_sensor_rear0_vaf_active>;
+		pinctrl-1 = <&cam_sensor_rear0_vaf_suspend>;
+		status = "ok";
+	};
+};

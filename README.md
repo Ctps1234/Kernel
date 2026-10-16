@@ -1,6 +1,6 @@
 # Redmi Note 12 4G — kernel Android GKI 6.12
 
-Projeto de bring-up/port para o Redmi Note 12 4G (topaz/tapas). **Estado: par FDT/DTBO confirmado e série local 0001–0011 preparada: pinctrl/RPMCC Khaje, PHY UFS SM6225, interconnect Bengal, reguladores RPM-SMD e providers GCC/DISPCC/GPUCC/debugcc com votos de tensão. A série completa aplica em sequência e passou revisão estática; ainda não há DTS/DTBO de fonte buildável, defconfig final, compilação ou imagem para testar/flashar.**
+Projeto de bring-up/port para o Redmi Note 12 4G (topaz/tapas). **Estado: par FDT/DTBO confirmado e série local 0001–0011 preparada: pinctrl/RPMCC Khaje, PHY UFS SM6225, interconnect Bengal, reguladores RPM-SMD e providers GCC/DISPCC/GPUCC/debugcc com votos de tensão. A série completa aplica em sequência e passou revisão estática. Fontes DTS/DTBO buildáveis para topaz/tapas foram importadas em `device-tree/source/` a partir do repositório público `nodrawAlliance/android_kernel_xiaomi_sm6225-devicetrees` (commit `7581fa2...`); ainda faltam reconciliação com a base 6.12, validação DT-schema/`dtbs_check`, defconfig final, compilação e imagem para testar/flashar.**
 
 ## Hardware confirmado
 
