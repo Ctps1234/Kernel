@@ -2,9 +2,22 @@ name: DTS/DTBO validation (topaz/tapas)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - arena/f49f65df-kernel
+    paths:
+      - "device-tree/**"
+      - "patches/**"
+      - "tools/**"
+      - ".github/workflows/dts-validate.yml"
+
+env:
+  BASE_REPO: https://github.com/EdMory/android_kernel_common_sm8850
+  BASE_COMMIT: 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
 
 jobs:
-  validate:
+  dts-validate:
+    name: Device trees (dtbs + dt-schema)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Kernel project
@@ -14,17 +27,28 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            clang lld llvm make gcc-aarch64-linux-gnu \
-            device-tree-compiler python3 flex bison bc libssl-dev
+            device-tree-compiler flex bison bc libssl-dev \
+            python3-venv python3-pip yamllint
+          python3 -m venv "$HOME/dtschema-venv"
+          "$HOME/dtschema-venv/bin/pip" install --quiet --upgrade pip
+          "$HOME/dtschema-venv/bin/pip" install --quiet dtschema
+          echo "$HOME/dtschema-venv/bin" >> "$GITHUB_PATH"
+
+      - name: Restore cached base kernel checkout
+        id: base-cache
+        uses: actions/cache@v4
+        with:
+          path: basekernel
+          key: basekernel-${{ env.BASE_COMMIT }}
 
       - name: Clone base Android Common 6.12 (fixed commit)
+        if: steps.base-cache.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 https://github.com/EdMory/android_kernel_common_sm8850 basekernel
+          git clone "$BASE_REPO" basekernel
           cd basekernel
-          git fetch --depth 1 origin 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
-          git checkout 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
+          git checkout "$BASE_COMMIT"
 
-      - name: Apply local patch series 0001-0012
+      - name: Apply local patch series
         run: |
           cd basekernel
           for p in ../patches/[0-9][0-9][0-9][0-9]-*.patch; do
@@ -34,30 +58,123 @@ jobs:
           done
           git diff --check
 
-      - name: Integrate DTS/DTBO sources
+      - name: Stage topaz/tapas device trees
+        run: |
+          python3 tools/integrate_dts.py --kernel-tree basekernel | tee integrate_dts.log
+
+      - name: Static include check
+        run: |
+          python3 tools/check_dts_includes.py \
+            --dts-dir basekernel/arch/arm64/boot/dts/qcom/khaje \
+            --kernel-tree basekernel | tee check_includes.log
+
+      - name: Configure (arm64 defconfig)
         run: |
           cd basekernel
-          # Place the imported DTS tree where the kernel build expects it.
-          cp -a ../device-tree/source/qcom/* arch/arm64/boot/dts/qcom/
-          # Audio bindings live in a separate include path in this project.
-          mkdir -p include/dt-bindings
-          cp -a ../device-tree/source/bindings/* include/dt-bindings/ 2>/dev/null || true
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig 2>&1 | tee defconfig.log
 
-      - name: Configure (defconfig)
+      - name: Build device trees (dtbs)
         run: |
           cd basekernel
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
+            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi.dtb \
+            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi-topaz.dtb \
+            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi-tapas.dtb \
+            arch/arm64/boot/dts/qcom/khaje/audio/topaz-sm6225-audio-overlay.dtbo \
+            arch/arm64/boot/dts/qcom/khaje/camera/topaz-camera-sensor-idp-overlay.dtbo \
+            arch/arm64/boot/dts/qcom/khaje/display/display/topaz-sde-display-idp-nopmi-overlay.dtbo \
+            2>&1 | tee dtbs.log
 
-      - name: Build DTBs (validation)
+      - name: Validate dtbs against DT-schema (dt-validate)
         run: |
           cd basekernel
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc) dtbs 2>&1 | tee dtbs.log
-          # Optional: dtbs_check requires dt-schema; enable when available.
-          # make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- dtbs_check
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
+            CHECK_DTBS=1 \
+            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi.dtb \
+            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi-topaz.dtb \
+            2>&1 | tee dtbs_check.log
 
-      - name: Archive logs
+      - name: Validate binding schemas (dt_binding_check)
+        run: |
+          cd basekernel
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux- \
+            dt_binding_check 2>&1 | tee dt_binding_check.log
+
+      - name: Build in-tree dtc/fdtoverlay (for local iteration)
+        run: |
+          cd basekernel
+          make ARCH=arm64 scripts_dtc 2>&1 | tee scripts_dtc.log
+
+      - name: Archive logs and artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dts-validation-logs
-          path: basekernel/dtbs.log
+          name: dts-validation
+          path: |
+            basekernel/dtbs.log
+            basekernel/dtbs_check.log
+            basekernel/dt_binding_check.log
+            basekernel/defconfig.log
+            basekernel/scripts_dtc.log
+            integrate_dts.log
+            check_includes.log
+            basekernel/arch/arm64/boot/dts/qcom/khaje/**/*.dtb
+            basekernel/arch/arm64/boot/dts/qcom/khaje/**/*.dtbo
+            basekernel/scripts/dtc/dtc
+            basekernel/scripts/dtc/fdtoverlay
+
+  kernel-build:
+    name: Kernel build (port dos drivers)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Kernel project
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang lld llvm make gcc-aarch64-linux-gnu bc bison flex \
+            libssl-dev libelf-dev
+          sudo update-alternatives --install /usr/bin/clang clang \
+            /usr/bin/clang-14 100 2>/dev/null || true
+
+      - name: Restore cached base kernel checkout
+        id: base-cache
+        uses: actions/cache@v4
+        with:
+          path: basekernel
+          key: basekernel-${{ env.BASE_COMMIT }}
+
+      - name: Clone base Android Common 6.12 (fixed commit)
+        if: steps.base-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone "$BASE_REPO" basekernel
+          cd basekernel
+          git checkout "$BASE_COMMIT"
+
+      - name: Apply local patch series
+        run: |
+          cd basekernel
+          for p in ../patches/[0-9][0-9][0-9][0-9]-*.patch; do
+            git apply --check "$p" || exit 1
+            git apply "$p" || exit 1
+          done
+
+      - name: Configure (arm64 defconfig)
+        run: |
+          cd basekernel
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig 2>&1 | tee defconfig.log
+
+      - name: Build kernel image
+        run: |
+          cd basekernel
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image \
+            2>&1 | tee kernel-build.log
+
+      - name: Archive build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-build-logs
+          path: basekernel/kernel-build.log

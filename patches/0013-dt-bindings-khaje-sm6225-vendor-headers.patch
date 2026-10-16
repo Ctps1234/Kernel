@@ -1,0 +1,390 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 16 Oct 2026 22:05:00 +0000
+Subject: [PATCH] dt-bindings: add Khaje/SM6225 vendor headers for topaz/tapas DTS
+
+Os device trees Khaje (SM6225) usados por topaz/tapas referenciam
+headers Qualcomm que nao existem na base Android Common 6.12:
+niveis de regulador RPMh, constantes de heap DMA, limites termicos QTI,
+tipos de power-on do PMIC, registros DCC v2 e os tres headers de audio
+usados pelos overlays bengal-audio.
+
+Os cinco headers Qualcomm foram copiados da arvore publica Xiaomi
+topaz-t-oss (Android 13/5.15), que expoe os mesmos valores; os tres
+headers de audio vinham do repositorio publico de devicetrees usado
+como fonte das DTS.
+
+ .../arm/msm/qcom_dma_heap_dt_constants.h           | 14 ++++
+ include/dt-bindings/audio-codec-port-types.h       | 38 +++++++++
+ include/dt-bindings/input/qcom,qpnp-power-on.h     | 22 +++++
+ include/dt-bindings/qcom,audio-ext-clk.h           | 29 +++++++
+ include/dt-bindings/qcom,bolero-clk-rsc.h          | 20 +++++
+ .../regulator/qcom,rpmh-regulator-levels.h         | 78 +++++++++++++++++
+ include/dt-bindings/soc/qcom,dcc_v2.h              | 14 ++++
+ include/dt-bindings/thermal/thermal_qti.h          | 98 ++++++++++++++++++++++
+ 8 files changed, 313 insertions(+)
+
+diff --git a/include/dt-bindings/arm/msm/qcom_dma_heap_dt_constants.h b/include/dt-bindings/arm/msm/qcom_dma_heap_dt_constants.h
+new file mode 100644
+index 000000000..088d88a9e
+--- /dev/null
++++ b/include/dt-bindings/arm/msm/qcom_dma_heap_dt_constants.h
+@@ -0,0 +1,14 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ */
++#ifndef _QCOM_DMA_HEAP_DT_CONSTATS_H
++#define _QCOM_DMA_HEAP_DT_CONSTATS_H
++
++#define HEAP_TYPE_SECURE_CARVEOUT 0
++#define HEAP_TYPE_CARVEOUT 1
++#define HEAP_TYPE_CMA 2
++#define HEAP_TYPE_TUI_CARVEOUT 3
++
++#endif /* _QCOM_DMA_HEAP_DT_CONSTATS_H */
+diff --git a/include/dt-bindings/audio-codec-port-types.h b/include/dt-bindings/audio-codec-port-types.h
+new file mode 100644
+index 000000000..8a9d7cf4c
+--- /dev/null
++++ b/include/dt-bindings/audio-codec-port-types.h
+@@ -0,0 +1,38 @@
++#ifndef __AUDIO_CODEC_PORT_TYPES_H
++#define __AUDIO_CODEC_PORT_TYPES_H
++
++#define SPKR_L 1
++#define SPKR_L_BOOST 2
++#define SPKR_L_COMP 3
++#define SPKR_L_VI 4
++#define SPKR_R 5
++#define SPKR_R_BOOST 6
++#define SPKR_R_COMP 7
++#define SPKR_R_VI 8
++#define HPH_L 9
++#define HPH_R 10
++#define COMP_L 11
++#define COMP_R 12
++#define CLSH 13
++#define LO 14
++#define DSD_L 15
++#define DSD_R 16
++#define MBHC 17
++#define ADC1 18
++#define ADC2 19
++#define ADC3 20
++#define ADC4 21
++#define DMIC0 22
++#define DMIC1 23
++#define DMIC2 24
++#define DMIC3 25
++#define DMIC4 26
++#define DMIC5 27
++#define DMIC6 28
++#define DMIC7 29
++#define DMIC8 30
++#define DMIC9 31
++#define DMIC10 32
++#define PCM_OUT1 33
++
++#endif /* __AUDIO_CODEC_PORT_TYPES_H */
+diff --git a/include/dt-bindings/input/qcom,qpnp-power-on.h b/include/dt-bindings/input/qcom,qpnp-power-on.h
+new file mode 100644
+index 000000000..a53dea8a7
+--- /dev/null
++++ b/include/dt-bindings/input/qcom,qpnp-power-on.h
+@@ -0,0 +1,22 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (c) 2018-2019,2021 The Linux Foundation. All rights reserved.
++ */
++
++#ifndef _DT_BINDINGS_INPUT_QCOM_POWER_ON_H
++#define _DT_BINDINGS_INPUT_QCOM_POWER_ON_H
++
++/* PMIC PON peripheral logical power on types: */
++#define PON_POWER_ON_TYPE_KPDPWR		0
++#define PON_POWER_ON_TYPE_RESIN			1
++#define PON_POWER_ON_TYPE_CBLPWR		2
++#define PON_POWER_ON_TYPE_KPDPWR_RESIN		3
++
++/* PMIC PON peripheral physical power off types: */
++#define PON_POWER_OFF_TYPE_WARM_RESET		0x01
++#define PON_POWER_OFF_TYPE_SHUTDOWN		0x04
++#define PON_POWER_OFF_TYPE_DVDD_SHUTDOWN	0x05
++#define PON_POWER_OFF_TYPE_HARD_RESET		0x07
++#define PON_POWER_OFF_TYPE_DVDD_HARD_RESET	0x08
++
++#endif
+diff --git a/include/dt-bindings/qcom,audio-ext-clk.h b/include/dt-bindings/qcom,audio-ext-clk.h
+new file mode 100644
+index 000000000..7168a2dcb
+--- /dev/null
++++ b/include/dt-bindings/qcom,audio-ext-clk.h
+@@ -0,0 +1,29 @@
++/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#ifndef __AUDIO_EXT_CLK_H
++#define __AUDIO_EXT_CLK_H
++
++/* Audio External Clocks */
++#define AUDIO_PMI_CLK		0
++#define AUDIO_PMIC_LNBB_CLK	1
++#define AUDIO_LPASS_MCLK_1	2
++#define AUDIO_LPASS_MCLK_2	3
++#define AUDIO_LPASS_MCLK_3	4
++#define AUDIO_LPASS_MCLK_4	5
++#define AUDIO_LPASS_MCLK_5	6
++#define AUDIO_LPASS_MCLK_6	7
++#define AUDIO_LPASS_MCLK_7	8
++#define AUDIO_LPASS_CORE_HW_VOTE	9
++#define AUDIO_EXTERNAL_PLL	10
++
++#endif
+diff --git a/include/dt-bindings/qcom,bolero-clk-rsc.h b/include/dt-bindings/qcom,bolero-clk-rsc.h
+new file mode 100644
+index 000000000..038c066d3
+--- /dev/null
++++ b/include/dt-bindings/qcom,bolero-clk-rsc.h
+@@ -0,0 +1,20 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
++ */
++
++#ifndef __BOLERO_CODEC_CLK_RSC_H
++#define __BOLERO_CODEC_CLK_RSC_H
++
++/* Bolero clock types */
++#define TX_CORE_CLK	0
++#define RX_CORE_CLK	1
++#define WSA_CORE_CLK	2
++#define VA_CORE_CLK	3
++#define TX_NPL_CLK	4
++#define RX_NPL_CLK	5
++#define WSA_NPL_CLK	6
++#define VA_NPL_CLK	7
++#define MAX_CLK	8
++
++#endif /* __BOLERO_CODEC_CLK_RSC_H */
+diff --git a/include/dt-bindings/regulator/qcom,rpmh-regulator-levels.h b/include/dt-bindings/regulator/qcom,rpmh-regulator-levels.h
+new file mode 100644
+index 000000000..326fbfdad
+--- /dev/null
++++ b/include/dt-bindings/regulator/qcom,rpmh-regulator-levels.h
+@@ -0,0 +1,78 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
++ */
++
++#ifndef __QCOM_RPMH_REGULATOR_LEVELS_H
++#define __QCOM_RPMH_REGULATOR_LEVELS_H
++
++/* These levels may be used for ARC type RPMh regulators. */
++#define RPMH_REGULATOR_LEVEL_RETENTION		16
++#define RPMH_REGULATOR_LEVEL_MIN_SVS		48
++#define RPMH_REGULATOR_LEVEL_LOW_SVS_D2		52
++#define RPMH_REGULATOR_LEVEL_LOW_SVS_D1		56
++#define RPMH_REGULATOR_LEVEL_LOW_SVS_D0		60
++#define RPMH_REGULATOR_LEVEL_LOW_SVS		64
++#define RPMH_REGULATOR_LEVEL_LOW_SVS_P1		72
++#define RPMH_REGULATOR_LEVEL_LOW_SVS_L1		80
++#define RPMH_REGULATOR_LEVEL_LOW_SVS_L2		96
++#define RPMH_REGULATOR_LEVEL_SVS		128
++#define RPMH_REGULATOR_LEVEL_SVS_L0		144
++#define RPMH_REGULATOR_LEVEL_SVS_L1		192
++#define RPMH_REGULATOR_LEVEL_SVS_L2		224
++#define RPMH_REGULATOR_LEVEL_NOM		256
++#define RPMH_REGULATOR_LEVEL_NOM_L0		288
++#define RPMH_REGULATOR_LEVEL_NOM_L1		320
++#define RPMH_REGULATOR_LEVEL_NOM_L2		336
++#define RPMH_REGULATOR_LEVEL_TURBO		384
++#define RPMH_REGULATOR_LEVEL_TURBO_L0		400
++#define RPMH_REGULATOR_LEVEL_TURBO_L1		416
++#define RPMH_REGULATOR_LEVEL_TURBO_L2		432
++#define RPMH_REGULATOR_LEVEL_TURBO_L3		448
++#define RPMH_REGULATOR_LEVEL_SUPER_TURBO	464
++#define RPMH_REGULATOR_LEVEL_SUPER_TURBO_NO_CPR	480
++#define RPMH_REGULATOR_LEVEL_MAX		65535
++
++/*
++ * These set constants may be used as the value for qcom,set of an RPMh
++ * resource device.
++ */
++#define RPMH_REGULATOR_SET_ACTIVE	1
++#define RPMH_REGULATOR_SET_SLEEP	2
++#define RPMH_REGULATOR_SET_ALL		3
++
++/*
++ * These mode constants may be used for qcom,supported-modes and qcom,init-mode
++ * properties of an RPMh resource.  Each type of regulator supports a subset of
++ * the possible modes.
++ *
++ * %RPMH_REGULATOR_MODE_PASS:	Pass-through mode in which output is directly
++ *				tied to input.  This mode is only supported by
++ *				BOB type regulators.
++ * %RPMH_REGULATOR_MODE_RET:	Retention mode in which only an extremely small
++ *				load current is allowed.  This mode is supported
++ *				by LDO and SMPS type regulators.
++ * %RPMH_REGULATOR_MODE_LPM:	Low power mode in which a small load current is
++ *				allowed.  This mode corresponds to PFM for SMPS
++ *				and BOB type regulators.  This mode is supported
++ *				by LDO, HFSMPS, BOB, and PMIC4 FTSMPS type
++ *				regulators.
++ * %RPMH_REGULATOR_MODE_AUTO:	Auto mode in which the regulator hardware
++ *				automatically switches between LPM and HPM based
++ *				upon the real-time load current.  This mode is
++ *				supported by HFSMPS, BOB, and PMIC4 FTSMPS type
++ *				regulators.
++ * %RPMH_REGULATOR_MODE_HPM:	High power mode in which the full rated current
++ *				of the regulator is allowed.  This mode
++ *				corresponds to PWM for SMPS and BOB type
++ *				regulators.  This mode is supported by all types
++ *				of regulators.
++ */
++#define RPMH_REGULATOR_MODE_PASS	0
++#define RPMH_REGULATOR_MODE_RET		1
++#define RPMH_REGULATOR_MODE_LPM		2
++#define RPMH_REGULATOR_MODE_AUTO	3
++#define RPMH_REGULATOR_MODE_HPM		4
++
++#endif
+diff --git a/include/dt-bindings/soc/qcom,dcc_v2.h b/include/dt-bindings/soc/qcom,dcc_v2.h
+new file mode 100644
+index 000000000..2898ab083
+--- /dev/null
++++ b/include/dt-bindings/soc/qcom,dcc_v2.h
+@@ -0,0 +1,14 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (c) 2017-2019,2021 The Linux Foundation. All rights reserved.
++ */
++
++#ifndef __DT_BINDINGS_QCOM_DCC_V2_H
++#define __DT_BINDINGS_QCOM_DCC_V2_H
++
++#define DCC_READ	0
++#define DCC_WRITE	1
++#define DCC_LOOP	2
++#define DCC_READ_WRITE	3
++
++#endif
+diff --git a/include/dt-bindings/thermal/thermal_qti.h b/include/dt-bindings/thermal/thermal_qti.h
+new file mode 100644
+index 000000000..44c9e11a5
+--- /dev/null
++++ b/include/dt-bindings/thermal/thermal_qti.h
+@@ -0,0 +1,98 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
++ */
++
++#include <dt-bindings/thermal/thermal.h>
++
++#ifndef _DT_BINDINGS_QTI_THERMAL_H
++#define _DT_BINDINGS_QTI_THERMAL_H
++
++#define THERMAL_MAX_LIMIT	(THERMAL_NO_LIMIT - 1)
++#define AGGREGATE_COEFF_VALUE	0
++#define AGGREGATE_MAX_VALUE	1
++#define AGGREGATE_MIN_VALUE	2
++
++#define QMI_PA			0
++#define QMI_PA_1		1
++#define QMI_PA_2		2
++#define QMI_QFE_PA_0		3
++#define QMI_QFE_WTR_0		4
++#define QMI_MODEM_TSENS		5
++#define QMI_QFE_MMW_0		6
++#define QMI_QFE_MMW_1		7
++#define QMI_QFE_MMW_2		8
++#define QMI_QFE_MMW_3		9
++#define QMI_XO_THERM		10
++#define QMI_QFE_PA_MDM		11
++#define QMI_QFE_PA_WTR		12
++#define QMI_QFE_MMW_STREAMER_0	13
++#define QMI_QFE_MMW_0_MOD	14
++#define QMI_QFE_MMW_1_MOD	15
++#define QMI_QFE_MMW_2_MOD	16
++#define QMI_QFE_MMW_3_MOD	17
++#define QMI_QFE_RET_PA_0	18
++#define QMI_QFE_WTR_PA_0	19
++#define QMI_QFE_WTR_PA_1	20
++#define QMI_QFE_WTR_PA_2	21
++#define QMI_QFE_WTR_PA_3	22
++#define QMI_SYS_THERM_1		23
++#define QMI_SYS_THERM_2		24
++#define QMI_MODEM_TSENS_1	25
++#define QMI_MMW_PA1		26
++#define QMI_MMW_PA2		27
++#define QMI_MMW_PA3		28
++#define QMI_SDR_MMW		29
++#define QMI_QTM_THERM		30
++#define QMI_BCL_WARN		31
++#define QMI_SDR0_PA0		32
++#define QMI_SDR0_PA1		33
++#define QMI_SDR0_PA2		34
++#define QMI_SDR0_PA3		35
++#define QMI_SDR0_PA4		36
++#define QMI_SDR0_PA5		37
++#define QMI_SDR0		38
++#define QMI_SDR1_PA0		39
++#define QMI_SDR1_PA1		40
++#define QMI_SDR1_PA2		41
++#define QMI_SDR1_PA3		42
++#define QMI_SDR1_PA4		43
++#define QMI_SDR1_PA5		44
++#define QMI_SDR1		45
++#define QMI_MMW0		46
++#define QMI_MMW1		47
++#define QMI_MMW2		48
++#define QMI_MMW3		49
++#define QMI_MMW_IFIC0		50
++#define QMI_SUB1_MODEM_CFG	51
++#define QMI_SUB1_LTE_CC		52
++#define QMI_SUB1_MCG_FR1_CC	53
++#define QMI_SUB1_MCG_FR2_CC	54
++#define QMI_SUB1_SCG_FR1_CC	55
++#define QMI_SUB1_SCG_FR2_CC	56
++#define QMI_SUB2_MODEM_CFG	57
++#define QMI_SUB2_LTE_CC		58
++#define QMI_SUB2_MCG_FR1_CC	59
++#define QMI_SUB2_MCG_FR2_CC	60
++#define QMI_SUB2_SCG_FR1_CC	61
++#define QMI_SUB2_SCG_FR2_CC	62
++#define QMI_NSP_ISENSE_TRIM	63
++#define QMI_EPM0		64
++#define QMI_EPM1		65
++#define QMI_EPM2		66
++#define QMI_EPM3		67
++#define QMI_EPM4		68
++#define QMI_EPM5		69
++#define QMI_EPM6		70
++#define QMI_EPM7		71
++#define QMI_SDR0_PA		72
++#define QMI_SDR1_PA		73
++
++#define QMI_MODEM_INST_ID	0x0
++#define QMI_ADSP_INST_ID	0x1
++#define QMI_CDSP_INST_ID	0x43
++#define QMI_SLPI_INST_ID	0x53
++#define QMI_MODEM_NR_INST_ID	0x64
++
++#endif
+-- 
+2.39.5
+
