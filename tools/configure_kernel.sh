@@ -26,7 +26,9 @@ export ARCH=arm64
 # O compilador cruzado só é usado se estiver instalado: o job de device
 # trees não precisa dele, e o kconfig aborta se ele não existir.
 CROSS=${CROSS_COMPILE:-aarch64-linux-gnu-}
+CROSS_ARGS=""
 if command -v "${CROSS}gcc" >/dev/null 2>&1; then
+    CROSS_ARGS="CROSS_COMPILE=${CROSS}"
     export CROSS_COMPILE="$CROSS"
     echo "usando compilador cruzado: ${CROSS}gcc"
 else
@@ -35,14 +37,14 @@ else
 fi
 
 echo "== defconfig GKI =="
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
+make ARCH=arm64 $CROSS_ARGS defconfig
 
 echo "== mesclando $FRAGMENT =="
 # Merge manual: o fragmento vem depois do .config, e no kconfig a última
 # ocorrência de um símbolo prevalece (KCONFIG_ALLCONFIG).
 MERGED=.merged-khaje.config
 cat .config "$FRAGMENT" > "$MERGED"
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+make ARCH=arm64 $CROSS_ARGS \
      KCONFIG_ALLCONFIG="$MERGED" olddefconfig
 rm -f "$MERGED"
 
