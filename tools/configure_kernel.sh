@@ -18,6 +18,12 @@ REQUIRED="ARCH_QCOM QCOM_SMD_RPM COMMON_CLK_QCOM SM_GCC_6225 SM_DISPCC_6225 SM_G
 
 cd "$KERNEL_TREE"
 
+# O merge_config.sh chama `make` internamente; sem ARCH/CROSS_COMPILE no
+# ambiente ele configuraria para a arquitetura do host e perderia todos os
+# símbolos arm64 do port.
+export ARCH=arm64
+export CROSS_COMPILE=aarch64-linux-gnu-
+
 echo "== defconfig GKI =="
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
 
