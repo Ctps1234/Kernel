@@ -22,7 +22,17 @@ cd "$KERNEL_TREE"
 
 # O kconfig e o build precisam saber a arquitetura-alvo.
 export ARCH=arm64
-export CROSS_COMPILE=aarch64-linux-gnu-
+
+# O compilador cruzado só é usado se estiver instalado: o job de device
+# trees não precisa dele, e o kconfig aborta se ele não existir.
+CROSS=${CROSS_COMPILE:-aarch64-linux-gnu-}
+if command -v "${CROSS}gcc" >/dev/null 2>&1; then
+    export CROSS_COMPILE="$CROSS"
+    echo "usando compilador cruzado: ${CROSS}gcc"
+else
+    unset CROSS_COMPILE
+    echo "compilador cruzado ausente; o kconfig usara o compilador do host"
+fi
 
 echo "== defconfig GKI =="
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
