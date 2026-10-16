@@ -44,8 +44,11 @@ echo "== mesclando $FRAGMENT =="
 # ocorrência de um símbolo prevalece (KCONFIG_ALLCONFIG).
 MERGED=.merged-khaje.config
 cat .config "$FRAGMENT" > "$MERGED"
+# KCONFIG_ALLCONFIG só é honrado nos modos all*/alldefconfig; olddefconfig
+# ignora o arquivo. O fragmento vem depois do .config e, no kconfig, a
+# última ocorrência de um símbolo prevalece.
 make ARCH=arm64 $CROSS_ARGS \
-     KCONFIG_ALLCONFIG="$MERGED" olddefconfig
+     KCONFIG_ALLCONFIG="$MERGED" alldefconfig
 rm -f "$MERGED"
 
 echo "== conference dos símbolos do port Khaje =="
