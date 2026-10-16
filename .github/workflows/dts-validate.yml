@@ -19,6 +19,9 @@ jobs:
   dts-validate:
     name: Device trees (dtbs + dt-schema)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Checkout Kernel project
         uses: actions/checkout@v4
@@ -98,7 +101,10 @@ jobs:
         run: |
           set -o pipefail
           cd basekernel
+          # Escopo: apenas os bindings tocados pela serie 0001-0013 (o
+          # check completo sobre as ~2000 schemas da base leva horas).
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux- \
+            DT_SCHEMA_FILES="qcom,khaje-pinctrl.yaml,qcom,rpmcc-khaje.yaml,qcom,rpmcc.yaml,qcom,khaje-gcc.yaml,qcom,khaje-dispcc.yaml,qcom,khaje-gpucc.yaml,qcom,khaje-debugcc.yaml,qcom,gcc.yaml,qcom,bengal.yaml,qcom,smd-rpm-regulator.yaml,qcom,smd-rpm.yaml,qcom,sc8280xp-qmp-ufs-phy.yaml" \
             dt_binding_check 2>&1 | tee dt_binding_check.log
 
       - name: Build in-tree dtc/fdtoverlay (for local iteration)
@@ -106,6 +112,16 @@ jobs:
           set -o pipefail
           cd basekernel
           make ARCH=arm64 scripts_dtc 2>&1 | tee scripts_dtc.log
+
+      - name: Publish summary as issue
+        if: always()
+        run: |
+          set -o pipefail
+          bash tools/ci_publish_report.sh \
+            "CI: relatorio de validacao DTS/DTBO (topaz/tapas)" ci-report \
+            basekernel/dtbs.log basekernel/dtbs_check.log \
+            basekernel/dt_binding_check.log basekernel/configure.log \
+            check_includes.log || true
 
       - name: Archive logs and artifacts
         if: always()
@@ -128,6 +144,9 @@ jobs:
   kernel-build:
     name: Kernel build (port dos drivers)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Checkout Kernel project
         uses: actions/checkout@v4
@@ -170,6 +189,14 @@ jobs:
           cd basekernel
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image \
             2>&1 | tee kernel-build.log
+
+      - name: Publish build summary as issue
+        if: always()
+        run: |
+          set -o pipefail
+          bash tools/ci_publish_report.sh \
+            "CI: relatorio de build do kernel (port Khaje)" ci-report \
+            basekernel/kernel-build.log basekernel/configure.log || true
 
       - name: Archive build log
         if: always()
