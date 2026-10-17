@@ -79,10 +79,14 @@ def signature(entry):
     A normalizacao troca valores binarios por um marcador e sequencias de
     digitos por "N", de modo que as dozens de instancias do mesmo problema
     (uma por regulador, por CPU, ...) colapsem em uma unica assinatura.
+    Mensagens muito longas (o dt-validate do vendor-prefixes embute a lista
+    completa de prefixos) sao truncadas para nao inflar a linha de base.
     """
     msg = BYTES_RE.sub("b'<bytes>'", entry["msg"])
     msg = re.sub(r"[0-9]+", "N", msg)
     msg = re.sub(r"\s+", " ", msg).strip()
+    if len(msg) > 160:
+        msg = msg[:160] + "..."
     return "%s\t%s" % (entry["schema"], msg)
 
 

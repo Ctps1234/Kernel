@@ -1,0 +1,151 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 16 Oct 2026 22:05:00 +0000
+Subject: [PATCH] dt-bindings: vendor-prefixes: add the vendor prefixes in use
+
+O device tree do board topaz usa prefixos de propriedade que nao estavam
+em vendor-prefixes.yaml, e o dt-validate rejeita cada propriedade com
+prefixo desconhecido: bat (fuel gauge vendor), synaptics (touchscreen),
+fpc (fingerprint), mi/nopmi (Xiaomi), pd, sc, sm, vib, rt-tcpc,
+ln8000_charger, pin_assignment e signal.
+
+---
+diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+index af9a8d43b..7c124a012 100644
+--- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
++++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+@@ -204,6 +204,12 @@ patternProperties:
+     description: BAIKAL ELECTRONICS, JSC
+   "^bananapi,.*":
+     description: BIPAI KEJI LIMITED
++  "^bat,.*":
++    description: Battery information used by the vendor fuel gauge
++
++  "^battery0,.*":
++    description: Per-battery instance properties used by the vendor charger
++
+   "^beacon,.*":
+     description: Compass Electronics Group, LLC
+   "^beagle,.*":
+@@ -527,6 +533,9 @@ patternProperties:
+     description: FocalTech Systems Co.,Ltd
+   "^forlinx,.*":
+     description: Baoding Forlinx Embedded Technology Co., Ltd.
++  "^fpc,.*":
++    description: Fingerprint sensor manufacturer
++
+   "^freebox,.*":
+     description: Freebox SAS
+   "^freecom,.*":
+@@ -854,6 +863,9 @@ patternProperties:
+     description: LiteX SoC builder
+   "^lltc,.*":
+     description: Linear Technology Corporation
++  "^ln8000_charger,.*":
++    description: Lontium charger IC
++
+   "^logicpd,.*":
+     description: Logic PD, Inc.
+   "^logictechno,.*":
+@@ -928,6 +940,9 @@ patternProperties:
+     description: Merrii Technology Co., Ltd.
+   "^methode,.*":
+     description: Methode Electronics, Inc.
++  "^mi,.*":
++    description: Xiaomi
++
+   "^micrel,.*":
+     description: Micrel Inc.
+   "^microchip,.*":
+@@ -1049,6 +1064,9 @@ patternProperties:
+     description: NLT Technologies, Ltd.
+   "^nokia,.*":
+     description: Nokia
++  "^nopmi,.*":
++    description: Xiaomi (nopmi models)
++
+   "^nordic,.*":
+     description: Nordic Semiconductor
+   "^novatek,.*":
+@@ -1136,6 +1154,9 @@ patternProperties:
+     description: Parade Technologies Inc.
+   "^parallax,.*":
+     description: Parallax Inc.
++  "^pd,.*":
++    description: USB-C power delivery policy used by the vendor charger
++
+   "^pda,.*":
+     description: Precision Design Associates, Inc.
+   "^pericom,.*":
+@@ -1148,6 +1169,9 @@ patternProperties:
+     description: PHYTEC Messtechnik GmbH
+   "^picochip,.*":
+     description: Picochip Ltd
++  "^pin_assignment,.*":
++    description: Pin assignment used by the vendor display driver
++
+   "^pine64,.*":
+     description: Pine64
+   "^pineriver,.*":
+@@ -1262,6 +1286,9 @@ patternProperties:
+     description: Shenzhen Roofull Technology Co, Ltd
+   "^roseapplepi,.*":
+     description: RoseapplePi.org
++  "^rt-tcpc,.*":
++    description: Richtek Type-C port controller
++
+   "^rve,.*":
+     description: Recharge Véhicule Électrique (RVE) inc.
+   "^saef,.*":
+@@ -1278,6 +1305,9 @@ patternProperties:
+     description: Satoz International Co., Ltd
+   "^sbs,.*":
+     description: Smart Battery System
++  "^sc,.*":
++    description: Standalone charger IC
++
+   "^schindler,.*":
+     description: Schindler
+   "^schneider,.*":
+@@ -1328,6 +1358,9 @@ patternProperties:
+     description: SiFive, Inc.
+   "^sigma,.*":
+     description: Sigma Designs, Inc.
++  "^signal,.*":
++    description: Display signal configuration used by the vendor panel driver
++
+   "^sii,.*":
+     description: Seiko Instruments, Inc.
+   "^sil,.*":
+@@ -1368,6 +1401,9 @@ patternProperties:
+     description: SKOV A/S
+   "^skyworks,.*":
+     description: Skyworks Solutions, Inc.
++  "^sm,.*":
++    description: Standalone fuel gauge / battery manager
++
+   "^smartlabs,.*":
+     description: SmartLabs LLC
+   "^smartrg,.*":
+@@ -1449,6 +1485,9 @@ patternProperties:
+     description: Sierra Wireless
+   "^syna,.*":
+     description: Synaptics Inc.
++  "^synaptics,.*":
++    description: Synaptics
++
+   "^synology,.*":
+     description: Synology, Inc.
+   "^synopsys,.*":
+@@ -1593,6 +1632,9 @@ patternProperties:
+     description: VIA Technologies, Inc.
+   "^vialab,.*":
+     description: VIA Labs, Inc.
++  "^vib,.*":
++    description: Vibrator
++
+   "^vicor,.*":
+     description: Vicor Corporation
+   "^videostrong,.*":
+-- 
+2.39.5
