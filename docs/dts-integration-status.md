@@ -121,7 +121,7 @@ quando aparece uma assinatura de erro nova ou quando alguma contagem
 cresce. Detalhes, medição e backlog por schema em
 [`docs/dt-schema-validation.md`](dt-schema-validation.md).
 
-Estado atual: 3048 erros em 792 assinaturas (838 só no DTB base, contra
+Estado atual: 3009 erros em 778 assinaturas (833 só no DTB base, contra
 1143 no começo da rodada). O que resta é majoritariamente propriedade
 `qcom,*` do 5.15 sem binding na árvore 6.12.
 
@@ -136,7 +136,7 @@ Estado atual: 3048 erros em 792 assinaturas (838 só no DTB base, contra
 6. ~~Defconfig final~~ — resolvido: `config/topaz-khaje.config` +
    `tools/configure_kernel.sh`, e o build da imagem do kernel passou no CI.
 7. `dt-validate` verde — em andamento: o gate de regressão está no CI, mas
-   o backlog de bindings vendor ainda tem 838 erros no DTB base (ver
+   o backlog de bindings vendor ainda tem 833 erros no DTB base (ver
    [`docs/dt-schema-validation.md`](dt-schema-validation.md)).
 
 ## Recomendação

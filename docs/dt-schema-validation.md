@@ -66,34 +66,34 @@ A linha de base é versionada; reduções de erro exigem regenerá-la
 
 ## Estado medido
 
-Rodada `38989617574` (branch `arena/f49f65df-kernel`), três DTBs validados
+Rodada `38991765488` (branch `arena/f49f65df-kernel`), três DTBs validados
 (base Khaje + compostos topaz e tapas):
 
 | DTB | Erros | Assinaturas | Avisos (sem schema) |
 |---|---|---|---|
-| `khaje-idp-nopmi.dtb` | 838 | 609 | 210 |
-| `khaje-idp-nopmi-topaz.dtb` | 1105 | 788 | 227 |
-| `khaje-idp-nopmi-tapas.dtb` | 1105 | 789 | 227 |
-| **total** | **3048** | **792** | **664** |
+| `khaje-idp-nopmi.dtb` | 833 | 607 | 210 |
+| `khaje-idp-nopmi-topaz.dtb` | 1088 | 774 | 227 |
+| `khaje-idp-nopmi-tapas.dtb` | 1088 | 775 | 227 |
+| **total** | **3009** | **778** | **664** |
 
 O DTB base tinha 1143 erros no começo da rodada (o mesmo build, com o
-`dt-validate` embutido no `make`): as correções do binding RPM-SMD, do
-binding do PHY UFS e dos nós CTI tiraram 305 erros do DTB base, e as
-demais (compound topaz/tapas) caíram de 1354 para 1105.
+`dt-validate` embutido no `make`): as correções de schema e de DTS tiraram
+310 erros do DTB base (-27%), e os compostos topaz/tapas caíram de 1354
+para 1088.
 
 ### Backlog por schema (DTB base)
 
 | Schema | Erros | Causa |
 |---|---|---|
 | `dt-core.yaml` | 549 | propriedades `qcom,*` do 5.15 sem binding na árvore 6.12 (`qcom,cpus`, `qcom,qmi-dev-name`, `qcom,instance-id`, `qcom,devfreq`, `qcom,glink-label`, `transport`, `vote`, `qcom,freq-domain`, `qcom,lmh-dcvs`, `qcom,dump-size`, `qcom,cdev-alias`, ...) |
-| `simple-bus.yaml` | 89 | nós `cluster-device*` sem `ranges` |
+| `simple-bus.yaml` | 85 | filhos de `/soc` sem `reg` e sem `ranges` (o schema exige `ranges` vazio quando não há `reg`) |
 | `pinctrl/qcom,khaje-pinctrl.yaml` | 64 | binding Khaje (patch 0001) ainda não descreve os grupos usados pela DTS 5.15 |
 | `soc/qcom/qcom,geni-se.yaml` | 22 | `clock-names` do GENI 5.15 (`se`) não confere com o schema 6.12 |
-| demais | ~114 | `sdhci-msm`, `qcom,mpm`, `qcom,spmi-pmic`, `syscon-common`, `qcom,ufs`, `bengal`, `opp-v2`, `qcom,smmu`, `qcom,geni-se`, `idle-states`, ... |
+| demais | ~113 | `sdhci-msm`, `qcom,mpm`, `qcom,spmi-pmic`, `syscon-common`, `qcom,ufs`, `bengal`, `opp-v2`, `qcom,smmu`, `qcom,geni-se`, `idle-states`, ... |
 
-O binding RPM-SMD e o schema dos nós CTI não aparecem mais na lista: as
-duas correções de schema desta rodada zeraram os 136 + 37 erros que eles
-somavam.
+Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
+`vendor-prefixes.yaml`: as correções de schema desta rodada zeraram os
+136 + 37 + 27 erros que eles somavam.
 
 ### Correções já aplicadas
 
@@ -114,7 +114,12 @@ somavam.
   `^cti(@[0-9a-f]+)$`); `bias-disable = <0>` virou flag; o label do nó
   `aliases` foi removido (gerava um `phandle` rejeitado pelo schema de
   aliases); a tecla `vol_up` virou `key-vol-up` (padrão do schema
-  `gpio-keys`).
+  `gpio-keys`); `ranges` vazio nos nós `cluster-device*`.
+- **prefixos vendor** (patch 0014): `bat`, `synaptics`, `fpc`, `fsm`,
+  `mi`, `nopmi`, `pd`, `sc`, `si`, `sm`, `touch`, `vib`, `gpio-key`,
+  `rt-tcpc`, `rt1711pd`, `tcpc-dual`, `typec`, `ln8000_charger`,
+  `pin_assignment` e `signal` registrados em `vendor-prefixes.yaml` — sem
+  as entradas o `dt-validate` rejeita cada propriedade que os usa.
 
 ## Próximos passos do backlog
 
@@ -125,8 +130,9 @@ somavam.
    `qcom,lmh-dcvs`, `qcom,dump-size`, `qcom,cdev-alias`, `qcom,glink-label`).
 2. **Binding do pinctrl Khaje** (patch 0001): completar os grupos de pin
    usados pela DTS 5.15 (`qupv*_se*_i2c_pins`, `cam_sensor_*`, ...).
-3. **Nós `cluster-device*`**: acrescentar `ranges` (ou documentar a exceção
-   no binding de simple-bus).
+3. **Filhos de `/soc` sem `reg`**: o `simple-bus` do upstream exige
+   `ranges` (vazio) nesses nós; são ~40 marcadores de vendor que hoje
+   só geram 85 erros no DTB base.
 4. **GENI/SE e `sdhci-msm`**: alinhar `clock-names`/`reg-names` da DTS com o
    schema 6.12, ou estender os bindings para aceitar os nomes 5.15.
 5. Manter o gate: cada correção deve reduzir a linha de base, e nunca

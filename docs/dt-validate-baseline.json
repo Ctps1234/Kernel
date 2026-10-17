@@ -1,5 +1,5 @@
 {
- "assinaturas": 3034,
+ "assinaturas": 3009,
  "avisos": 664,
  "signatures": {
   "http://devicetree.org/schemas/arm/pmu.yaml\tcpu-pmu (arm,armvN-pmuvN): 'qcom,irq-is-percpu' does not match any of the regexes: '^pinctrl-[N-N]+$'": 3,
@@ -779,18 +779,6 @@
   "http://devicetree.org/schemas/usb/snps,dwc3.yaml\tdwcN@NeN (snps,dwcN): $nodename:N: 'dwcN@NeN' does not match '^usb(@.*)?'": 3,
   "http://devicetree.org/schemas/usb/snps,dwc3.yaml\tdwcN@NeN (snps,dwcN): Unevaluated properties are not allowed ('maximum-speed', 'qcom,iommu-dma', 'qcom,iommu-dma-addr-pool', 'snps,disable-clk-gating', 'snps,us...": 3,
   "http://devicetree.org/schemas/usb/usb-nop-xceiv.yaml\tusb_nop_phy (usb-nop-xceiv): '#phy-cells' is a required property": 3,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tbattery_params: 'batteryN,alpha', 'batteryN,battery_tableN', 'batteryN,battery_tableN', 'batteryN,battery_tableN', 'batteryN,battery_type', 'batteryN,beta', 'ba...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tdfp_d: 'pin_assignment,mode_c', 'pin_assignment,mode_d', 'pin_assignment,mode_e' do not match any of the regexes: '^#.*', '^(atN|bm|devbus|dmacap|dsa|exynos|fsi...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tdisplayport: 'signal,dp_vN', 'typec,receptacle' do not match any of the regexes: '^#.*', '^(atN|bm|devbus|dmacap|dsa|exynos|fsi[ab]|gpio-fan|gpio-key|gpio|gpmc|...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tfpcN (fpc,fpcN): 'fpc,enable-on-boot', 'fpc,gpio_irq', 'fpc,gpio_rst', 'fpc,gpio_vdd_for_plsensor' do not match any of the regexes: '^#.*', '^(atN|bm|devbus|dma...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tlnN_charger@N (lionsemi,lnN-master): 'lnN_charger,bat-ovp-alarm-threshold', 'lnN_charger,bat-ovp-threshold', 'lnN_charger,bus-ocp-alarm-threshold', 'lnN_charger...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tonewire_gpio (xiaomi,onewire_gpio): 'mi,onewire-gpio-cfg-addr' does not match any of the regexes: '^#.*', '^(atN|bm|devbus|dmacap|dsa|exynos|fsi[ab]|gpio-fan|gp...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tpd-data: 'pd,charging_policy', 'pd,country_nr', 'pd,id-vdo-data', 'pd,id-vdo-size', 'pd,mfrs', 'pd,pid', 'pd,sink-pdo-data', 'pd,sink-pdo-size', 'pd,source-cap-...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tqcom,nopmi-chg (qcom,nopmi-chg): 'nopmi,thermal-mitigation' does not match any of the regexes: '^#.*', '^(atN|bm|devbus|dmacap|dsa|exynos|fsi[ab]|gpio-fan|gpio-...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\trtNh@Ne (richtek,rtNh): 'rt-tcpc,name', 'rt-tcpc,role_def', 'rt-tcpc,rp_level', 'rt-tcpc,vconn_supply', 'rtNpd,intr_gpio', 'rtNpd,intr_gpio_num', 'tcpc-dual,sup...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tscN-charger@N (sc,scN-standalone): 'sc,scN,ac-ovp-threshold', 'sc,scN,bat-ocp-alarm-threshold', 'sc,scN,bat-ocp-threshold', 'sc,scN,bat-ovp-alarm-threshold', 's...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tsmN@N (sm,smN): 'sm,aging_ctrl', 'sm,battery_table_num', 'sm,cycle_cfg', 'sm,en_batt_det', 'sm,en_temp_ex', 'sm,fg_irq_set', 'sm,iocv_man_mode', 'sm,low_socN', ...": 2,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tsynaptics_tcm@N (synaptics,tcm-iNc): 'synaptics,extend_report', 'synaptics,firmware-name', 'synaptics,irq-gpio', 'synaptics,irq-on-state', 'synaptics,power-dela...": 3,
-  "http://devicetree.org/schemas/vendor-prefixes.yaml\tvibrator_gpio (qcom,qpnp-vibrator-ldo-tz): 'vib,en-gpio' does not match any of the regexes: '^#.*', '^(atN|bm|devbus|dmacap|dsa|exynos|fsi[ab]|gpio-fan|gpio-key...": 2
+  "http://devicetree.org/schemas/vendor-prefixes.yaml\tbattery_params: 'batteryN,alpha', 'batteryN,battery_tableN', 'batteryN,battery_tableN', 'batteryN,battery_tableN', 'batteryN,battery_type', 'batteryN,beta', 'ba...": 2
  }
 }
