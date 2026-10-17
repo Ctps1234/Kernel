@@ -15,13 +15,15 @@ aparelho (ver docs/boot-partition-inventory.md) e conferidos por um teste de
 ida-e-volta (parse -> rebuild -> bytes identicos ao original).
 
 O objetivo e produzir as imagens flashaveis do port 6.12 trocando apenas o
-que muda (kernel, DTB base e overlay do board), preservando byte a byte todo
-o restante (cmdline, bootconfig, ramdisk vendor, rodape AVB, padding).
+que muda (kernel, ramdisk minima, DTB base e overlay do board), preservando
+header/cmdline/bootconfig/ramdisk vendor. O vbmeta/rodape sao mantidos ou
+reposicionados estruturalmente, mas a assinatura fica obsoleta e requer bypass AVB.
 
 Uso:
   tools/bootimg.py inspect <imagem>
   tools/bootimg.py roundtrip <entrada> <saida>
   tools/bootimg.py set-kernel  --image in.img --kernel Image --out out.img
+  tools/bootimg.py set-ramdisk --image init_boot.img --ramdisk initramfs.cpio --out out.img
   tools/bootimg.py set-dtb     --image in.img --index 1 --dtb base.dtb --out out.img
   tools/bootimg.py set-overlay --image in.img --index 51 --dtbo ov.dtbo --out out.img
 """
@@ -105,52 +107,59 @@ class BootImage:
 
     AVB_FOOTER_MAGIC = b"AVBf"
     AVB_FOOTER_SIZE = 64
+    AVB_FOOTER = struct.Struct(">4sIIQQQ28s")
 
     def rebuild(self, kernel=None, ramdisk=None, total_size=None):
         """Reconstroi a imagem trocando kernel/ramdisk.
 
-        A cauda (padding da particao + rodape AVB) e preservada byte a byte
-        para que a imagem continue do mesmo tamanho; quando o conteudo muda,
-        o rodape AVB fica obsoleto (e' preciso flashar com a verificacao
-        desabilitada, como em qualquer kernel custom).
+        Para uma imagem modificada com AVB footer, move o blob vbmeta para
+        depois do novo conteudo e atualiza os offsets do footer. A assinatura
+        (hash/digest) continua obsoleta: a verificacao AVB precisa permanecer
+        desabilitada ate haver uma imagem assinada com a cadeia correta.
         """
+        if kernel is None and ramdisk is None and total_size is None:
+            return self.data
+
         kernel = self.kernel if kernel is None else kernel
         ramdisk = self.ramdisk if ramdisk is None else ramdisk
-        tail = self.data[self.ramdisk_offset + self.ramdisk_size:]
-        if kernel is not None or ramdisk is not None:
-            # zera o meio da cauda, preservando o rodape AVB no fim
-            footer = b""
-            if tail.endswith(self.AVB_FOOTER_MAGIC + b"\0" * 60):
-                footer = tail[-self.AVB_FOOTER_SIZE:]
-                tail = b"\0" * (len(tail) - len(footer)) + footer
         out = bytearray(self.data[:self.kernel_offset])
         out[8:12] = struct.pack("<I", len(kernel))
         out[12:16] = struct.pack("<I", len(ramdisk))
         out += kernel
         out += b"\0" * (align(len(out), self.page_size) - len(out))
         out += ramdisk
-        out += b"\0" * (align(len(out), self.page_size) - len(out))
-        if total_size is not None:
-            if len(out) > total_size:
-                raise ValueError("imagem maior que a particao (%d > %d)" % (len(out), total_size))
-            room = total_size - len(out)
-            footer = b""
-            if len(tail) >= self.AVB_FOOTER_SIZE and tail.endswith(self.AVB_FOOTER_MAGIC + b"\0" * 60):
-                footer = tail[-self.AVB_FOOTER_SIZE:]
-                head = tail[:-self.AVB_FOOTER_SIZE]
-            else:
-                head = tail
-            if footer:
-                out += head[:max(0, room - len(footer))]
-                out += b"\0" * (room - len(out) - len(footer))
-                out += footer
-            else:
-                out += head[:room]
-                out += b"\0" * (room - len(out))
-        else:
-            out += tail
-        return bytes(out)
 
+        if total_size is None:
+            # Saida compacta, sem cauda AVB/padding de particao.
+            return bytes(out)
+        if len(out) > total_size:
+            raise ValueError("imagem maior que a particao (%d > %d)" % (len(out), total_size))
+
+        footer = self.data[-self.AVB_FOOTER_SIZE:]
+        has_footer = len(footer) == self.AVB_FOOTER_SIZE and footer[:4] == self.AVB_FOOTER_MAGIC
+        result = bytearray(total_size)
+        result[:len(out)] = out
+
+        if not has_footer:
+            return bytes(result)
+
+        (magic, major, minor, old_image_size, old_vbmeta_offset,
+         vbmeta_size, reserved) = self.AVB_FOOTER.unpack(footer)
+        if old_vbmeta_offset + vbmeta_size > len(self.data) - self.AVB_FOOTER_SIZE:
+            raise ValueError("offset/tamanho vbmeta invalido no AVB footer original")
+        vbmeta = self.data[old_vbmeta_offset:old_vbmeta_offset + vbmeta_size]
+
+        # Android boot/init_boot usam dados alinhados a pagina antes do vbmeta.
+        new_image_size = align(len(out), self.page_size)
+        new_vbmeta_offset = new_image_size
+        if new_vbmeta_offset + vbmeta_size > total_size - self.AVB_FOOTER_SIZE:
+            raise ValueError("vbmeta/footer nao cabem na particao reconstruida")
+        result[new_vbmeta_offset:new_vbmeta_offset + vbmeta_size] = vbmeta
+        updated_footer = self.AVB_FOOTER.pack(
+            magic, major, minor, new_image_size, new_vbmeta_offset,
+            vbmeta_size, reserved)
+        result[-self.AVB_FOOTER_SIZE:] = updated_footer
+        return bytes(result)
 
 # ------------------------------------------------------- vendor_boot v4
 
@@ -312,6 +321,13 @@ def main(argv=None):
     p.add_argument("--no-pad", action="store_true",
                    help="nao preenche ate o tamanho da particao original")
 
+    p = sub.add_parser("set-ramdisk", help="troca a ramdisk de uma boot/init_boot image")
+    p.add_argument("--image", required=True)
+    p.add_argument("--ramdisk", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--no-pad", action="store_true",
+                   help="nao preenche ate o tamanho da particao original")
+
     p = sub.add_parser("set-dtb", help="troca um FDT da regiao DTB do vendor_boot")
     p.add_argument("--image", required=True)
     p.add_argument("--index", type=int, required=True)
@@ -343,7 +359,8 @@ def main(argv=None):
         if kind == "boot":
             out = BootImage(data).rebuild()
         elif kind == "vendor_boot":
-            out = data  # a regiao DTB e reconstruida in-place; ver set-dtb
+            img = VendorBootImage(data)  # valida layout/contiguidade dos FDTs
+            out = img.data  # set-dtb reescreve FDTs in-place
         else:
             img = DtboImage(data)
             fdts = [(off, size, data[off:off + size]) for off, size in img.fdts]
@@ -374,6 +391,17 @@ def main(argv=None):
         print("imagem: %s (%d bytes, sha256 %s)" % (args.out, len(out), sha256(out)))
         return 0
 
+    if args.cmd == "set-ramdisk":
+        data = read(args.image)
+        img = BootImage(data)
+        ramdisk = read(args.ramdisk)
+        total = None if args.no_pad else len(data)
+        out = img.rebuild(ramdisk=ramdisk, total_size=total)
+        write(args.out, out)
+        print("ramdisk: %s (%d bytes, sha256 %s)" % (args.ramdisk, len(ramdisk), sha256(ramdisk)))
+        print("imagem: %s (%d bytes, sha256 %s)" % (args.out, len(out), sha256(out)))
+        return 0
+
     if args.cmd == "set-dtb":
         data = read(args.image)
         img = VendorBootImage(data)
@@ -401,8 +429,9 @@ def main(argv=None):
 def rebuild_dtbo(img, fdts):
     """Reconstroi a imagem dtbo com os FDTs informados (contiguos).
 
-    O total_size e recalculado com o tamanho do conteudo e a cauda da
-    particao (padding + rodape AVB) e preservada byte a byte.
+    O total_size e recalculado com o tamanho do conteudo. O vbmeta e mantido
+    no offset original e o footer AVB e ajustado para o novo total_size; o
+    digest assinado continua obsoleto.
     """
     head_size = img.entries_offset + img.entry_size * img.entry_count
     out = bytearray(img.data[:head_size])
@@ -413,12 +442,28 @@ def rebuild_dtbo(img, fdts):
                          img.entries[i]["id"], img.entries[i]["rev"], 0, 0, 0, 0)
         blob += blobdata
     out += blob
-    struct.pack_into(">I", out, 4, len(out))
-    tail = img.data[img.fdts[-1][0] + img.fdts[-1][1]:]
-    out += tail
-    if len(out) < len(img.data):
-        out += b"\0" * (len(img.data) - len(out))
-    return bytes(out)
+    new_total = len(out)
+    if new_total > img.total_size:
+        raise ValueError("conteudo dtbo novo nao cabe antes do footer AVB")
+    struct.pack_into(">I", out, 4, new_total)
+
+    # Mantem o padding/vbmeta nos mesmos offsets absolutos e o footer no fim.
+    # Atualiza o tamanho original, mas o digest do vbmeta continua obsoleto.
+    result = bytearray(len(img.data))
+    result[:new_total] = out
+    if img.total_size < len(img.data):
+        result[img.total_size:] = img.data[img.total_size:]
+
+    footer_off = len(result) - BootImage.AVB_FOOTER_SIZE
+    footer = bytes(result[footer_off:])
+    if footer[:4] == BootImage.AVB_FOOTER_MAGIC:
+        (magic, major, minor, old_size, vbmeta_off, vbmeta_size,
+         reserved) = BootImage.AVB_FOOTER.unpack(footer)
+        if new_total > vbmeta_off or vbmeta_off + vbmeta_size > footer_off:
+            raise ValueError("novo DTBO sobrepoe o vbmeta/footer AVB")
+        result[footer_off:] = BootImage.AVB_FOOTER.pack(
+            magic, major, minor, new_total, vbmeta_off, vbmeta_size, reserved)
+    return bytes(result)
 
 
 if __name__ == "__main__":

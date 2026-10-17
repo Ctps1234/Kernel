@@ -120,11 +120,11 @@ aqui para não se prometer "GKI compatível" indevidamente.
 
 ### Opção B — caminho de boot mínimo
 - **B1 — manter a ramdisk original (`init_boot` genérica):** exige o stack completo de storage (UFS embutido + F2FS + EROFS + dm-verity + `msm_partition`) e ainda assim o framework gráfico não sobe (sem DSI/GPU vendor) → o `init` do Android morre ao montar `/system` ou falha depois. Ganha-se pouco em relação a B2 e custa o parser de partições dinâmicas.
-- **B2 — ramdisk `init_boot` mínima própria (init estático + shell + `adbd`):** o kernel sobe, o console serial mostra o *dmesg* completo e o `adbd` expõe um shell. É o marco clássico de "kernel bring-up": valida pinctrl, clocks, RPM-SMD, interconnect, PHY UFS, host UFS, console, USB — exatamente o que a série 0001–0014 entrega. Risco baixo, reversível (basta trocar de volta a `init_boot` original).
+- **B2 — ramdisk `init_boot` mínima própria (init estático + BusyBox shell):** o objetivo é o kernel subir e deixar o *dmesg* acessível pelo console serial. Esta ramdisk ainda **não inclui `adbd`**; o shell é pelo UART (`console=ttyMSM0,115200n8`). É o marco clássico de "kernel bring-up": valida pinctrl, clocks, RPM-SMD, interconnect, PHY UFS, host UFS e console — exatamente o que a série 0001–0014 entrega. Risco baixo, reversível (o `init_boot` original permanece preservado).
 - **Veredicto:** **é o próximo passo** (B2), com B1 como fase seguinte.
 
 ### Opção C — híbrida B2 → B1 → A (recomendada)
-1. **B2:** kernel 6.12 + console + `adbd` (sem storage Android completo) → validar o port.
+1. **B2a (serial):** kernel 6.12 + init mínimo + BusyBox shell no console UART (sem storage Android completo) → validar o port. **B2b (ADB) fica pendente:** nem a ramdisk original contém `adbd`; ainda é preciso obter/construir um binário AArch64 compatível e configurar o gadget USB.
 2. **B1:** fechar storage (UFS `=y`, F2FS, EROFS, dm-verity, `msm_partition`) e conseguir `init` do Android vivo até o ponto de falhar por ausência de display/GPU → mapear os drivers vendor que faltam com evidência (dmesg), não por suposição.
 3. **A:** portar o stack vendor por ondas (display+GPU primeiro, depois WLAN, câmera, touch, fingerprint), cada onda com build + CI verde.
 
@@ -144,9 +144,9 @@ evidência em cada degrau e mantém o objetivo final (Android usável) no radar.
    CI falha se alguma dependência não for satisfeita na base 6.12.
    **Adiado:** `CONFIG_MODVERSIONS` (sem módulos externos no port, não é
    bloqueante) e `msm_partition` (depende da resposta da questão 1 da §7).
-2. **DTB/DTBO**: decidir se a fase B2 reutiliza o `vendor_boot` original (base Khaje + overlay topaz já extraídos) ou se a base passa a vir do build 6.12 (patch 0010+ exige reescrita de clocks/reguladores nos DTBs → a base 6.12 só estará correta após o port completo dos clocks; **recomendação: B2 usa o `vendor_boot` original** e só o kernel é substituído).
-3. **`boot.img`**: empacotar `Image-khaje` no cabeçalho do `boot_b` original (preservando `cmdline`, `bootconfig`, `os_version`, assinatura/vbmeta) — **feito**: a ferramenta [`tools/bootimg.py`](boot-image-tooling.md) valida os três formatos por ida-e-volta byte a byte e gera `boot`/`vendor_boot`/`dtbo` com o kernel 6.12, o DTB base do Khaje e o overlay do topaz (detalhes e hashes em [`docs/boot-image-tooling.md`](boot-image-tooling.md)). Falta assinar/verificar AVB e o `vbmeta` de bypass.
-4. **`init_boot` mínima**: ramdisk própria (init estático + `adbd` ou `toybox` + shell) para a fase B2; o `init_boot_b` original fica preservado e é restaurado em caso de falha.
+2. **DTB/DTBO**: **montados estaticamente** com a base `khaje-idp-nopmi.dtb` do build 6.12 no FDT#1 (`qcom,msm-id=0x206`) de `vendor_boot` e o overlay topaz 6.12 na entrada 51 de `dtbo`. Ambos cabem nos slots originais; nenhuma validação em aparelho foi feita.
+3. **`boot.img`**: empacotar `Image-khaje` no cabeçalho do `boot_b` original (preservando header/cmdline/bootconfig/os_version; movendo o vbmeta e ajustando offsets do footer) — **feito estaticamente**. A ferramenta [`tools/bootimg.py`](boot-image-tooling.md) valida os quatro formatos por ida-e-volta byte a byte e gera `boot`/`vendor_boot`/`dtbo`/`init_boot` (detalhes e hashes em [`docs/boot-image-tooling.md`](boot-image-tooling.md)). A assinatura/digest ficam obsoletos; falta um bypass AVB adequado antes de qualquer teste.
+4. **`init_boot` mínima**: ramdisk CPIO `newc` própria (init estático + BusyBox + console serial), já implementada e aguardando build/validação no CI. Sem `adbd` nesta fase; o `init_boot_b` original permanece preservado e a imagem gerada não é gravada no aparelho.
 5. **Pré-requisitos de segurança (bloqueantes para qualquer flash):** bootloader desbloqueado (estado desconhecido — precisa ser verificado), backups verificados de `boot_b`, `init_boot_b`, `vendor_boot_b`, `dtbo`, `vbmeta`, `vbmeta_system` e **`recovery_b` (nunca extraída)**, e um caminho de recuperação testado.
 
 ---
