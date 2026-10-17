@@ -81,8 +81,9 @@ Rodada `38991765488` (branch `arena/f49f65df-kernel`), três DTBs validados
 O DTB base tinha 1143 erros no começo da rodada (o mesmo build, com o
 `dt-validate` embutido no `make`): as correções de schema e de DTS tiraram
 310 erros do DTB base (-27%), e os compostos topaz/tapas caíram de 1354
-para 1088. Esses números são a última medição oficial no CI antes da nova
-correção de pinctrl; o baseline versionado continua refletindo essa rodada.
+para 1088. Esses números são a medição oficial anterior à correção de
+pinctrl; o baseline foi atualizado posteriormente com o log oficial da run
+39067847004.
 
 ### Validação local após 0015 (17/10/2026)
 
@@ -107,14 +108,27 @@ compostos foram recompilados de todas as fontes staged com `tools/build_dts.py`
 | **total (assinaturas únicas)** | **2791** | **724** | **0** | **664** | **-218** |
 
 O `tools/dt_validate_report.py`, aplicado à saída concatenada, retornou
-`OK (sem regressao em relacao a linha de base)`. A medição local usou um
-adaptador temporário de `libfdt` apoiado em `tools/fdt_inventory.py`: o
-`pylibfdt` não compilou no host porque falta `Python.h`. Portanto estes números
-são uma confirmação local, não um resultado oficial do workflow. O baseline
-não foi atualizado; a série 0015 ainda precisa passar no CI, incluindo
-`dt_binding_check` e a validação com as ferramentas oficiais do job. A tentativa
-local de `make dt_binding_check DT_SCHEMA_FILES=...` parou antes da validação
-porque o clone sparse não contém `arch/x86/Makefile`.
+`OK (sem regressao em relacao a linha de base)`. A medição inicial local usou
+um adaptador temporário de `libfdt` apoiado em `tools/fdt_inventory.py`, pois o
+`pylibfdt` nativo não compilou no host sem `Python.h`.
+
+### Confirmação oficial do CI pós-0015
+
+A run `39067847004` (commit `213855e`) recompilou os DTBs e o kernel, e o
+`dt-validate` oficial reproduziu exatamente **2791 erros, 724 assinaturas e
+664 avisos**, sem erros de `qcom,khaje-pinctrl.yaml`. O gate de regressão passou;
+`docs/dt-validate-baseline.json` foi atualizado diretamente a partir do log
+oficial `dtbs_check.log`. O build do kernel também passou.
+
+Há uma ressalva: embora o passo `dt_binding_check` dessa run tenha sido marcado
+como sucesso pelo Actions, a leitura de `dt_binding_check.log` revelou que a
+seleção estava vazia: o workflow passava `DT_SCHEMA_FILES` separado por vírgula,
+mas a base 6.12 espera `:`. Assim, `xargs` invocou `yamllint` sem arquivos; o
+log também registrou o prefixo incompleto `aarch64-linux-` (faltava `gnu-`).
+O workflow foi corrigido para usar a lista separada por `:` e
+`aarch64-linux-gnu-`; é necessário aguardar a nova run para considerar o
+`dt_binding_check` realmente confirmado. A tentativa local anterior, no clone
+sparse, também não pôde rodar por faltar `arch/x86/Makefile`.
 
 ### Backlog por schema (DTB base, CI anterior a 0015)
 
@@ -122,7 +136,7 @@ porque o clone sparse não contém `arch/x86/Makefile`.
 |---|---|---|
 | `dt-core.yaml` | 549 | propriedades `qcom,*` do 5.15 sem binding na árvore 6.12 (`qcom,cpus`, `qcom,qmi-dev-name`, `qcom,instance-id`, `qcom,devfreq`, `qcom,glink-label`, `transport`, `vote`, `qcom,freq-domain`, `qcom,lmh-dcvs`, `qcom,dump-size`, `qcom,cdev-alias`, ...) |
 | `simple-bus.yaml` | 85 | filhos de `/soc` sem `reg` e sem `ranges` (o schema exige `ranges` vazio quando não há `reg`) |
-| `pinctrl/qcom,khaje-pinctrl.yaml` | 64 | binding Khaje incompleto no baseline anterior (patch 0001); patch 0015 + `gpio-ranges` zeraram localmente esse grupo de erros |
+| `pinctrl/qcom,khaje-pinctrl.yaml` | 64 | binding Khaje incompleto no baseline anterior (patch 0001); patch 0015 + `gpio-ranges` zeraram esse grupo no `dt-validate` oficial da run 39067847004 |
 | `soc/qcom/qcom,geni-se.yaml` | 22 | `clock-names` do GENI 5.15 (`se`) não confere com o schema 6.12 |
 | demais | ~113 | `sdhci-msm`, `qcom,mpm`, `qcom,spmi-pmic`, `syscon-common`, `qcom,ufs`, `bengal`, `opp-v2`, `qcom,smmu`, `qcom,geni-se`, `idle-states`, ... |
 
@@ -132,7 +146,7 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 
 ### Correções já aplicadas
 
-- **binding pinctrl Khaje** (patch 0015): separa estados mux de estados pinconf-only, valida wrappers aninhados e evita que `patternProperties` trate propriedades do controlador como nós de estado. **DTS**: acrescenta `gpio-ranges = <&tlmm 0 0 114>` ao controller Bengal; os dois itens zeraram localmente os erros `qcom,khaje-pinctrl.yaml` nos três DTBs. A confirmação oficial fica pendente no CI.
+- **binding pinctrl Khaje** (patch 0015): separa estados mux de estados pinconf-only, valida wrappers aninhados e evita que `patternProperties` trate propriedades do controlador como nós de estado. **DTS**: acrescenta `gpio-ranges = <&tlmm 0 0 114>` ao controller Bengal; os dois itens zeraram os erros `qcom,khaje-pinctrl.yaml` nos três DTBs na run oficial 39067847004.
 - **binding RPM-SMD** (patch 0008): `qcom,set` e `qcom,regulator-type` sem
   `type` faziam o dtschema recusar a propriedade ("missing type
   definition") e comparar os bytes crus contra o `enum`. Note que
@@ -159,9 +173,10 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 
 ## Próximos passos do backlog
 
-1. **Confirmar no CI e atualizar a linha de base** depois que patch 0015 e a
-   alteração de DTS forem integrados; a confirmação local usou um adaptador
-   temporário de libfdt.
+1. **Reexecutar o CI com o `dt_binding_check` corrigido**: confirmar que
+   `DT_SCHEMA_FILES` seleciona os schemas esperados e que o binding Khaje e
+   seus exemplos são validados. O baseline de `dt-validate` já foi atualizado
+   a partir do log oficial da run 39067847004.
 2. **Bindings vendor das propriedades `qcom,*`** (maior fatia restante):
    escrever bindings para as propriedades que a DTS 5.15 usa e que a
    árvore 6.12 não descreve, começando pelas que mais repetem

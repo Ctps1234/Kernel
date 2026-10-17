@@ -148,10 +148,11 @@ jobs:
         run: |
           set -o pipefail
           cd basekernel
-          # Escopo: apenas os bindings tocados pela serie 0001-0013 (o
-          # check completo sobre as ~2000 schemas da base leva horas).
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux- \
-            DT_SCHEMA_FILES="qcom,khaje-pinctrl.yaml,qcom,rpmcc-khaje.yaml,qcom,rpmcc.yaml,qcom,khaje-gcc.yaml,qcom,khaje-dispcc.yaml,qcom,khaje-gpucc.yaml,qcom,khaje-debugcc.yaml,qcom,gcc.yaml,qcom,bengal.yaml,qcom,smd-rpm-regulator.yaml,qcom,smd-rpm.yaml,qcom,sc8280xp-qmp-ufs-phy.yaml" \
+          # Escopo: bindings tocados pela serie local. DT_SCHEMA_FILES usa
+          # ':' como separador; com virgulas a selecao fica vazia e o make
+          # pode marcar o alvo como sucesso sem validar schemas/exemplos.
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+            DT_SCHEMA_FILES="qcom,khaje-pinctrl.yaml:qcom,rpmcc.yaml:qcom,khaje-gcc.yaml:qcom,khaje-dispcc.yaml:qcom,khaje-gpucc.yaml:qcom,khaje-debugcc.yaml:qcom,gcc.yaml:qcom,bengal.yaml:qcom,sc8280xp-qmp-ufs-phy.yaml:qcom,smd-rpm-regulator.yaml:qcom,smd-rpm.yaml:vendor-prefixes.yaml" \
             dt_binding_check 2>&1 | tee dt_binding_check.log
 
       - name: Build in-tree dtc/fdtoverlay (for local iteration)

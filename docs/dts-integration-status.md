@@ -122,12 +122,14 @@ quando aparece uma assinatura de erro nova ou quando alguma contagem
 cresce. Detalhes, medição e backlog por schema em
 [`docs/dt-schema-validation.md`](dt-schema-validation.md).
 
-O último baseline oficial (antes do patch 0015) registrava 3009 erros em
-778 assinaturas (833 no DTB base, contra 1143 no começo da rodada). A
-validação local posterior, com o binding 0015 e `gpio-ranges`, reduziu o total
-a 2791 (769 base; 1011 em cada composto), com zero erros de pinctrl Khaje e
-664 avisos sem schema. O CI ainda deve confirmar essa redução; o backlog
-restante é majoritariamente propriedade `qcom,*` do 5.15 sem binding 6.12.
+O baseline anterior ao patch 0015 registrava 3009 erros em 778 assinaturas
+(833 no DTB base, contra 1143 no começo da rodada). A run oficial 39067847004,
+com o binding 0015 e `gpio-ranges`, confirmou 2791 erros (769 base; 1011 em
+cada composto), zero erros de pinctrl Khaje e 664 avisos sem schema; o baseline
+versionado foi atualizado. O job também compilou o kernel. A seleção do
+`dt_binding_check` estava vazia por um separador incorreto e foi corrigida para
+a próxima execução; o backlog restante é majoritariamente propriedade
+`qcom,*` do 5.15 sem binding 6.12.
 
 ## Bloqueadores conhecidos para build/DTBS_CHECK
 
@@ -139,11 +141,11 @@ restante é majoritariamente propriedade `qcom,*` do 5.15 sem binding 6.12.
    `tools/integrate_dts.py` + Makefiles em `device-tree/kernel/`.
 6. ~~Defconfig final~~ — resolvido: `config/topaz-khaje.config` +
    `tools/configure_kernel.sh`, e o build da imagem do kernel passou no CI.
-7. Reduzir erros de `dt-validate` — em andamento: o patch pinctrl 0015 e o
-   `gpio-ranges` zeram localmente os erros do binding nos três DTBs; o total
-   caiu para 769 no base e 1011 em cada composto. A confirmação oficial e a
-   atualização do baseline ainda dependem do CI (ver
-   [`docs/dt-schema-validation.md`](dt-schema-validation.md)).
+7. Validar realmente os bindings com `dt_binding_check` — em andamento: o
+   primeiro CI confirmou o build e `dt-validate` (769 erros no base, 1011 em
+   cada composto, zero pinctrl) e atualizou o baseline. O filtro `DT_SCHEMA_FILES`
+   estava separado incorretamente; o workflow foi corrigido e precisa de rerun.
+   Ver [`docs/dt-schema-validation.md`](dt-schema-validation.md).
 
 ## Recomendação
 
