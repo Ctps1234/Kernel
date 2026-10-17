@@ -46,12 +46,39 @@ index 000000000..088d88a9e
 +#endif /* _QCOM_DMA_HEAP_DT_CONSTATS_H */
 diff --git a/include/dt-bindings/audio-codec-port-types.h b/include/dt-bindings/audio-codec-port-types.h
 new file mode 100644
-index 000000000..8a9d7cf4c
+index 000000000..0ee516108
 --- /dev/null
 +++ b/include/dt-bindings/audio-codec-port-types.h
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,84 @@
 +#ifndef __AUDIO_CODEC_PORT_TYPES_H
 +#define __AUDIO_CODEC_PORT_TYPES_H
++
++/*
++ * Deslocamentos e lanes do soundwire (wcd937x). Os valores foram
++ * conferidos contra o FDT real do aparelho: em qcom,swr-tx-port-params o
++ * dispositivo traz os mesmos pares (OFFSET1_VAL*, LANE*) usados pelas DTS
++ * de topaz/tapas.
++ */
++#define OFFSET1_VAL0 0
++#define OFFSET1_VAL1 1
++#define OFFSET1_VAL2 2
++#define OFFSET1_VAL3 3
++#define OFFSET1_VAL4 4
++#define OFFSET1_VAL5 5
++#define OFFSET1_VAL6 6
++#define OFFSET1_VAL7 7
++#define OFFSET1_VAL8 8
++#define OFFSET1_VAL9 9
++#define OFFSET1_VAL10 10
++#define OFFSET1_VAL11 11
++#define OFFSET1_VAL12 12
++#define OFFSET1_VAL13 13
++#define OFFSET1_VAL14 14
++#define OFFSET1_VAL15 15
++
++#define LANE0 0
++#define LANE1 1
++#define LANE2 2
 +
 +#define SPKR_L 1
 +#define SPKR_L_BOOST 2
@@ -87,6 +114,25 @@ index 000000000..8a9d7cf4c
 +#define DMIC10 32
 +#define PCM_OUT1 33
 +
++/*
++ * Portas do soundwire (SWRM) usadas pelas DTS de topaz/tapas. Os valores
++ * foram conferidos contra o FDT real do aparelho: em
++ * qcom,swr-port-mapping do no wcd937x, os ids de porta aparecem como
++ * 0x2e..0x39 (46..57) na mesma ordem de SWRM_TX1_CH1..SWRM_TX3_CH4.
++ */
++#define SWRM_TX1_CH1 46
++#define SWRM_TX1_CH2 47
++#define SWRM_TX1_CH3 48
++#define SWRM_TX1_CH4 49
++#define SWRM_TX2_CH1 50
++#define SWRM_TX2_CH2 51
++#define SWRM_TX2_CH3 52
++#define SWRM_TX2_CH4 53
++#define SWRM_TX3_CH1 54
++#define SWRM_TX3_CH2 55
++#define SWRM_TX3_CH3 56
++#define SWRM_TX3_CH4 57
++
 +#endif /* __AUDIO_CODEC_PORT_TYPES_H */
 diff --git a/include/dt-bindings/input/qcom,qpnp-power-on.h b/include/dt-bindings/input/qcom,qpnp-power-on.h
 new file mode 100644
@@ -116,39 +162,70 @@ index 000000000..a53dea8a7
 +#define PON_POWER_OFF_TYPE_DVDD_HARD_RESET	0x08
 +
 +#endif
+diff --git a/include/dt-bindings/msm-camera.h b/include/dt-bindings/msm-camera.h
+new file mode 100644
+index 000000000..f8f2f0f4c
+--- /dev/null
++++ b/include/dt-bindings/msm-camera.h
+@@ -0,0 +1,20 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Constantes de camera usadas pelas device trees de topaz/tapas (Khaje).
++ *
++ * A base 6.12 nao traz os headers vendor de camera; as DTS importadas
++ * usam apenas o tipo do flash como valor numerico (os demais nomes, como
++ * "CAM_RESET0" ou "CAMIF_MCLK0", aparecem como rotulo de string em
++ * gpio-req-tbl-label). O valor 1 de CAM_FLASH_TYPE_I2C foi conferido
++ * contra o FDT real do aparelho (flash-type = <0x1>).
++ */
++
++#ifndef __MSM_CAMERA_H
++#define __MSM_CAMERA_H
++
++/* Tipos de flash da camera */
++#define CAM_FLASH_TYPE_PMIC 0
++#define CAM_FLASH_TYPE_I2C  1
++#define CAM_FLASH_TYPE_GPIO 2
++
++#endif /* __MSM_CAMERA_H */
 diff --git a/include/dt-bindings/qcom,audio-ext-clk.h b/include/dt-bindings/qcom,audio-ext-clk.h
 new file mode 100644
-index 000000000..7168a2dcb
+index 000000000..f94cd5fa7
 --- /dev/null
 +++ b/include/dt-bindings/qcom,audio-ext-clk.h
-@@ -0,0 +1,29 @@
-+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 and
-+ * only version 2 as published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
+@@ -0,0 +1,34 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
 + */
 +
 +#ifndef __AUDIO_EXT_CLK_H
 +#define __AUDIO_EXT_CLK_H
 +
 +/* Audio External Clocks */
-+#define AUDIO_PMI_CLK		0
-+#define AUDIO_PMIC_LNBB_CLK	1
-+#define AUDIO_LPASS_MCLK_1	2
-+#define AUDIO_LPASS_MCLK_2	3
-+#define AUDIO_LPASS_MCLK_3	4
-+#define AUDIO_LPASS_MCLK_4	5
-+#define AUDIO_LPASS_MCLK_5	6
-+#define AUDIO_LPASS_MCLK_6	7
-+#define AUDIO_LPASS_MCLK_7	8
-+#define AUDIO_LPASS_CORE_HW_VOTE	9
-+#define AUDIO_EXTERNAL_PLL	10
++
++/*
++ * Os ids das fontes de clock de audio foram conferidos contra o FDT real
++ * do aparelho: va_core_clk=2, wsa_ana_clk=3, rx_core_clk=5, rx_npl_clk=6,
++ * tx_core_clk=7, tx_npl_clk=8, va_npl_clk=10 e vote_lpass_audio_hw=11,
++ * exatamente como nas DTS de topaz/tapas.
++ */
++#define AUDIO_PMI_CLK                 0
++#define AUDIO_PMIC_LNBB_CLK           1
++#define AUDIO_LPASS_MCLK              2  /* VA CORE CLK */
++#define AUDIO_LPASS_MCLK_2            3  /* WSA1 CORE CLK */
++#define AUDIO_LPASS_MCLK_3            4  /* WSA1 NPL CLK */
++#define AUDIO_LPASS_MCLK_4            5  /* RX CORE CLK */
++#define AUDIO_LPASS_MCLK_5            6  /* RX NPL CLK */
++#define AUDIO_LPASS_MCLK_6            7  /* TX CORE CLK */
++#define AUDIO_LPASS_MCLK_7            8  /* TX NPL CLK */
++#define AUDIO_LPASS_CORE_HW_VOTE      9
++#define AUDIO_LPASS_MCLK_8            10 /* VA NPL CLK */
++#define AUDIO_LPASS_AUDIO_HW_VOTE     11
++#define AUDIO_LPASS_MCLK_9            12 /* WSA2 CORE CLK */
++#define AUDIO_LPASS_MCLK_10           13 /* RX_TX CORE CLK */
++#define AUDIO_LPASS_MCLK_11           14 /* WSA_TX CORE CLK */
++#define AUDIO_LPASS_MCLK_12           15 /* WSA2_TX CORE CLK */
++#define AUDIO_LPASS_MCLK_13           16 /* RX_MCLK2 2X CLK */
 +
 +#endif
 diff --git a/include/dt-bindings/qcom,bolero-clk-rsc.h b/include/dt-bindings/qcom,bolero-clk-rsc.h
@@ -387,4 +464,3 @@ index 000000000..44c9e11a5
 +#endif
 -- 
 2.39.5
-
