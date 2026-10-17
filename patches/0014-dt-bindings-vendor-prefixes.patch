@@ -6,12 +6,13 @@ Subject: [PATCH] dt-bindings: vendor-prefixes: add the vendor prefixes in use
 O device tree do board topaz usa prefixos de propriedade que nao estavam
 em vendor-prefixes.yaml, e o dt-validate rejeita cada propriedade com
 prefixo desconhecido: bat (fuel gauge vendor), synaptics (touchscreen),
-fpc (fingerprint), mi/nopmi (Xiaomi), pd, sc, sm, vib, rt-tcpc e rt1711pd
-(Richtek), typec, ln8000_charger, pin_assignment e signal.
+fpc (fingerprint), fsm, mi/nopmi (Xiaomi), pd, sc, si, sm, touch, vib,
+gpio-key, rt-tcpc e rt1711pd (Richtek), tcpc-dual, typec, ln8000_charger,
+pin_assignment e signal.
 
 ---
 diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
-index af9a8d43b..e59afb9fd 100644
+index af9a8d43b..32bd05439 100644
 --- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
 +++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
 @@ -204,6 +204,12 @@ patternProperties:
@@ -37,7 +38,27 @@ index af9a8d43b..e59afb9fd 100644
    "^freebox,.*":
      description: Freebox SAS
    "^freecom,.*":
-@@ -854,6 +863,9 @@ patternProperties:
+@@ -537,6 +546,9 @@ patternProperties:
+     description: Guangzhou FriendlyARM Computer Tech Co., Ltd
+   "^fsl,.*":
+     description: Freescale Semiconductor
++  "^fsm,.*":
++    description: Fingerprint sensor vendor (fsm)
++
+   "^fujitsu,.*":
+     description: Fujitsu Ltd.
+   "^fxtec,.*":
+@@ -591,6 +603,9 @@ patternProperties:
+     description: Google, Inc.
+   "^goramo,.*":
+     description: Goramo Gorecki
++  "^gpio-key,.*":
++    description: GPIO key properties used by the vendor key driver
++
+   "^gplus,.*":
+     description: GPLUS
+   "^grinn,.*":
+@@ -854,6 +869,9 @@ patternProperties:
      description: LiteX SoC builder
    "^lltc,.*":
      description: Linear Technology Corporation
@@ -47,7 +68,7 @@ index af9a8d43b..e59afb9fd 100644
    "^logicpd,.*":
      description: Logic PD, Inc.
    "^logictechno,.*":
-@@ -928,6 +940,9 @@ patternProperties:
+@@ -928,6 +946,9 @@ patternProperties:
      description: Merrii Technology Co., Ltd.
    "^methode,.*":
      description: Methode Electronics, Inc.
@@ -57,7 +78,7 @@ index af9a8d43b..e59afb9fd 100644
    "^micrel,.*":
      description: Micrel Inc.
    "^microchip,.*":
-@@ -1049,6 +1064,9 @@ patternProperties:
+@@ -1049,6 +1070,9 @@ patternProperties:
      description: NLT Technologies, Ltd.
    "^nokia,.*":
      description: Nokia
@@ -67,7 +88,7 @@ index af9a8d43b..e59afb9fd 100644
    "^nordic,.*":
      description: Nordic Semiconductor
    "^novatek,.*":
-@@ -1136,6 +1154,9 @@ patternProperties:
+@@ -1136,6 +1160,9 @@ patternProperties:
      description: Parade Technologies Inc.
    "^parallax,.*":
      description: Parallax Inc.
@@ -77,7 +98,7 @@ index af9a8d43b..e59afb9fd 100644
    "^pda,.*":
      description: Precision Design Associates, Inc.
    "^pericom,.*":
-@@ -1148,6 +1169,9 @@ patternProperties:
+@@ -1148,6 +1175,9 @@ patternProperties:
      description: PHYTEC Messtechnik GmbH
    "^picochip,.*":
      description: Picochip Ltd
@@ -87,7 +108,7 @@ index af9a8d43b..e59afb9fd 100644
    "^pine64,.*":
      description: Pine64
    "^pineriver,.*":
-@@ -1262,6 +1286,12 @@ patternProperties:
+@@ -1262,6 +1292,12 @@ patternProperties:
      description: Shenzhen Roofull Technology Co, Ltd
    "^roseapplepi,.*":
      description: RoseapplePi.org
@@ -100,7 +121,7 @@ index af9a8d43b..e59afb9fd 100644
    "^rve,.*":
      description: Recharge Véhicule Électrique (RVE) inc.
    "^saef,.*":
-@@ -1278,6 +1308,9 @@ patternProperties:
+@@ -1278,6 +1314,9 @@ patternProperties:
      description: Satoz International Co., Ltd
    "^sbs,.*":
      description: Smart Battery System
@@ -110,7 +131,17 @@ index af9a8d43b..e59afb9fd 100644
    "^schindler,.*":
      description: Schindler
    "^schneider,.*":
-@@ -1328,6 +1361,9 @@ patternProperties:
+@@ -1318,6 +1357,9 @@ patternProperties:
+     description: ShineWorld Innovations
+   "^shiratech,.*":
+     description: Shiratech Solutions
++  "^si,.*":
++    description: Silicon image vendor
++
+   "^si-en,.*":
+     description: Si-En Technology Ltd.
+   "^si-linux,.*":
+@@ -1328,6 +1370,9 @@ patternProperties:
      description: SiFive, Inc.
    "^sigma,.*":
      description: Sigma Designs, Inc.
@@ -120,7 +151,7 @@ index af9a8d43b..e59afb9fd 100644
    "^sii,.*":
      description: Seiko Instruments, Inc.
    "^sil,.*":
-@@ -1368,6 +1404,9 @@ patternProperties:
+@@ -1368,6 +1413,9 @@ patternProperties:
      description: SKOV A/S
    "^skyworks,.*":
      description: Skyworks Solutions, Inc.
@@ -130,7 +161,7 @@ index af9a8d43b..e59afb9fd 100644
    "^smartlabs,.*":
      description: SmartLabs LLC
    "^smartrg,.*":
-@@ -1449,6 +1488,9 @@ patternProperties:
+@@ -1449,6 +1497,9 @@ patternProperties:
      description: Sierra Wireless
    "^syna,.*":
      description: Synaptics Inc.
@@ -140,7 +171,27 @@ index af9a8d43b..e59afb9fd 100644
    "^synology,.*":
      description: Synology, Inc.
    "^synopsys,.*":
-@@ -1549,6 +1591,9 @@ patternProperties:
+@@ -1462,6 +1513,9 @@ patternProperties:
+     description: Trusted Computing Group
+   "^tcl,.*":
+     description: Toby Churchill Ltd.
++  "^tcpc-dual,.*":
++    description: Richtek dual Type-C port controller
++
+   "^tcs,.*":
+     description: Shenzhen City Tang Cheng Technology Co., Ltd.
+   "^tdo,.*":
+@@ -1521,6 +1575,9 @@ patternProperties:
+     description: Toradex AG
+   "^toshiba,.*":
+     description: Toshiba Corporation
++  "^touch,.*":
++    description: Touch controller properties used by the vendor touch driver
++
+   "^toumaz,.*":
+     description: Toumaz
+   "^tpk,.*":
+@@ -1549,6 +1606,9 @@ patternProperties:
      description: Tyan Computer Corporation
    "^tyhx,.*":
      description: NanjingTianyihexin Electronics Ltd.
@@ -150,7 +201,7 @@ index af9a8d43b..e59afb9fd 100644
    "^u-blox,.*":
      description: u-blox
    "^u-boot,.*":
-@@ -1593,6 +1638,9 @@ patternProperties:
+@@ -1593,6 +1653,9 @@ patternProperties:
      description: VIA Technologies, Inc.
    "^vialab,.*":
      description: VIA Labs, Inc.
