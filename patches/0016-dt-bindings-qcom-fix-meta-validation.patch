@@ -1,0 +1,199 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Sat, 17 Oct 2026 00:00:00 -0300
+Subject: [PATCH] dt-bindings: qcom: fix schema meta-validation for Khaje
+
+The first effective dt_binding_check run found meta-schema errors in the
+new Khaje clock schemas and Bengal interconnect binding. Fixed-size `items`
+arrays already imply their maximum length, so drop redundant minItems and
+maxItems. Keep the variable Bengal clock-name minimum but remove its redundant
+maximum, and define `reg` alongside `reg-names` in the GCC, DISPCC and GPUCC
+schemas.
+
+Quote vendor property names in the RPM regulator's inline required lists so
+YAML lint does not mistake the comma in the key for a separator.
+
+This makes the schema documentation checks explicit instead of relying only
+on DTB validation, which had already passed.
+
+---
+diff --git a/Documentation/devicetree/bindings/interconnect/qcom,bengal.yaml b/Documentation/devicetree/bindings/interconnect/qcom,bengal.yaml
+index ef53eec69..64633cc9c 100644
+--- a/Documentation/devicetree/bindings/interconnect/qcom,bengal.yaml
++++ b/Documentation/devicetree/bindings/interconnect/qcom,bengal.yaml
+@@ -32,7 +32,6 @@
+ 
+   clock-names:
+     minItems: 2
+-    maxItems: 4
+     items:
+       - const: bus
+       - const: bus_a
+@@ -62,7 +61,6 @@
+ 
+       clock-names:
+         minItems: 2
+-        maxItems: 4
+         items:
+           - const: bus
+           - const: bus_a
+
+diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-gcc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-gcc.yaml
+index 539d01700..f07b8ef7e 100644
+--- a/Documentation/devicetree/bindings/clock/qcom,khaje-gcc.yaml
++++ b/Documentation/devicetree/bindings/clock/qcom,khaje-gcc.yaml
+@@ -23,6 +23,9 @@
+           - const: syscon
+       - const: qcom,khaje-gcc
+ 
++  reg:
++    maxItems: 1
++
+   reg-names:
+     const: cc_base
+ 
+@@ -35,8 +38,6 @@
+       - description: UFS PHY RX symbol 1 clock
+       - description: UFS PHY TX symbol 0 clock
+       - description: USB3 PHY wrapper pipe clock
+-    minItems: 7
+-    maxItems: 7
+ 
+   clock-names:
+     items:
+@@ -47,8 +48,6 @@
+       - const: ufs_phy_rx_symbol_1_clk
+       - const: ufs_phy_tx_symbol_0_clk
+       - const: usb3_phy_wrapper_gcc_usb30_pipe_clk
+-    minItems: 7
+-    maxItems: 7
+ 
+   vdd_cx-supply:
+     description: CX voltage-corner regulator
+
+diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml
+index 85c085002..79f885adf 100644
+--- a/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml
++++ b/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml
+@@ -23,6 +23,9 @@
+           - const: syscon
+       - const: qcom,khaje-dispcc
+ 
++  reg:
++    maxItems: 1
++
+   reg-names:
+     const: cc_base
+ 
+@@ -32,8 +35,6 @@
+       - description: Sleep clock source
+       - description: GCC display interface clock
+       - description: GCC display GPLL0 clock source
+-    minItems: 4
+-    maxItems: 4
+ 
+   clock-names:
+     items:
+@@ -41,8 +42,6 @@
+       - const: sleep_clk
+       - const: iface
+       - const: gcc_disp_gpll0_clk
+-    minItems: 4
+-    maxItems: 4
+ 
+   vdd_cx-supply:
+     description: CX voltage-corner regulator
+
+diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-debugcc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-debugcc.yaml
+index 5510fab9b..ba8685cc0 100644
+--- a/Documentation/devicetree/bindings/clock/qcom,khaje-debugcc.yaml
++++ b/Documentation/devicetree/bindings/clock/qcom,khaje-debugcc.yaml
+@@ -23,8 +23,6 @@
+       - description: GCC clock-controller reference
+       - description: Display clock-controller reference
+       - description: GPU clock-controller reference
+-    minItems: 4
+-    maxItems: 4
+ 
+   clock-names:
+     items:
+@@ -32,8 +30,6 @@
+       - const: gcc
+       - const: dispcc
+       - const: gpucc
+-    minItems: 4
+-    maxItems: 4
+ 
+   qcom,gcc:
+     $ref: /schemas/types.yaml#/definitions/phandle
+
+diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml
+index ca2e5645d..360812f4f 100644
+--- a/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml
++++ b/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml
+@@ -23,6 +23,9 @@
+           - const: syscon
+       - const: qcom,khaje-gpucc
+ 
++  reg:
++    maxItems: 1
++
+   reg-names:
+     const: cc_base
+ 
+@@ -31,16 +34,12 @@
+       - description: Board XO source
+       - description: GCC GPU GPLL0 main clock
+       - description: GCC GPU GPLL0 divided clock
+-    minItems: 3
+-    maxItems: 3
+ 
+   clock-names:
+     items:
+       - const: bi_tcxo
+       - const: gpll0_out_main
+       - const: gpll0_out_main_div
+-    minItems: 3
+-    maxItems: 3
+ 
+   vdd_cx-supply:
+     description: CX voltage-corner regulator
+
+diff --git a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
+index e311419f7..af5c84444 100644
+--- a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
++++ b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
+@@ -141,24 +141,24 @@
+       - $ref: regulator.yaml#
+       - if:
+           anyOf:
+-            - required: [qcom,use-voltage-level]
+-            - required: [qcom,use-voltage-floor-level]
++            - required: ["qcom,use-voltage-level"]
++            - required: ["qcom,use-voltage-floor-level"]
+         then:
+           required:
+             - regulator-min-microvolt
+             - regulator-max-microvolt
+           oneOf:
+-            - required: [qcom,use-voltage-level]
++            - required: ["qcom,use-voltage-level"]
+               not:
+-                required: [qcom,use-voltage-floor-level]
+-            - required: [qcom,use-voltage-floor-level]
++                required: ["qcom,use-voltage-floor-level"]
++            - required: ["qcom,use-voltage-floor-level"]
+               not:
+-                required: [qcom,use-voltage-level]
++                required: ["qcom,use-voltage-level"]
+         else:
+           not:
+             anyOf:
+-              - required: [qcom,init-voltage-level]
+-              - required: [qcom,init-voltage-floor-level]
++              - required: ["qcom,init-voltage-level"]
++              - required: ["qcom,init-voltage-floor-level"]
+ 
+     unevaluatedProperties: false
+ 
+

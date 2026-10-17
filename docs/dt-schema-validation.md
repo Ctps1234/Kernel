@@ -10,7 +10,7 @@ O job *Device trees (dtbs + dt-schema)* do workflow
 `.github/workflows/dts-validate.yml` faz, nesta ordem:
 
 1. clone da base fixada (`0efd3abd3c356d644ea49f6ed37e9830b78d34e3`) e
-   aplicação da série 0001–0015;
+   aplicação da série 0001–0016;
 2. staging das DTS de `device-tree/source/` na árvore do kernel
    (`tools/integrate_dts.py`);
 3. verificação estática de includes (`tools/check_dts_includes.py`);
@@ -120,15 +120,19 @@ A run `39067847004` (commit `213855e`) recompilou os DTBs e o kernel, e o
 `docs/dt-validate-baseline.json` foi atualizado diretamente a partir do log
 oficial `dtbs_check.log`. O build do kernel também passou.
 
-Há uma ressalva: embora o passo `dt_binding_check` dessa run tenha sido marcado
-como sucesso pelo Actions, a leitura de `dt_binding_check.log` revelou que a
-seleção estava vazia: o workflow passava `DT_SCHEMA_FILES` separado por vírgula,
-mas a base 6.12 espera `:`. Assim, `xargs` invocou `yamllint` sem arquivos; o
-log também registrou o prefixo incompleto `aarch64-linux-` (faltava `gnu-`).
-O workflow foi corrigido para usar a lista separada por `:` e
-`aarch64-linux-gnu-`; é necessário aguardar a nova run para considerar o
-`dt_binding_check` realmente confirmado. A tentativa local anterior, no clone
-sparse, também não pôde rodar por faltar `arch/x86/Makefile`.
+A inspeção do log da run 39067847004 revelou que `dt_binding_check` havia sido
+marcado como sucesso sem selecionar schemas: o workflow passava `DT_SCHEMA_FILES`
+separado por vírgulas, mas a base 6.12 espera `:`; também usava o prefixo
+incompleto `aarch64-linux-` (faltava `gnu-`). O workflow foi corrigido e a run
+39069450075 selecionou os schemas e compilou seus exemplos. Essa verificação
+efetiva revelou erros de meta-schema em `qcom,bengal.yaml` e nos quatro bindings
+de clock Khaje (limites redundantes em arrays `items` e dependências `reg` /
+`reg-names`); também havia avisos YAML nos nomes de propriedade RPM-SMD. O
+patch 0016 corrige esses problemas, e o workflow agora chama `dt-doc-validate`
+diretamente porque o Makefile upstream suprime o status de erro desse validador.
+É preciso aguardar uma nova run para confirmar schemas e exemplos sem erros.
+A tentativa local anterior, no clone sparse, parou por faltar
+`arch/x86/Makefile`.
 
 ### Backlog por schema (DTB base, CI anterior a 0015)
 
@@ -173,10 +177,10 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 
 ## Próximos passos do backlog
 
-1. **Reexecutar o CI com o `dt_binding_check` corrigido**: confirmar que
-   `DT_SCHEMA_FILES` seleciona os schemas esperados e que o binding Khaje e
-   seus exemplos são validados. O baseline de `dt-validate` já foi atualizado
-   a partir do log oficial da run 39067847004.
+1. **Reexecutar o CI após o patch 0016**: confirmar que o `dt_binding_check`
+   seleciona e compila os exemplos dos schemas tocados e que o `dt-doc-validate`
+   direto passa sem erros. O baseline de `dt-validate` já foi atualizado a partir
+   do log oficial da run 39067847004.
 2. **Bindings vendor das propriedades `qcom,*`** (maior fatia restante):
    escrever bindings para as propriedades que a DTS 5.15 usa e que a
    árvore 6.12 não descreve, começando pelas que mais repetem

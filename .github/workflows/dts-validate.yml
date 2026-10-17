@@ -154,6 +154,22 @@ jobs:
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
             DT_SCHEMA_FILES="qcom,khaje-pinctrl.yaml:qcom,rpmcc.yaml:qcom,khaje-gcc.yaml:qcom,khaje-dispcc.yaml:qcom,khaje-gpucc.yaml:qcom,khaje-debugcc.yaml:qcom,gcc.yaml:qcom,bengal.yaml:qcom,sc8280xp-qmp-ufs-phy.yaml:qcom,smd-rpm-regulator.yaml:qcom,smd-rpm.yaml:vendor-prefixes.yaml" \
             dt_binding_check 2>&1 | tee dt_binding_check.log
+          # The kernel Makefile logs dt-doc-validate failures but intentionally
+          # ignores its exit status. Re-run it directly so schema errors fail CI.
+          schema_dir="$PWD/Documentation/devicetree/bindings"
+          dt-doc-validate -u "$schema_dir" \
+            "$schema_dir/clock/qcom,gcc.yaml" \
+            "$schema_dir/clock/qcom,khaje-debugcc.yaml" \
+            "$schema_dir/clock/qcom,khaje-dispcc.yaml" \
+            "$schema_dir/clock/qcom,khaje-gcc.yaml" \
+            "$schema_dir/clock/qcom,khaje-gpucc.yaml" \
+            "$schema_dir/clock/qcom,rpmcc.yaml" \
+            "$schema_dir/interconnect/qcom,bengal.yaml" \
+            "$schema_dir/phy/qcom,sc8280xp-qmp-ufs-phy.yaml" \
+            "$schema_dir/pinctrl/qcom,khaje-pinctrl.yaml" \
+            "$schema_dir/regulator/qcom,smd-rpm-regulator.yaml" \
+            "$schema_dir/soc/qcom/qcom,smd-rpm.yaml" \
+            "$schema_dir/vendor-prefixes.yaml"
 
       - name: Build in-tree dtc/fdtoverlay (for local iteration)
         run: |
