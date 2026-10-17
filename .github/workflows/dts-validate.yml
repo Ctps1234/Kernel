@@ -79,13 +79,16 @@ jobs:
         run: |
           set -o pipefail
           cd basekernel
+          # Os alvos sao relativos a arch/arm64/boot/dts: a regra %.dtb do
+          # Makefile raiz chama o sub-make com $(dtstree)/$@, e um caminho
+          # completo viraria arch/arm64/boot/dts/arch/arm64/boot/dts/...
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
-            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi.dtb \
-            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi-topaz.dtb \
-            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi-tapas.dtb \
-            arch/arm64/boot/dts/qcom/khaje/audio/topaz-sm6225-audio-overlay.dtbo \
-            arch/arm64/boot/dts/qcom/khaje/camera/topaz-camera-sensor-idp-overlay.dtbo \
-            arch/arm64/boot/dts/qcom/khaje/display/display/topaz-sde-display-idp-nopmi-overlay.dtbo \
+            qcom/khaje/khaje-idp-nopmi.dtb \
+            qcom/khaje/khaje-idp-nopmi-topaz.dtb \
+            qcom/khaje/khaje-idp-nopmi-tapas.dtb \
+            qcom/khaje/audio/topaz-sm6225-audio-overlay.dtbo \
+            qcom/khaje/camera/topaz-camera-sensor-idp-overlay.dtbo \
+            qcom/khaje/display/display/topaz-sde-display-idp-nopmi-overlay.dtbo \
             2>&1 | tee dtbs.log
 
       - name: Validate dtbs against DT-schema (dt-validate)
@@ -94,8 +97,8 @@ jobs:
           cd basekernel
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
             CHECK_DTBS=1 \
-            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi.dtb \
-            arch/arm64/boot/dts/qcom/khaje/khaje-idp-nopmi-topaz.dtb \
+            qcom/khaje/khaje-idp-nopmi.dtb \
+            qcom/khaje/khaje-idp-nopmi-topaz.dtb \
             2>&1 | tee dtbs_check.log
 
       - name: Validate binding schemas (dt_binding_check)
