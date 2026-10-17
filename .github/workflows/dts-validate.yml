@@ -168,8 +168,21 @@ jobs:
         run: |
           set -e
           rm -rf /tmp/artifacts
+          mkdir -p /tmp/artifacts
+          cd /tmp/artifacts
+          git init -q
+          git config user.email "ci@local"
+          git config user.name "CI"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Preserva o que a outra job ja publicou no branch. O checkout vem
+          # ANTES da copia dos artefatos deste run: caso contrario ele
+          # sobrescreve os logs novos com a versao antiga do branch.
+          git fetch -q --depth 1 origin ci-artifacts 2>/dev/null || true
+          if git rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
+            git checkout -q FETCH_HEAD -- . || true
+          fi
           mkdir -p /tmp/artifacts/dtbs /tmp/artifacts/logs /tmp/artifacts/tools
-          cd basekernel
+          cd "$GITHUB_WORKSPACE/basekernel"
           cp .config /tmp/artifacts/config-khaje.config 2>/dev/null || true
           # Preferir a copia feita logo apos o build (o make pode remover
           # intermediarios como o DTB base do DTB composto).
@@ -183,15 +196,6 @@ jobs:
           done
           cp scripts/dtc/dtc scripts/dtc/fdtoverlay /tmp/artifacts/tools/ 2>/dev/null || true
           cd /tmp/artifacts
-          git init -q
-          git config user.email "ci@local"
-          git config user.name "CI"
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          # Preserva o que a outra job ja publicou no branch.
-          git fetch -q --depth 1 origin ci-artifacts 2>/dev/null || true
-          if git rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
-            git checkout -q FETCH_HEAD -- . || true
-          fi
           git add -A
           git commit -q -m "artefatos da run ${GITHUB_RUN_ID}" || true
           git push -f origin HEAD:refs/heads/ci-artifacts
@@ -281,8 +285,20 @@ jobs:
         run: |
           set -e
           rm -rf /tmp/artifacts
+          mkdir -p /tmp/artifacts
+          cd /tmp/artifacts
+          git init -q
+          git config user.email "ci@local"
+          git config user.name "CI"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Preserva o que a outra job ja publicou no branch (checkout antes
+          # da copia, para nao sobrescrever os artefatos deste run).
+          git fetch -q --depth 1 origin ci-artifacts 2>/dev/null || true
+          if git rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
+            git checkout -q FETCH_HEAD -- . || true
+          fi
           mkdir -p /tmp/artifacts/dtbs /tmp/artifacts/logs /tmp/artifacts/tools
-          cd basekernel
+          cd "$GITHUB_WORKSPACE/basekernel"
           cp .config /tmp/artifacts/config-khaje.config 2>/dev/null || true
           find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
             -exec cp --parents {} /tmp/artifacts/dtbs/ \; 2>/dev/null || true
@@ -293,15 +309,6 @@ jobs:
           cp arch/arm64/boot/Image /tmp/artifacts/Image-khaje 2>/dev/null || true
           cp System.map /tmp/artifacts/System.map 2>/dev/null || true
           cd /tmp/artifacts
-          git init -q
-          git config user.email "ci@local"
-          git config user.name "CI"
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          # Preserva o que a outra job ja publicou no branch.
-          git fetch -q --depth 1 origin ci-artifacts 2>/dev/null || true
-          if git rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
-            git checkout -q FETCH_HEAD -- . || true
-          fi
           git add -A
           git commit -q -m "artefatos da run ${GITHUB_RUN_ID}" || true
           git push -f origin HEAD:refs/heads/ci-artifacts
