@@ -82,6 +82,13 @@ jobs:
           # Os alvos sao relativos a arch/arm64/boot/dts: a regra %.dtb do
           # Makefile raiz chama o sub-make com $(dtstree)/$@, e um caminho
           # completo viraria arch/arm64/boot/dts/arch/arm64/boot/dts/...
+          # O DTB base e os DTBs compostos nao podem ser construidos em
+          # paralelo: o sub-make do composto e o sub-make do base escrevem
+          # o mesmo arquivo e o make remove o intermediario, o que faz o
+          # fdtoverlay falhar com "Couldn't open blob". Por isso o base
+          # vai primeiro, em um make separado.
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
+            qcom/khaje/khaje-idp-nopmi.dtb 2>&1 | tee dtbs.log
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
             qcom/khaje/khaje-idp-nopmi.dtb \
             qcom/khaje/khaje-idp-nopmi-topaz.dtb \
@@ -89,7 +96,7 @@ jobs:
             qcom/khaje/audio/topaz-sm6225-audio-overlay.dtbo \
             qcom/khaje/camera/topaz-camera-sensor-idp-overlay.dtbo \
             qcom/khaje/display/display/topaz-sde-display-idp-nopmi-overlay.dtbo \
-            2>&1 | tee dtbs.log
+            2>&1 | tee -a dtbs.log
           # Copia os artefatos: em alguns casos o make remove arquivos
           # intermediarios (o DTB base e intermediario do DTB composto).
           rm -rf /tmp/dtb-artifacts
@@ -107,7 +114,7 @@ jobs:
           # do sub-make de Documentation/devicetree/bindings; o alvo de
           # primeiro nivel que o constroi e dt_binding_schemas.
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
-            dt_binding_schemas
+            dt_binding_schemas 2>&1 | tee dtbs_schema.log
           # O dt-validate roda direto sobre os DTBs ja compilados: refazer o
           # build com CHECK_DTBS=1 faz os sub-makes do kernel disputarem o
           # mesmo .dtb.d (corrida do fixdep) e abortar o build.
@@ -157,7 +164,7 @@ jobs:
           set -o pipefail
           bash tools/ci_publish_report.sh \
             "CI: relatorio de validacao DTS/DTBO (topaz/tapas)" ci-report \
-            basekernel/dtbs.log basekernel/dtbs_check.log \
+            basekernel/dtbs.log basekernel/dtbs_schema.log basekernel/dtbs_check.log \
             basekernel/dt_binding_check.log basekernel/configure.log \
             check_includes.log || true
 
@@ -191,7 +198,7 @@ jobs:
           fi
           find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
             -exec cp --parents {} /tmp/artifacts/dtbs/ \; 2>/dev/null || true
-          for log in dtbs.log dtbs_check.log dt_binding_check.log configure.log kernel-build.log defconfig.log; do
+          for log in dtbs.log dtbs_schema.log dtbs_check.log dt_binding_check.log configure.log kernel-build.log defconfig.log; do
             cp "$log" /tmp/artifacts/logs/ 2>/dev/null || true
           done
           cp scripts/dtc/dtc scripts/dtc/fdtoverlay /tmp/artifacts/tools/ 2>/dev/null || true
@@ -302,7 +309,7 @@ jobs:
           cp .config /tmp/artifacts/config-khaje.config 2>/dev/null || true
           find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
             -exec cp --parents {} /tmp/artifacts/dtbs/ \; 2>/dev/null || true
-          for log in dtbs.log dtbs_check.log dt_binding_check.log configure.log kernel-build.log defconfig.log; do
+          for log in dtbs.log dtbs_schema.log dtbs_check.log dt_binding_check.log configure.log kernel-build.log defconfig.log; do
             cp "$log" /tmp/artifacts/logs/ 2>/dev/null || true
           done
           cp scripts/dtc/dtc scripts/dtc/fdtoverlay /tmp/artifacts/tools/ 2>/dev/null || true
