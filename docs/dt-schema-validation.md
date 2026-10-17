@@ -22,7 +22,9 @@ O job *Device trees (dtbs + dt-schema)* do workflow
 7. `dt-validate -m` sobre os DTBs já compilados (base, topaz e tapas);
 8. gate de regressão: `tools/dt_validate_report.py` compara as assinaturas
    de erro com `docs/dt-validate-baseline.json`;
-9. `dt_binding_check` com escopo nos bindings tocados pela série.
+9. `dt_binding_check` com escopo nos bindings tocados pela série, seguido de
+   `dt-doc-validate` direto para garantir que falhas de meta-schema não sejam
+   suprimidas pelo Makefile upstream.
 
 ### Por que o dt-validate não roda dentro do make
 
@@ -112,26 +114,32 @@ O `tools/dt_validate_report.py`, aplicado à saída concatenada, retornou
 um adaptador temporário de `libfdt` apoiado em `tools/fdt_inventory.py`, pois o
 `pylibfdt` nativo não compilou no host sem `Python.h`.
 
-### Confirmação oficial do CI pós-0015
+### Confirmação oficial do CI pós-0016
 
-A run `39067847004` (commit `213855e`) recompilou os DTBs e o kernel, e o
-`dt-validate` oficial reproduziu exatamente **2791 erros, 724 assinaturas e
-664 avisos**, sem erros de `qcom,khaje-pinctrl.yaml`. O gate de regressão passou;
-`docs/dt-validate-baseline.json` foi atualizado diretamente a partir do log
-oficial `dtbs_check.log`. O build do kernel também passou.
+A run `39067847004` (commit `213855e`) recompilou DTBs e kernel, e o
+`dt-validate` oficial reproduziu **2791 erros, 724 assinaturas e 664 avisos**,
+sem erros de `qcom,khaje-pinctrl.yaml`. O gate de regressão passou e o baseline
+foi atualizado a partir de `dtbs_check.log`. A inspeção posterior mostrou que
+`dt_binding_check` tinha sido marcado como sucesso sem selecionar schemas:
+`DT_SCHEMA_FILES` usava vírgulas em vez de `:` e `CROSS_COMPILE` não incluía
+`gnu-`.
 
-A inspeção do log da run 39067847004 revelou que `dt_binding_check` havia sido
-marcado como sucesso sem selecionar schemas: o workflow passava `DT_SCHEMA_FILES`
-separado por vírgulas, mas a base 6.12 espera `:`; também usava o prefixo
-incompleto `aarch64-linux-` (faltava `gnu-`). O workflow foi corrigido e a run
-39069450075 selecionou os schemas e compilou seus exemplos. Essa verificação
-efetiva revelou erros de meta-schema em `qcom,bengal.yaml` e nos quatro bindings
-de clock Khaje (limites redundantes em arrays `items` e dependências `reg` /
-`reg-names`); também havia avisos YAML nos nomes de propriedade RPM-SMD. O
-patch 0016 corrige esses problemas, e o workflow agora chama `dt-doc-validate`
-diretamente porque o Makefile upstream suprime o status de erro desse validador.
-É preciso aguardar uma nova run para confirmar schemas e exemplos sem erros.
-A tentativa local anterior, no clone sparse, parou por faltar
+A run `39069450075` (commit `31a046f`) corrigiu a seleção e compilou os exemplos,
+mas revelou erros de meta-schema em `qcom,bengal.yaml` e nos quatro bindings de
+clock Khaje, além de avisos yamllint nas listas RPM-SMD. O patch 0016 removeu
+limites redundantes de arrays `items`, declarou `reg` junto a `reg-names` e
+citou nomes de propriedades com vírgula. Também foi adicionado `dt-doc-validate`
+direto no workflow, pois o Makefile upstream suprime o status de erro desse
+validador.
+
+A run `39071211672` (commit `0dd27b1`) aplicou a série 0001–0016 e passou nos
+dois jobs: build do kernel em 19m10s e validação DTS/DTBO em 2m36s. O log de
+`dt_binding_check` contém `LINT` e compilação (`DTEX`/`DTC`) dos 12 schemas
+selecionados, sem diagnósticos de erro ou avisos; o `dt-doc-validate` direto
+também passou. `dt-validate` manteve os mesmos 2791 erros, 724 assinaturas e
+664 avisos, e o gate retornou `OK (sem regressao)`. Portanto, as correções de
+schema estão confirmadas pelo CI; o backlog restante é dos bindings 6.12/5.15
+listados abaixo. A tentativa local anterior, no clone sparse, parou por faltar
 `arch/x86/Makefile`.
 
 ### Backlog por schema (DTB base, CI anterior a 0015)
@@ -177,19 +185,15 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 
 ## Próximos passos do backlog
 
-1. **Reexecutar o CI após o patch 0016**: confirmar que o `dt_binding_check`
-   seleciona e compila os exemplos dos schemas tocados e que o `dt-doc-validate`
-   direto passa sem erros. O baseline de `dt-validate` já foi atualizado a partir
-   do log oficial da run 39067847004.
-2. **Bindings vendor das propriedades `qcom,*`** (maior fatia restante):
+1. **Bindings vendor das propriedades `qcom,*`** (maior fatia restante):
    escrever bindings para as propriedades que a DTS 5.15 usa e que a
    árvore 6.12 não descreve, começando pelas que mais repetem
    (`qcom,cpus`, `qcom,qmi-dev-name`, `qcom,instance-id`, `qcom,freq-domain`,
    `qcom,lmh-dcvs`, `qcom,dump-size`, `qcom,cdev-alias`, `qcom,glink-label`).
-3. **Filhos de `/soc` sem `reg`**: o `simple-bus` do upstream exige
+2. **Filhos de `/soc` sem `reg`**: o `simple-bus` do upstream exige
    `ranges` (vazio) nesses nós; são ~40 marcadores de vendor que hoje
    geram 85 erros no DTB base.
-4. **GENI/SE e `sdhci-msm`**: alinhar `clock-names`/`reg-names` da DTS com o
+3. **GENI/SE e `sdhci-msm`**: alinhar `clock-names`/`reg-names` da DTS com o
    schema 6.12, ou estender os bindings para aceitar os nomes 5.15.
-5. Manter o gate: cada correção deve reduzir a linha de base, e nunca
+4. Manter o gate: cada correção deve reduzir a linha de base, e nunca
    aumentá-la.

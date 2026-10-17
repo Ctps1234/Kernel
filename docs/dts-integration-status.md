@@ -18,7 +18,7 @@ dependências SoC (Bengal/Khaje, PM6125, PM8008, SMMU, RDBG, GDSC, qupv3).
 A verificação é automatizada por `tools/check_dts_includes.py`, que resolve
 `#include "..."` (relativos, na ordem do build: diretório do arquivo e
 depois os diretórios globais) e `#include <...>` (caminhos do kernel).
-Último resultado sobre a base fixada com a série 0001–0015 aplicada (0015 altera somente o binding pinctrl):
+Último resultado sobre a base fixada com a série 0001–0016 aplicada (0015/0016 alteram somente bindings):
 
 ```
 arquivos .dts/.dtsi/.dtso: 54
@@ -126,11 +126,11 @@ O baseline anterior ao patch 0015 registrava 3009 erros em 778 assinaturas
 (833 no DTB base, contra 1143 no começo da rodada). A run oficial 39067847004,
 com o binding 0015 e `gpio-ranges`, confirmou 2791 erros (769 base; 1011 em
 cada composto), zero erros de pinctrl Khaje e 664 avisos sem schema; o baseline
-versionado foi atualizado e o job compilou o kernel. A run 39069450075 corrigiu
-a seleção do `dt_binding_check`, compilou os exemplos e revelou erros de
-meta-schema em alguns bindings Bengal/clock; o patch 0016 os corrige e o
-workflow agora tem validação direta para falhar se voltarem. O backlog restante
-é majoritariamente propriedade `qcom,*` do 5.15 sem binding 6.12.
+versionado foi atualizado. A run 39069450075 encontrou os erros de meta-schema
+que levaram ao patch 0016. A run 39071211672 aplicou 0001–0016, passou a
+validação de schemas e exemplos sem diagnósticos, manteve os mesmos totais no
+gate `dt-validate` e compilou o kernel. O backlog restante é majoritariamente
+propriedade `qcom,*` do 5.15 sem binding 6.12.
 
 ## Bloqueadores conhecidos para build/DTBS_CHECK
 
@@ -142,11 +142,9 @@ workflow agora tem validação direta para falhar se voltarem. O backlog restant
    `tools/integrate_dts.py` + Makefiles em `device-tree/kernel/`.
 6. ~~Defconfig final~~ — resolvido: `config/topaz-khaje.config` +
    `tools/configure_kernel.sh`, e o build da imagem do kernel passou no CI.
-7. Validar os bindings sem erros — em andamento: o filtro `DT_SCHEMA_FILES`
-   já seleciona schemas e os exemplos compilam. Essa run encontrou erros de
-   meta-schema nos bindings Bengal/clock; patch 0016 os corrige e o workflow
-   ganhou um `dt-doc-validate` direto. Aguardando nova run.
-   Ver [`docs/dt-schema-validation.md`](dt-schema-validation.md).
+7. ~~Validar os bindings sem erros~~ — concluído pela run 39071211672: os 12
+   schemas selecionados, seus exemplos e o `dt-doc-validate` direto passaram
+   sem diagnósticos. Ver [`docs/dt-schema-validation.md`](dt-schema-validation.md).
 
 ## Recomendação
 

@@ -27,24 +27,26 @@ O host Qualcomm upstream passa o gear numérico à PHY com `phy_set_mode_ext(...
 
 ## Sequência de inicialização
 
-A adaptação mantém a sequência genérica upstream: o QMP gere os reguladores e clocks da binding, escreve as tabelas de configuração, remove o PCS de reset, inicia o SerDes e aguarda `PCS_READY_STATUS`. A referência R47 também escreve os dados sob reset, inicia o SerDes e espera o PCS ficar pronto, mas faz isso pelo framework `ufs_qcom_phy`; as APIs de power, reset e clocks downstream não foram copiadas. A correspondência das tabelas foi auditada, mas a sequência do driver ainda precisa de compilação e teste no aparelho.
+A adaptação mantém a sequência genérica upstream: o QMP gere os reguladores e clocks da binding, escreve as tabelas de configuração, remove o PCS de reset, inicia o SerDes e aguarda `PCS_READY_STATUS`. A referência R47 também escreve os dados sob reset, inicia o SerDes e espera o PCS ficar pronto, mas faz isso pelo framework `ufs_qcom_phy`; as APIs de power, reset e clocks downstream não foram copiadas. A correspondência das tabelas foi auditada e o driver passou pelo build do kernel na run CI 39071211672; a sequência de power/reset/clock e `PCS_READY_STATUS` ainda não foi exercitada em hardware.
 
-## Device Tree ainda pendente
+## Integração DTS e validação ainda pendentes
 
-Os patches 0005–0006 não adicionam DTS, DTBO, configuração GKI nem os providers SoC que o UFS consome. A binding upstream de `qcom,sm6225-qmp-ufs-phy` precisa ser refletida no novo DTS, em vez de copiar o nó vendor sem tradução. Entre as diferenças a resolver estão:
+As fontes `device-tree/source/qcom/khaje.dtsi` e `khaje-idp.dtsi` já incluem o UFS ativo, e o CI 39071211672 compilou os DTBs, o kernel e o exemplo de binding. Isso não significa que o nó ativo esteja schema-clean: o `dt-validate` ainda reporta incompatibilidades com os schemas upstream. A binding de `qcom,sm6225-qmp-ufs-phy` e o host UFS precisam ser alinhados ao contrato upstream, em vez de tratar o nó vendor como validado. Entre as diferenças a resolver estão:
 
 - a binding upstream espera uma região plana `reg`, três clocks de entrada chamados `ref`, `ref_aux` e `qref`, `#phy-cells = <0>`, domínio de energia e reset com `reset-names = "ufsphy"`;
 - o driver QMP solicita as fontes `vdda-phy` e `vdda-pll`; as ligações aos reguladores/PMIC corretos precisam ser comprovadas, não substituídas por fontes dummy;
 - a PHY QMP publica três clocks de símbolo para o controlador UFS. O DTS precisa ligar corretamente esses clocks ao host, sem duplicar os clocks de saída listados no nó legado de nove clocks;
 - o dump vendor descreve um nodo legado com `reg-names`, clocks e reset no formato downstream; esse nodo não pode ser tratado como um nó QMP upstream validado.
 
+No `dtbs_check` da run 39071211672, `ufsphy_mem@4807000` foi reportado com nove clocks (acima do limite do schema), sem `power-domains`/`reset-names` exigidos e com propriedades vendor não aceitas. `ufshc@4804000` também diverge do binding upstream de `qcom,ufshc` em compatible, `reg-names` e propriedades vendor. Essas ocorrências permanecem na linha de base de 2791 erros; o patch 0016 corrigiu apenas meta-validação dos schemas e não alterou os nós UFS.
+
 A comparação com a DTS de referência Qualcomm Platform 5.0 R47 (`la_platform_vendor_qcom-opensource_devicetree`, commit `66167e56588bd7c0c9ec91e1e5c464512f6c4db6`) acrescenta dados concretos, mas não um DTS pronto para importar. `qcom/khaje.dtsi` descreve a PHY em `0x4807000` (`0xe00`), duas lanes, o host em `0x4804000`, nove clocks legados por nó, limites de Gear 3 no host e as rotas ICC `system_noc → bimc` e `bimc → config_noc`; ambos os nós começam desabilitados. A placa `khaje-idp.dtsi` adiciona o compatible downstream, habilita os nós e associa `vdda-phy` a `L4A`, `vdda-pll` a `L18A`, além dos rails do host e resets. Esses labels e tensões são da implementação IDP/PMIC Qualcomm: não os copiar para topaz sem confirmar o FDT ativo e os providers portados. A estrutura de nove clocks do vendor também não é a binding upstream de três clocks de entrada e clocks de saída via PHY.
 
-Os nós e consumidores do FDT ativo continuam sendo referências de análise. Ainda não há DTS/DTBO buildável ou validação de `dtbs_check`.
+Os nós e consumidores do FDT ativo já estão em DTS/DTBO buildáveis e passaram pelo CI; a validação do schema da binding/documentação passou, mas o `dt-validate` dos nós UFS ativos ainda falha conforme os itens acima. Isso é diferente do `dt_binding_check` limpo confirmado pela run 39071211672.
 
 ## Estado de validação
 
 - A comparação estática de tabelas acima passou para Gear 1–3, Gear 4 e Rate B; a simetria de lanes também foi confirmada.
 - `git diff --check` passou na série aplicada; `scripts/checkpatch.pl --no-tree --strict --no-signoff` passou sem erros, avisos ou checks nos patches 0003–0006. `--no-tree` é necessário na sparse checkout temporária.
-- `dt-doc-validate`/`dtschema` não estão disponíveis no ambiente atual; a binding nova ainda requer validação formal.
-- Não foi compilado o kernel, executado `dtbs_check`, nem testado/gravado qualquer imagem. A compilação permanece adiada até a conclusão da integração de boot e periféricos, conforme instrução do usuário.
+- `dt_binding_check` e `dt-doc-validate` direto validaram a binding e seu exemplo na run CI 39071211672; o build do kernel e dos DTBs também passou. O relatório de `dtbs_check` ainda contém os erros dos nós UFS acima.
+- A imagem `Image-khaje` foi compilada no CI, mas não houve boot, validação de sequência elétrica nem gravação em hardware.
