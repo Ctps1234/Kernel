@@ -43,9 +43,12 @@ if [ -d arch/arm64/boot/dts/qcom/khaje ]; then
   echo
 fi
 
-# Atualiza a issue se ela ja existir, senao cria uma nova.
-EXISTING=$(gh issue list --label "$LABEL" --state open --limit 1 \
-             --json number --jq '.[0].number' 2>/dev/null || true)
+# Atualiza a issue deste relatorio se ela ja existir (busca pelo titulo, e
+# nao apenas pelo rotulo: as duas jobs do workflow publicam relatorios
+# diferentes e nao podem sobrescrever a issue uma da outra).
+EXISTING=$(gh issue list --label "$LABEL" --state open --limit 50 \
+             --json number,title \
+             --jq ".[] | select(.title == \"$TITLE\") | .number" 2>/dev/null | head -1)
 
 if [ -n "${EXISTING:-}" ] && [ "$EXISTING" != "null" ]; then
   gh issue edit "$EXISTING" --title "$TITLE" --body-file "$BODY" >/dev/null
