@@ -2,14 +2,15 @@
 
 Documento de referência da ferramenta [`tools/bootimg.py`](../tools/bootimg.py) e do
 script [`tools/build_flash_images.sh`](../tools/build_flash_images.sh), que transformam
-os artefatos do CI (kernel 6.12 + DTB/DTBO + ramdisk mínima) em **imagens flasháveis** do aparelho,
-preservando byte a byte tudo o que não muda (cmdline, bootconfig, ramdisk vendor,
-rodapé AVB, padding).
+os artefatos do CI (kernel 6.12 + DTB/DTBO + ramdisk mínima) em **imagens flasháveis** do aparelho.
+Headers, cmdline, bootconfig e ramdisk vendor são preservados; os blocos AVB/vbmeta
+são reposicionados/ajustados estruturalmente quando necessário, mas seus digests
+ficam obsoletos. Padding liberado pelo DTBO é zerado.
 
-> **Estado:** as imagens de kernel/DTB/overlay foram geradas; a imagem
-> `init_boot` mínima está em construção/validação no workflow independente
-> [`initramfs.yml`](../.github/workflows/initramfs.yml). Os quatro originais passam
-> na ida-e-volta byte a byte. **Nenhum flash foi feito** e **nada foi testado em hardware**.
+> **Estado:** as quatro imagens foram geradas e verificadas estaticamente.
+> Os quatro originais passam na ida-e-volta byte a byte. CI de initramfs
+> `39040529561` e CI kernel/DTS `39040529520` estão verdes. **Nenhum flash foi feito**
+> e **nada foi testado em hardware**.
 
 ---
 
@@ -31,9 +32,11 @@ rodapé AVB, padding).
 Layout do arquivo: cabeçalho → kernel (offset 4096) → padding de página → resto da
 partição (padding + rodapé AVB de 64 bytes, magic `AVBf` no fim).
 
-**O cmdline não está no cabeçalho**: no Android 11+ ele vem da partição `bootconfig`,
-que **não é tocada** por este fluxo — é por isso que o repack não precisa recriar
-nenhum cmdline. (O `vendor_boot` carrega um cmdline próprio, também preservado.)
+No `boot_b` deste aparelho, `kernel_size=43.379.200`, `ramdisk_size=0` e o campo
+`cmdline` do header está vazio. No `init_boot_b`, `kernel_size=0` e a ramdisk original
+tem 2.888.965 bytes, comprimida em LZ4 legado; o novo `init_boot` usa CPIO `newc`
+não comprimido, aceito pelo initramfs do kernel. O cmdline ativo vem de
+`chosen.bootargs` no DTB e do cmdline próprio de `vendor_boot` (ambos preservados).
 
 ### 1.2 `vendor_boot` — Android vendor boot image v4 (little-endian, layout Qualcomm)
 
@@ -121,7 +124,7 @@ Sem dependências externas (só a biblioteca padrão do Python 3).
 
 ## 3. Validação
 
-**Ida-e-volta (parse → rebuild) sobre os três originais do aparelho:**
+**Ida-e-volta (parse → rebuild) sobre os quatro originais do aparelho:**
 
 | Imagem | Resultado | SHA-256 (entrada = saída) |
 |---|---|---|
@@ -133,19 +136,29 @@ Sem dependências externas (só a biblioteca padrão do Python 3).
 Ou seja: os formatos estão entendidos o bastante para reescrever qualquer campo
 sem corromper o resto.
 
-**Imagens geradas (a partir do `Image-khaje` e dos DTBs do CI, run `39026267325`):**
+**Imagens geradas com `Image-khaje`/DTBs do CI `39040529520` e ramdisk do CI `39040529561`:**
 
 | Artefato | Tamanho | SHA-256 |
-|---|---|---|
-| `google_drive/out/boot_b-khaje-6.12.img` | 134.217.728 | `ac3dce59069ceab3e787a8295a38339f679f4a29e933ce9c006c7be54a24655d` |
+|---|---:|---|
+| `google_drive/out/boot_b-khaje-6.12.img` | 134.217.728 | `bf2ce4d48bf75e12e86c66a7e9e9f29015837502b165dc8cc0421d60e6828888` |
 | `google_drive/out/vendor_boot_b-khaje-6.12.img` | 100.663.296 | `4fc0bc9acdb3ff63b16c76249d7882f0876e5c69c31240787c6d48ed7bc77aca` |
-| `google_drive/out/dtbo_b-khaje-6.12.img` | 25.165.824 | `4be8b75a771548e6ff30e49e25cf8a9b715412c9551f2abc9cb37e7eb33e8821` |
+| `google_drive/out/dtbo_b-khaje-6.12.img` | 25.165.824 | `69ffc6cb273ebc026d65e1db9e38549a8bfe4b77a79409f0bbf2632509b7ea9a` |
+| `google_drive/out/init_boot_b-khaje-minimal.img` | 8.388.608 | `612eb196456fc21f3754d51e38535814ae4f1887640b1c18864b7646877e805d` |
 
-Kernel embutido conferido: SHA-256 `b2965890137decf4a87d8e0eedde1e8a501d3852fe687349715619f51f161efd`
-= `Image-khaje` do CI.
+Kernel embutido conferido: SHA-256 `1df8c5be8b208a89f27deae084d13110999103b645a28827543a961fe6540232`
+= `Image-khaje` do CI. A ramdisk embutida em `init_boot` confere byte a byte com
+`ci-artifacts/initramfs/initramfs.cpio` (2.879.092 bytes, SHA-256
+`948984f26e6fec5a1438844dd055fc7b86c672ed86e7df09093cacc6e066d2bf`).
 
-> Essas imagens ficam fora do Git (`google_drive/` está no `.gitignore`): são
-> artefatos grandes e privados do aparelho.
+Regenerar (com os originais em `google_drive/` e a árvore de artefatos do CI
+extraída, por exemplo, do branch `ci-artifacts`):
+
+```sh
+tools/build_flash_images.sh /path/to/Kernel-ci-artifacts
+```
+
+> As imagens e os blobs originais ficam fora do Git (`google_drive/` está no
+> `.gitignore`): são artefatos grandes e privados do aparelho.
 
 ---
 
@@ -167,9 +180,9 @@ console serial, não por ADB. A configuração efetiva do CI inclui
 `CONFIG_SERIAL_MSM_CONSOLE=y` e `CONFIG_SERIAL_QCOM_GENI_CONSOLE=y`; o DTB base traz
 `console=ttyMSM0,115200n8` em `chosen.bootargs`.
 
-O builder preserva os 8 MiB da partição e o rodapé AVB, mas o rodapé fica inválido
-após a alteração. A ramdisk original também fica preservada separadamente em
-`google_drive/init_boot_b.img` (fora do Git).
+O builder preserva os 8 MiB da partição, move o blob vbmeta e atualiza os offsets
+no rodapé AVB; o digest/assinatura, porém, é obsoleto após a alteração. A ramdisk
+original permanece em `google_drive/init_boot_b.img` (fora do Git).
 
 ### Bloqueios antes de gravar qualquer partição
 

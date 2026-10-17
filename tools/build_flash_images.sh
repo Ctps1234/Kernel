@@ -33,6 +33,9 @@ done
 mkdir -p "$OUT"
 cd "$REPO"
 
+echo "== validando a ramdisk minima do CI =="
+python3 tools/check_initramfs.py "$CI_ART/initramfs/initramfs.cpio"
+
 echo "== conferindo os originais (ida e volta) =="
 python3 tools/bootimg.py roundtrip "$BLOBS/boot_b.img" /tmp/rt-boot.img
 python3 tools/bootimg.py roundtrip "$BLOBS/vendor_boot_b.img" /tmp/rt-vendor-boot.img
@@ -61,7 +64,6 @@ echo "== manifesto =="
 ( cd "$OUT" && sha256sum ./*.img ) | tee "$OUT/SHA256SUMS"
 
 echo
-echo "ATENCAO: as imagens ainda nao estao assinadas. O rodape AVB das"
-echo "particoes originais fica obsoleto apos a troca de conteudo; e preciso"
-echo "flashear com verificacao desabilitada (vbmeta com --disable-verity"
-echo "--disable-verification) e com o bootloader desbloqueado."
+echo "ATENCAO: os digests/assinaturas AVB nao correspondem mais ao conteudo."
+echo "Nenhum vbmeta de bypass foi gerado; nao grave estas imagens antes de"
+echo "confirmar bootloader, backups (inclusive recovery_b) e plano AVB/recuperacao."

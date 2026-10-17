@@ -31,7 +31,7 @@ Foram localizados cinco dumps do slot ativo:
 | `dtbo_b.img` | 25.165.824 bytes (24 MiB) | Tabela DTBO v0 com 52 entradas; `total_size` big-endian = 3.529.713 bytes, magic/entradas também big-endian. |
 | `vbmeta_b.img` | 65.536 bytes | Imagem AVB; magic `AVB0`. |
 
-As imagens originais foram baixadas para `google_drive/` e inspecionadas; os originais continuam no Drive. Os dumps e as imagens derivadas são privados e não devem ser adicionados ao Git; o diretório `google_drive/` inteiro está ignorado em `.gitignore`.
+As imagens usadas no repack (`boot_b`, `vendor_boot_b`, `init_boot_b`, `dtbo_b`) foram baixadas para `google_drive/`; os originais continuam no Drive. `vbmeta_b` não foi alterada. Os dumps e imagens derivadas são privados e não devem ser adicionados ao Git; `google_drive/` inteiro está ignorado em `.gitignore`.
 
 ## Correspondência DTB/DTBO específica de topaz
 
