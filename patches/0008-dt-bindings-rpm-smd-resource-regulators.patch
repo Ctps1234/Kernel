@@ -8,8 +8,14 @@ physical PM6125 rails and generic RPM level votes. Add the resource-node pattern
 to the parent SMD-RPM binding and provide DT constants for the common RPM level
 values and regulator modes.
 
+Give qcom,set and qcom,regulator-type an explicit type: dtschema rejects
+a property that only carries an enum, and without the reference to
+types.yaml the value was never decoded as an integer. The regulator names
+pattern was also missing its grouping, which made every property starting
+with "s" (including "status") be validated as if it were a regulator.
+
 diff --git a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
-index b7241ce975b9..91dde7ec3595 100644
+index b7241ce97..e311419f7 100644
 --- a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
 +++ b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
 @@ -9,7 +9,7 @@ title: QCOM SMD RPM REGULATOR
@@ -50,7 +56,7 @@ index b7241ce975b9..91dde7ec3595 100644
  
    For pm660l s1, s2, s3, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, bob
  
-@@ -79,10 +80,110 @@ description:
+@@ -79,10 +80,111 @@ description:
    For pms405, s1, s2, s3, s4, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
    l12, l13
  
@@ -79,6 +85,7 @@ index b7241ce975b9..91dde7ec3595 100644
 +
 +      qcom,set:
 +        description: Bitmask selecting active and/or sleep RPM states.
++        $ref: /schemas/types.yaml#/definitions/uint32
 +        enum: [1, 2, 3]
 +
 +      qcom,init-voltage:
@@ -161,7 +168,7 @@ index b7241ce975b9..91dde7ec3595 100644
  properties:
    compatible:
      enum:
-@@ -106,6 +207,27 @@ properties:
+@@ -106,16 +208,56 @@ properties:
        - qcom,rpm-pmi8998-regulators
        - qcom,rpm-pmr735a-regulators
        - qcom,rpm-pms405-regulators
@@ -177,6 +184,7 @@ index b7241ce975b9..91dde7ec3595 100644
 +
 +  qcom,regulator-type:
 +    description: RPM regulator type, zero for LDO and one for SMPS.
++    $ref: /schemas/types.yaml#/definitions/uint32
 +    enum: [0, 1]
 +
 +  qcom,regulator-hw-type:
@@ -189,7 +197,11 @@ index b7241ce975b9..91dde7ec3595 100644
  
  patternProperties:
    ".*-supply$":
-@@ -116,6 +238,24 @@ patternProperties:
+     description: Input supply phandle(s) for this node
+ 
+-  "^((s|l|lvs|5vs)[0-9]*)|(boost-bypass)|(bob)$":
++  "^((s|l|lvs|5vs)[0-9]*|(boost-bypass)|(bob))$":
+     description: List of regulators and its properties
      $ref: regulator.yaml#
      unevaluatedProperties: false
  
@@ -214,7 +226,7 @@ index b7241ce975b9..91dde7ec3595 100644
  additionalProperties: false
  
  required:
-@@ -142,4 +282,35 @@ examples:
+@@ -142,4 +284,35 @@ examples:
              regulator-max-microvolt = <2950000>;
          };
      };
@@ -251,7 +263,7 @@ index b7241ce975b9..91dde7ec3595 100644
 +    };
  ...
 diff --git a/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml b/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
-index 270bcd079f88..9468c8b4589e 100644
+index 270bcd079..9468c8b45 100644
 --- a/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
 +++ b/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
 @@ -16,9 +16,10 @@ description: |
@@ -281,7 +293,7 @@ index 270bcd079f88..9468c8b4589e 100644
      compatible:
 diff --git a/include/dt-bindings/regulator/qcom,rpm-smd-regulator.h b/include/dt-bindings/regulator/qcom,rpm-smd-regulator.h
 new file mode 100644
-index 000000000000..b5782b29eaee
+index 000000000..b5782b29e
 --- /dev/null
 +++ b/include/dt-bindings/regulator/qcom,rpm-smd-regulator.h
 @@ -0,0 +1,34 @@

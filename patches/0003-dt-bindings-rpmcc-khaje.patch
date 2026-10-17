@@ -7,7 +7,7 @@ an XO input clock.
 
 ---
 diff --git a/Documentation/devicetree/bindings/clock/qcom,rpmcc.yaml b/Documentation/devicetree/bindings/clock/qcom,rpmcc.yaml
-index 02fcffe..47393d3 100644
+index 02fcffe93..47393d301 100644
 --- a/Documentation/devicetree/bindings/clock/qcom,rpmcc.yaml
 +++ b/Documentation/devicetree/bindings/clock/qcom,rpmcc.yaml
 @@ -45,6 +45,7 @@ properties:

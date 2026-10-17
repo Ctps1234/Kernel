@@ -1,0 +1,215 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 16 Oct 2026 22:05:00 +0000
+Subject: [PATCH] dt-bindings: vendor-prefixes: add the vendor prefixes in use
+
+O device tree do board topaz usa prefixos de propriedade que nao estavam
+em vendor-prefixes.yaml, e o dt-validate rejeita cada propriedade com
+prefixo desconhecido: bat (fuel gauge vendor), synaptics (touchscreen),
+fpc (fingerprint), fsm, mi/nopmi (Xiaomi), pd, sc, si, sm, touch, vib,
+gpio-key, rt-tcpc e rt1711pd (Richtek), tcpc-dual, typec, ln8000_charger,
+pin_assignment e signal.
+
+---
+diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+index af9a8d43b..32bd05439 100644
+--- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
++++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+@@ -204,6 +204,12 @@ patternProperties:
+     description: BAIKAL ELECTRONICS, JSC
+   "^bananapi,.*":
+     description: BIPAI KEJI LIMITED
++  "^bat,.*":
++    description: Battery information used by the vendor fuel gauge
++
++  "^battery0,.*":
++    description: Per-battery instance properties used by the vendor charger
++
+   "^beacon,.*":
+     description: Compass Electronics Group, LLC
+   "^beagle,.*":
+@@ -527,6 +533,9 @@ patternProperties:
+     description: FocalTech Systems Co.,Ltd
+   "^forlinx,.*":
+     description: Baoding Forlinx Embedded Technology Co., Ltd.
++  "^fpc,.*":
++    description: Fingerprint sensor manufacturer
++
+   "^freebox,.*":
+     description: Freebox SAS
+   "^freecom,.*":
+@@ -537,6 +546,9 @@ patternProperties:
+     description: Guangzhou FriendlyARM Computer Tech Co., Ltd
+   "^fsl,.*":
+     description: Freescale Semiconductor
++  "^fsm,.*":
++    description: Fingerprint sensor vendor (fsm)
++
+   "^fujitsu,.*":
+     description: Fujitsu Ltd.
+   "^fxtec,.*":
+@@ -591,6 +603,9 @@ patternProperties:
+     description: Google, Inc.
+   "^goramo,.*":
+     description: Goramo Gorecki
++  "^gpio-key,.*":
++    description: GPIO key properties used by the vendor key driver
++
+   "^gplus,.*":
+     description: GPLUS
+   "^grinn,.*":
+@@ -854,6 +869,9 @@ patternProperties:
+     description: LiteX SoC builder
+   "^lltc,.*":
+     description: Linear Technology Corporation
++  "^ln8000_charger,.*":
++    description: Lontium charger IC
++
+   "^logicpd,.*":
+     description: Logic PD, Inc.
+   "^logictechno,.*":
+@@ -928,6 +946,9 @@ patternProperties:
+     description: Merrii Technology Co., Ltd.
+   "^methode,.*":
+     description: Methode Electronics, Inc.
++  "^mi,.*":
++    description: Xiaomi
++
+   "^micrel,.*":
+     description: Micrel Inc.
+   "^microchip,.*":
+@@ -1049,6 +1070,9 @@ patternProperties:
+     description: NLT Technologies, Ltd.
+   "^nokia,.*":
+     description: Nokia
++  "^nopmi,.*":
++    description: Xiaomi (nopmi models)
++
+   "^nordic,.*":
+     description: Nordic Semiconductor
+   "^novatek,.*":
+@@ -1136,6 +1160,9 @@ patternProperties:
+     description: Parade Technologies Inc.
+   "^parallax,.*":
+     description: Parallax Inc.
++  "^pd,.*":
++    description: USB-C power delivery policy used by the vendor charger
++
+   "^pda,.*":
+     description: Precision Design Associates, Inc.
+   "^pericom,.*":
+@@ -1148,6 +1175,9 @@ patternProperties:
+     description: PHYTEC Messtechnik GmbH
+   "^picochip,.*":
+     description: Picochip Ltd
++  "^pin_assignment,.*":
++    description: Pin assignment used by the vendor display driver
++
+   "^pine64,.*":
+     description: Pine64
+   "^pineriver,.*":
+@@ -1262,6 +1292,12 @@ patternProperties:
+     description: Shenzhen Roofull Technology Co, Ltd
+   "^roseapplepi,.*":
+     description: RoseapplePi.org
++  "^rt-tcpc,.*":
++    description: Richtek Type-C port controller
++
++  "^rt1711pd,.*":
++    description: Richtek USB-C PD controller
++
+   "^rve,.*":
+     description: Recharge Véhicule Électrique (RVE) inc.
+   "^saef,.*":
+@@ -1278,6 +1314,9 @@ patternProperties:
+     description: Satoz International Co., Ltd
+   "^sbs,.*":
+     description: Smart Battery System
++  "^sc,.*":
++    description: Standalone charger IC
++
+   "^schindler,.*":
+     description: Schindler
+   "^schneider,.*":
+@@ -1318,6 +1357,9 @@ patternProperties:
+     description: ShineWorld Innovations
+   "^shiratech,.*":
+     description: Shiratech Solutions
++  "^si,.*":
++    description: Silicon image vendor
++
+   "^si-en,.*":
+     description: Si-En Technology Ltd.
+   "^si-linux,.*":
+@@ -1328,6 +1370,9 @@ patternProperties:
+     description: SiFive, Inc.
+   "^sigma,.*":
+     description: Sigma Designs, Inc.
++  "^signal,.*":
++    description: Display signal configuration used by the vendor panel driver
++
+   "^sii,.*":
+     description: Seiko Instruments, Inc.
+   "^sil,.*":
+@@ -1368,6 +1413,9 @@ patternProperties:
+     description: SKOV A/S
+   "^skyworks,.*":
+     description: Skyworks Solutions, Inc.
++  "^sm,.*":
++    description: Standalone fuel gauge / battery manager
++
+   "^smartlabs,.*":
+     description: SmartLabs LLC
+   "^smartrg,.*":
+@@ -1449,6 +1497,9 @@ patternProperties:
+     description: Sierra Wireless
+   "^syna,.*":
+     description: Synaptics Inc.
++  "^synaptics,.*":
++    description: Synaptics
++
+   "^synology,.*":
+     description: Synology, Inc.
+   "^synopsys,.*":
+@@ -1462,6 +1513,9 @@ patternProperties:
+     description: Trusted Computing Group
+   "^tcl,.*":
+     description: Toby Churchill Ltd.
++  "^tcpc-dual,.*":
++    description: Richtek dual Type-C port controller
++
+   "^tcs,.*":
+     description: Shenzhen City Tang Cheng Technology Co., Ltd.
+   "^tdo,.*":
+@@ -1521,6 +1575,9 @@ patternProperties:
+     description: Toradex AG
+   "^toshiba,.*":
+     description: Toshiba Corporation
++  "^touch,.*":
++    description: Touch controller properties used by the vendor touch driver
++
+   "^toumaz,.*":
+     description: Toumaz
+   "^tpk,.*":
+@@ -1549,6 +1606,9 @@ patternProperties:
+     description: Tyan Computer Corporation
+   "^tyhx,.*":
+     description: NanjingTianyihexin Electronics Ltd.
++  "^typec,.*":
++    description: USB Type-C connector properties used by the vendor display driver
++
+   "^u-blox,.*":
+     description: u-blox
+   "^u-boot,.*":
+@@ -1593,6 +1653,9 @@ patternProperties:
+     description: VIA Technologies, Inc.
+   "^vialab,.*":
+     description: VIA Labs, Inc.
++  "^vib,.*":
++    description: Vibrator
++
+   "^vicor,.*":
+     description: Vicor Corporation
+   "^videostrong,.*":
+-- 
+2.39.5

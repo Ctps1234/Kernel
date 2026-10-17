@@ -15,6 +15,17 @@ dependências SoC (Bengal/Khaje, PM6125, PM8008, SMMU, RDBG, GDSC, qupv3).
 
 ## Reconciliação de includes (estática)
 
+A verificação é automatizada por `tools/check_dts_includes.py`, que resolve
+`#include "..."` (relativos, na ordem do build: diretório do arquivo e
+depois os diretórios globais) e `#include <...>` (caminhos do kernel).
+Último resultado sobre a base fixada com a série 0001–0014 aplicada:
+
+```
+arquivos .dts/.dtsi/.dtso: 54
+includes verificados: 102
+todos os includes resolvem
+```
+
 ### Includes de sistema
 
 | Include | Disponibilidade |
@@ -23,26 +34,58 @@ dependências SoC (Bengal/Khaje, PM6125, PM8008, SMMU, RDBG, GDSC, qupv3).
 | `dt-bindings/clock/qcom,rpmcc.h` | Fornecido pelo patch 0004 (RPMCC) |
 | `dt-bindings/interconnect/qcom,bengal.h` | Fornecido pelo patch 0007 |
 | `dt-bindings/regulator/qcom,rpm-smd-regulator.h` | Fornecido pelo patch 0008 |
-| `dt-bindings/phy/qcom,khaje-qmp-usb3.h` | **Não encontrado** nos patches nem no R47; usado por `khaje-usb.dtsi` (constantes `USB3_DP_*`). Bloqueador para USB/DTBS_CHECK |
-| `dt-bindings/msm-camera.h` | Include removido de `topaz-camera-sensor-idp.dtsi` (nenhuma constante usada) |
-| `bindings/audio-codec-port-types.h`, `bindings/qcom,audio-ext-clk.h`, `bindings/qcom,bolero-clk-rsc.h` | **Adicionados** em `device-tree/source/bindings/` (importados de fontes públicas Qualcomm) |
-| demais (`gpio.h`, `spmi.h`, `thermal/*`, `arm/msm/qcom_dma_heap_dt_constants.h`, `qcom,qpnp-power-on.h`, `qcom,khaje-qmp-usb3.h` já listado) | Esperados no common kernel / headers padrão; confirmar na base fixada |
+| `dt-bindings/phy/qcom,khaje-qmp-usb3.h` | Fornecido pelo patch 0012 |
+| `dt-bindings/regulator/qcom,rpmh-regulator-levels.h` | **Fornecido pelo patch 0013** |
+| `dt-bindings/arm/msm/qcom_dma_heap_dt_constants.h` | **Fornecido pelo patch 0013** |
+| `dt-bindings/thermal/thermal_qti.h` | **Fornecido pelo patch 0013** |
+| `dt-bindings/input/qcom,qpnp-power-on.h` | **Fornecido pelo patch 0013** |
+| `dt-bindings/soc/qcom,dcc_v2.h` | **Fornecido pelo patch 0013** |
+| `dt-bindings/audio-codec-port-types.h`, `dt-bindings/qcom,audio-ext-clk.h`, `dt-bindings/qcom,bolero-clk-rsc.h` | **Fornecidos pelo patch 0013** (a base 6.12 não traz nenhum dos três) |
+| demais (`gpio.h`, `spmi.h`, `thermal/thermal.h`, `arm-gic.h`, `input.h`, `iio/qcom,spmi-vadc.h`, `interrupt-controller/irq.h`) | Presentes na base fixada |
+
+Correção aplicada nas fontes: `audio/bengal-audio-overlay.dtsi` usava
+`<bindings/...>`; passou a usar `<dt-bindings/...>`, que é o caminho
+resolvido pelo build do kernel (`scripts/dtc/include-prefixes/dt-bindings`).
 
 ### Includes entre arquivos
 
-Todos os 54 includes entre arquivos resolvem após a correção do nome de
-painel (`dsi-panel-m7_…` → `dsi_panel_m7_…`). Nenhum include quebrado
-restante.
+Os 54 arquivos são agrupados em diretórios autossuficientes (raiz,
+`audio/`, `camera/`, `display/display/`): a varredura não encontrou nenhum
+include que dependa de outro diretório, então o `-i <dir do arquivo>` que
+o build do kernel usa resolve tudo sem mexer em `DTC_INCLUDE`.
 
-## Adaptações aplicadas
+## Staging no kernel (reprodutível)
 
-- `display/display/topaz-sde-display-idp-nopmi.dtsi`: corrigidos os nomes dos
-  includes dos painéis `m7_38_0c_0{a,b}` para o padrão com underscore.
+`tools/integrate_dts.py` faz o staging de forma determinística e idempotente:
+
+1. copia `device-tree/source/qcom/**` para
+   `arch/arm64/boot/dts/qcom/khaje/` (diretório próprio para não colidir
+   com `pm6125.dtsi`/`pm8008.dtsi` que já existem na base 6.12);
+2. renomeia os overlays (`/plugin/;`) de `.dts` para `.dtso`, que é a
+   extensão que o build compila em `.dtbo` e combina com a base via
+   `fdtoverlay`;
+3. copia os Makefiles em estilo kernel de `device-tree/kernel/qcom/khaje/`
+   (base, overlays de board e subdirs `audio/`, `camera/`, `display/`);
+4. registra `subdir-y += khaje` em `arch/arm64/boot/dts/qcom/Makefile`.
+
+Alvos gerados (mecanismo de multi-dtb do kernel):
+
+| Artefato | Conteúdo |
+|---|---|
+| `khaje-idp-nopmi.dtb` | base Khaje (board id `0x10022`), compilada com `-@` |
+| `khaje-idp-nopmi-topaz.dtb` | base + `topaz-khaje-idp-nopmi-overlay.dtbo` (board id `0x30022`) |
+| `khaje-idp-nopmi-tapas.dtb` | base + `tapas-khaje-idp-nopmi-overlay.dtbo` (board id `0x20022`) |
+| `audio/topaz-sm6225-audio-overlay.dtbo` | overlay de áudio topaz |
+| `camera/topaz-camera-sensor-idp-overlay.dtbo` | overlay de câmera topaz |
+| `display/display/topaz-sde-display-idp-nopmi-overlay.dtbo` | overlay de display topaz |
+
+`tools/build_dts.py` reproduz localmente a mesma invocação do kernel
+(`cpp` + `dtc` + `fdtoverlay`), sem exigir build completo.
 
 ## Reconciliação de compatibles (estática)
 
-Verificados os compatibles SoC críticos usados pelos DTS importados contra os
-drivers portados na série 0001–0012:
+Verificados os compatibles SoC críticos usados pelos DTS importados contra
+os drivers portados na série 0001–0014:
 
 | Compatible (DTS) | Driver/patch | Status |
 |---|---|---|
@@ -56,19 +99,49 @@ drivers portados na série 0001–0012:
 
 Nenhuma divergência restante nos compatibles de fundação de boot.
 
+## Validação com dtc
+
+- A base `khaje-idp-nopmi.dts` compila com dtc 1.4.4 (70 avisos de
+  `reg_format`/`unit_address_format`/`avoid_default_addr_size`, todos
+  ruído de DT vendor suprimido pelas flags `-Wno-*` que o kernel usa).
+- Os overlays usam a sintaxe `&label { ... }` de topo, que só existe a
+  partir do dtc 1.5; por isso a validação autoritativa roda no CI com o
+  dtc 1.7.0 que a árvore base vendoriza em `scripts/dtc`.
+- CI (`.github/workflows/dts-validate.yml`): job `dts-validate` compila os
+  DTBs/DTBOs, roda `dt-validate` (DT-schema) e `dt_binding_check`; job
+  `kernel-build` compila a imagem do kernel para validar o port dos
+  drivers.
+
+## Validação DT-schema (dt-validate)
+
+O job *Device trees* do CI roda o `dt-validate` sobre os três DTBs (base
+Khaje e compostos topaz/tapas) e um gate de regressão
+(`tools/dt_validate_report.py` + `docs/dt-validate-baseline.json`) que falha
+quando aparece uma assinatura de erro nova ou quando alguma contagem
+cresce. Detalhes, medição e backlog por schema em
+[`docs/dt-schema-validation.md`](dt-schema-validation.md).
+
+Estado atual: 3009 erros em 778 assinaturas (833 só no DTB base, contra
+1143 no começo da rodada). O que resta é majoritariamente propriedade
+`qcom,*` do 5.15 sem binding na árvore 6.12.
+
 ## Bloqueadores conhecidos para build/DTBS_CHECK
 
 1. ~~Header `qcom,khaje-qmp-usb3.h` ausente (USB)~~ — resolvido (patch 0012).
-2. ~~Headers de áudio ausentes~~ — resolvido (bindings adicionados).
+2. ~~Headers de áudio ausentes~~ — resolvido (patch 0013 + correção de include).
 3. ~~Header `msm-camera.h` ausente~~ — resolvido (include removido).
-4. ~~Reconciliação de compatibles de fundação de boot~~ — verificado (tabela acima). Resta validação de API/bindings em build.
-5. Defconfig final e validação DT-schema/`dtbs_check` ainda pendentes.
+4. ~~Headers RPMh/DMA-heap/thermal/DCC/power-on ausentes~~ — resolvido (patch 0013).
+5. ~~DTS/DTBO não versionáveis~~ — resolvido: staging por
+   `tools/integrate_dts.py` + Makefiles em `device-tree/kernel/`.
+6. ~~Defconfig final~~ — resolvido: `config/topaz-khaje.config` +
+   `tools/configure_kernel.sh`, e o build da imagem do kernel passou no CI.
+7. `dt-validate` verde — em andamento: o gate de regressão está no CI, mas
+   o backlog de bindings vendor ainda tem 833 erros no DTB base (ver
+   [`docs/dt-schema-validation.md`](dt-schema-validation.md)).
 
 ## Recomendação
 
 - Manter a fundação de boot focada em `khaje-idp-nopmi.dts` +
-  `topaz-khaje-idp-nopmi-overlay.dts`, adiando áudio/câmera/display avançado.
-- Resolver o header USB (portar do kernel Qualcomm ou gerar constantes) antes
-  de tentar `dtbs_check`.
-- Não compilar/flashar/testar boot até fechar a integração e a configuração
-  GKI/defconfig.
+  `topaz-khaje-idp-nopmi-overlay.dtso`, adiando áudio/câmera/display avançado.
+- Não reutilizar binários 5.15 no KMI 6.12: os `.ko` do aparelho não são
+  compatíveis e ainda não há fonte dos drivers proprietorários.

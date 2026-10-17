@@ -2,10 +2,26 @@ name: DTS/DTBO validation (topaz/tapas)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - arena/f49f65df-kernel
+    paths:
+      - "device-tree/**"
+      - "patches/**"
+      - "tools/**"
+      - "docs/**"
+
+env:
+  BASE_REPO: https://github.com/EdMory/android_kernel_common_sm8850
+  BASE_COMMIT: 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
 
 jobs:
-  validate:
+  dts-validate:
+    name: Device trees (dtbs + dt-schema)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
     steps:
       - name: Checkout Kernel project
         uses: actions/checkout@v4
@@ -14,18 +30,26 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            clang lld llvm make gcc-aarch64-linux-gnu \
-            device-tree-compiler python3 flex bison bc libssl-dev
+            device-tree-compiler flex bison bc libssl-dev \
+            gcc-aarch64-linux-gnu \
+            python3-venv python3-pip yamllint
+          python3 -m venv "$HOME/dtschema-venv"
+          "$HOME/dtschema-venv/bin/pip" install --quiet --upgrade pip
+          "$HOME/dtschema-venv/bin/pip" install --quiet dtschema
+          echo "$HOME/dtschema-venv/bin" >> "$GITHUB_PATH"
 
       - name: Clone base Android Common 6.12 (fixed commit)
         run: |
-          git clone --depth 1 https://github.com/EdMory/android_kernel_common_sm8850 basekernel
+          set -o pipefail
+          git clone --depth 1 "$BASE_REPO" basekernel
           cd basekernel
-          git fetch --depth 1 origin 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
-          git checkout 0efd3abd3c356d644ea49f6ed37e9830b78d34e3
+          git fetch --depth 1 origin "$BASE_COMMIT"
+          git checkout "$BASE_COMMIT"
+          git rev-parse HEAD
 
-      - name: Apply local patch series 0001-0012
+      - name: Apply local patch series
         run: |
+          set -o pipefail
           cd basekernel
           for p in ../patches/[0-9][0-9][0-9][0-9]-*.patch; do
             echo "Applying $p"
@@ -34,30 +58,272 @@ jobs:
           done
           git diff --check
 
-      - name: Integrate DTS/DTBO sources
+      - name: Stage topaz/tapas device trees
         run: |
-          cd basekernel
-          # Place the imported DTS tree where the kernel build expects it.
-          cp -a ../device-tree/source/qcom/* arch/arm64/boot/dts/qcom/
-          # Audio bindings live in a separate include path in this project.
-          mkdir -p include/dt-bindings
-          cp -a ../device-tree/source/bindings/* include/dt-bindings/ 2>/dev/null || true
+          set -o pipefail
+          python3 tools/integrate_dts.py --kernel-tree basekernel | tee integrate_dts.log
 
-      - name: Configure (defconfig)
+      - name: Static include check
         run: |
-          cd basekernel
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
+          set -o pipefail
+          python3 tools/check_dts_includes.py \
+            --dts-dir basekernel/arch/arm64/boot/dts/qcom/khaje \
+            --kernel-tree basekernel | tee check_includes.log
 
-      - name: Build DTBs (validation)
+      - name: Configure (defconfig GKI + fragmento Khaje)
         run: |
-          cd basekernel
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc) dtbs 2>&1 | tee dtbs.log
-          # Optional: dtbs_check requires dt-schema; enable when available.
-          # make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- dtbs_check
+          set -o pipefail
+          sh tools/configure_kernel.sh basekernel 2>&1 | tee basekernel/configure.log
 
-      - name: Archive logs
+      - name: Build device trees (dtbs)
+        run: |
+          set -o pipefail
+          cd basekernel
+          # Os alvos sao relativos a arch/arm64/boot/dts: a regra %.dtb do
+          # Makefile raiz chama o sub-make com $(dtstree)/$@, e um caminho
+          # completo viraria arch/arm64/boot/dts/arch/arm64/boot/dts/...
+          # O DTB base e os DTBs compostos nao podem ser construidos em
+          # paralelo: o sub-make do composto e o sub-make do base escrevem
+          # o mesmo arquivo e o make remove o intermediario, o que faz o
+          # fdtoverlay falhar com "Couldn't open blob". Por isso o base
+          # vai primeiro, em um make separado.
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
+            qcom/khaje/khaje-idp-nopmi.dtb 2>&1 | tee dtbs.log
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
+            qcom/khaje/khaje-idp-nopmi.dtb \
+            qcom/khaje/khaje-idp-nopmi-topaz.dtb \
+            qcom/khaje/khaje-idp-nopmi-tapas.dtb \
+            qcom/khaje/audio/topaz-sm6225-audio-overlay.dtbo \
+            qcom/khaje/camera/topaz-camera-sensor-idp-overlay.dtbo \
+            qcom/khaje/display/display/topaz-sde-display-idp-nopmi-overlay.dtbo \
+            2>&1 | tee -a dtbs.log
+          # Copia os artefatos: em alguns casos o make remove arquivos
+          # intermediarios (o DTB base e intermediario do DTB composto).
+          rm -rf /tmp/dtb-artifacts
+          mkdir -p /tmp/dtb-artifacts
+          find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
+            -exec cp --parents {} /tmp/dtb-artifacts/ \;
+          ls -lR /tmp/dtb-artifacts | head -40
+
+      - name: Validate dtbs against DT-schema (dt-validate)
+        run: |
+          set -o pipefail
+          cd basekernel
+          # Schema processada (dt-mk-schema sobre os bindings da arvore).
+          # O alvoDocumentation/.../processed-schema.json so existe dentro
+          # do sub-make de Documentation/devicetree/bindings; o alvo de
+          # primeiro nivel que o constroi e dt_binding_schemas.
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
+            dt_binding_schemas 2>&1 | tee dtbs_schema.log
+          # O dt-validate roda direto sobre os DTBs ja compilados: refazer o
+          # build com CHECK_DTBS=1 faz os sub-makes do kernel disputarem o
+          # mesmo .dtb.d (corrida do fixdep) e abortar o build.
+          {
+            for dtb in /tmp/dtb-artifacts/arch/arm64/boot/dts/qcom/khaje/*.dtb; do
+              echo "=== $dtb ==="
+              dt-validate -m -u Documentation/devicetree/bindings \
+                -p Documentation/devicetree/bindings/processed-schema.json \
+                "$dtb" || true
+            done
+          } 2>&1 | tee dtbs_check.log
+
+      - name: Gate dt-validate (sem regressao de schema)
+        run: |
+          set -o pipefail
+          BASE=docs/dt-validate-baseline.json
+          if [ -f "$BASE" ]; then
+            python3 tools/dt_validate_report.py \
+              --log basekernel/dtbs_check.log --baseline "$BASE"
+          else
+            echo "linha de base ausente: gerando a partir deste run"
+            python3 tools/dt_validate_report.py \
+              --log basekernel/dtbs_check.log --baseline "$BASE" --update
+          fi
+
+      - name: Validate binding schemas (dt_binding_check)
+        run: |
+          set -o pipefail
+          cd basekernel
+          # Escopo: apenas os bindings tocados pela serie 0001-0013 (o
+          # check completo sobre as ~2000 schemas da base leva horas).
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux- \
+            DT_SCHEMA_FILES="qcom,khaje-pinctrl.yaml,qcom,rpmcc-khaje.yaml,qcom,rpmcc.yaml,qcom,khaje-gcc.yaml,qcom,khaje-dispcc.yaml,qcom,khaje-gpucc.yaml,qcom,khaje-debugcc.yaml,qcom,gcc.yaml,qcom,bengal.yaml,qcom,smd-rpm-regulator.yaml,qcom,smd-rpm.yaml,qcom,sc8280xp-qmp-ufs-phy.yaml" \
+            dt_binding_check 2>&1 | tee dt_binding_check.log
+
+      - name: Build in-tree dtc/fdtoverlay (for local iteration)
+        run: |
+          set -o pipefail
+          cd basekernel
+          make ARCH=arm64 scripts_dtc 2>&1 | tee scripts_dtc.log
+
+      - name: Publish summary as issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          bash tools/ci_publish_report.sh \
+            "CI: relatorio de validacao DTS/DTBO (topaz/tapas)" ci-report \
+            basekernel/dtbs.log basekernel/dtbs_schema.log basekernel/dtbs_check.log \
+            basekernel/dt_binding_check.log basekernel/configure.log \
+            check_includes.log || true
+
+      - name: Publish artifacts to ci-artifacts branch
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          rm -rf /tmp/artifacts
+          mkdir -p /tmp/artifacts
+          cd /tmp/artifacts
+          git init -q
+          git config user.email "ci@local"
+          git config user.name "CI"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Preserva o que a outra job ja publicou no branch. O checkout vem
+          # ANTES da copia dos artefatos deste run: caso contrario ele
+          # sobrescreve os logs novos com a versao antiga do branch.
+          git fetch -q --depth 1 origin ci-artifacts 2>/dev/null || true
+          if git rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
+            git checkout -q FETCH_HEAD -- . || true
+          fi
+          mkdir -p /tmp/artifacts/dtbs /tmp/artifacts/logs /tmp/artifacts/tools
+          cd "$GITHUB_WORKSPACE/basekernel"
+          cp .config /tmp/artifacts/config-khaje.config 2>/dev/null || true
+          # Preferir a copia feita logo apos o build (o make pode remover
+          # intermediarios como o DTB base do DTB composto).
+          if [ -d /tmp/dtb-artifacts ]; then
+            cp -r /tmp/dtb-artifacts/arch /tmp/artifacts/dtbs/ 2>/dev/null || true
+          fi
+          find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
+            -exec cp --parents {} /tmp/artifacts/dtbs/ \; 2>/dev/null || true
+          for log in dtbs.log dtbs_schema.log dtbs_check.log dt_binding_check.log configure.log kernel-build.log defconfig.log; do
+            cp "$log" /tmp/artifacts/logs/ 2>/dev/null || true
+          done
+          cp scripts/dtc/dtc scripts/dtc/fdtoverlay /tmp/artifacts/tools/ 2>/dev/null || true
+          cd /tmp/artifacts
+          git add -A
+          git commit -q -m "artefatos da run ${GITHUB_RUN_ID}" || true
+          git push -f origin HEAD:refs/heads/ci-artifacts
+          echo "artefatos publicados em ci-artifacts"
+
+      - name: Archive logs and artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dts-validation-logs
-          path: basekernel/dtbs.log
+          name: dts-validation
+          path: |
+            basekernel/dtbs.log
+            basekernel/dtbs_check.log
+            basekernel/dt_binding_check.log
+            basekernel/configure.log
+            basekernel/scripts_dtc.log
+            integrate_dts.log
+            check_includes.log
+            basekernel/arch/arm64/boot/dts/qcom/khaje/**/*.dtb
+            basekernel/arch/arm64/boot/dts/qcom/khaje/**/*.dtbo
+            basekernel/scripts/dtc/dtc
+            basekernel/scripts/dtc/fdtoverlay
+
+  kernel-build:
+    name: Kernel build (port dos drivers)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - name: Checkout Kernel project
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang lld llvm make gcc-aarch64-linux-gnu bc bison flex \
+            libssl-dev libelf-dev
+          sudo update-alternatives --install /usr/bin/clang clang \
+            /usr/bin/clang-14 100 2>/dev/null || true
+
+      - name: Clone base Android Common 6.12 (fixed commit)
+        run: |
+          set -o pipefail
+          git clone --depth 1 "$BASE_REPO" basekernel
+          cd basekernel
+          git fetch --depth 1 origin "$BASE_COMMIT"
+          git checkout "$BASE_COMMIT"
+          git rev-parse HEAD
+
+      - name: Apply local patch series
+        run: |
+          set -o pipefail
+          cd basekernel
+          for p in ../patches/[0-9][0-9][0-9][0-9]-*.patch; do
+            git apply --check "$p" || exit 1
+            git apply "$p" || exit 1
+          done
+
+      - name: Configure (defconfig GKI + fragmento Khaje)
+        run: |
+          set -o pipefail
+          sh tools/configure_kernel.sh basekernel 2>&1 | tee basekernel/configure.log
+
+      - name: Build kernel image
+        run: |
+          set -o pipefail
+          cd basekernel
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image \
+            2>&1 | tee kernel-build.log
+
+      - name: Publish build summary as issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          bash tools/ci_publish_report.sh \
+            "CI: relatorio de build do kernel (port Khaje)" ci-report \
+            basekernel/kernel-build.log basekernel/configure.log || true
+
+      - name: Publish artifacts to ci-artifacts branch
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          rm -rf /tmp/artifacts
+          mkdir -p /tmp/artifacts
+          cd /tmp/artifacts
+          git init -q
+          git config user.email "ci@local"
+          git config user.name "CI"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Preserva o que a outra job ja publicou no branch (checkout antes
+          # da copia, para nao sobrescrever os artefatos deste run).
+          git fetch -q --depth 1 origin ci-artifacts 2>/dev/null || true
+          if git rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
+            git checkout -q FETCH_HEAD -- . || true
+          fi
+          mkdir -p /tmp/artifacts/dtbs /tmp/artifacts/logs /tmp/artifacts/tools
+          cd "$GITHUB_WORKSPACE/basekernel"
+          cp .config /tmp/artifacts/config-khaje.config 2>/dev/null || true
+          find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
+            -exec cp --parents {} /tmp/artifacts/dtbs/ \; 2>/dev/null || true
+          for log in dtbs.log dtbs_schema.log dtbs_check.log dt_binding_check.log configure.log kernel-build.log defconfig.log; do
+            cp "$log" /tmp/artifacts/logs/ 2>/dev/null || true
+          done
+          cp scripts/dtc/dtc scripts/dtc/fdtoverlay /tmp/artifacts/tools/ 2>/dev/null || true
+          cp arch/arm64/boot/Image /tmp/artifacts/Image-khaje 2>/dev/null || true
+          cp System.map /tmp/artifacts/System.map 2>/dev/null || true
+          cd /tmp/artifacts
+          git add -A
+          git commit -q -m "artefatos da run ${GITHUB_RUN_ID}" || true
+          git push -f origin HEAD:refs/heads/ci-artifacts
+          echo "artefatos publicados em ci-artifacts"
+
+      - name: Archive build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-build-logs
+          path: basekernel/kernel-build.log

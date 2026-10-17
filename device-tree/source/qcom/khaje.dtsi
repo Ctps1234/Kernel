@@ -27,7 +27,7 @@
 		granule = <512>;
 	};
 
-	aliases: aliases {
+	aliases {
 		mmc0 = &sdhc_1; /* SDC1 eMMC slot */
 		mmc1 = &sdhc_2; /* SDC2 SD Card slot */
 		ufshc1 = &ufshc_mem; /* Embedded UFS slot */
@@ -2156,21 +2156,25 @@
 
 	cluster-device0 {
 		compatible = "qcom,lpm-cluster-dev";
+		ranges;
 		power-domains = <&CLUSTER_PD0>;
 	};
 
 	cluster-device1 {
 		compatible = "qcom,lpm-cluster-dev";
+		ranges;
 		power-domains = <&CLUSTER_PD1>;
 	};
 
 	cluster-device2 {
 		compatible = "qcom,lpm-cluster-dev";
+		ranges;
 		power-domains = <&CLUSTER_PD2>;
 	};
 
 	cluster-device3 {
 		compatible = "qcom,lpm-cluster-dev";
+		ranges;
 		power-domains = <&CLUSTER_PD3>;
 	};
 
@@ -3706,7 +3710,6 @@
 tpdm_turing_llm: tpdm@8861000 {
 		compatible = "qcom,coresight-dummy";
 
-		coresight-name = "coresight-tpdm-turing_llm";
 		qcom,dummy-source;
 
 		port {
@@ -3724,7 +3727,6 @@ tpdm_turing_llm: tpdm@8861000 {
 		reg = <0x8a58000 0x1000>;
 		reg-names = "tpdm-base";
 
-		coresight-name = "coresight-tpdm-west";
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
@@ -3742,7 +3744,6 @@ tpdm_turing_llm: tpdm@8861000 {
 		reg = <0x0800f000 0x1000>;
 		reg-names = "tpdm-base";
 
-		coresight-name = "coresight-tpdm-spdm";
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
@@ -3761,7 +3762,6 @@ tpdm_turing_llm: tpdm@8861000 {
 		reg = <0x8863000 0x1000>;
 		reg-names = "funnel-base";
 
-		coresight-name = "coresight-funnel-turing";
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
@@ -3822,7 +3822,6 @@ tpdm_turing_llm: tpdm@8861000 {
 		reg = <0x8004000 0x1000>;
 		reg-names = "tpda-base";
 
-		coresight-name = "coresight-tpda";
 
 		qcom,tpda-atid = <65>;
 		qcom,dsb-elem-size = <0 32>,
@@ -3948,9 +3947,7 @@ tpdm_turing_llm: tpdm@8861000 {
 		compatible = "arm,primecell";
 		arm,primecell-periphid = <0x000bb966>;
 		reg = <0x8862000 0x1000>;
-		reg-names = "cti-base";
 
-		coresight-name = "coresight-cti-turing-q6";
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";

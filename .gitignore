@@ -1,7 +1,5 @@
-/google_drive/*_b.img
-/google_drive/boot_b.img.gz
-/google_drive/topaz-live.dtb
-/google_drive/topaz-5.15.config
-/google_drive/topaz-module-map.txt
+# blobs privados do aparelho (imagens de boot, dumps e Derivados):
+# ficam fora do Git por serem grandes e confidenciais.
+/google_drive/
 __pycache__/
 *.py[cod]

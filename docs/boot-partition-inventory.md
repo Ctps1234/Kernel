@@ -28,10 +28,10 @@ Foram localizados cinco dumps do slot ativo:
 | `boot_b.img` | 134.217.728 bytes (128 MiB) | Cópia gzipada baixada (`boot_b.img.gz`, 21.076.277 bytes; gzip integrity check OK). Android boot v4; kernel de 43.379.200 bytes; ramdisk size zero; header de 1.584 bytes. Binário contém marcadores de Clang 20.0.0 e da release `5.15.211dexter1-g42deba085a84`, coerentes com o kernel reportado em execução. |
 | `vendor_boot_b.img` | 100.663.296 bytes (96 MiB) | Header Android vendor boot v4; página de 4096 bytes; ramdisk vendor de 15.019.760 bytes; região DTB de 1.305.239 bytes; tabela com uma entrada; bootconfig de 85 bytes. |
 | `init_boot_b.img` | 8.388.608 bytes (8 MiB) | Header Android boot v4; kernel size zero (esperado para init_boot); ramdisk genérico de 2.888.965 bytes. |
-| `dtbo_b.img` | 25.165.824 bytes (24 MiB) | Tabela DTBO v0 com 52 entradas; conteúdo descrito ocupa 3.529.713 bytes. |
+| `dtbo_b.img` | 25.165.824 bytes (24 MiB) | Tabela DTBO v0 com 52 entradas; `total_size` big-endian = 3.529.713 bytes, magic/entradas também big-endian. |
 | `vbmeta_b.img` | 65.536 bytes | Imagem AVB; magic `AVB0`. |
 
-Os quatro arquivos originais menores que o limite, mais a cópia gzipada de `boot_b`, foram baixados para `google_drive/` e inspecionados; os originais continuam no Drive. Os dumps são artefatos privados de análise e não devem ser adicionados ao Git; os nomes de imagens e o FDT ativo estão explicitamente ignorados em `.gitignore`.
+As imagens usadas no repack (`boot_b`, `vendor_boot_b`, `init_boot_b`, `dtbo_b`) foram baixadas para `google_drive/`; os originais continuam no Drive. `vbmeta_b` não foi alterada. Os dumps e imagens derivadas são privados e não devem ser adicionados ao Git; `google_drive/` inteiro está ignorado em `.gitignore`.
 
 ## Correspondência DTB/DTBO específica de topaz
 
@@ -44,3 +44,24 @@ Os quatro arquivos originais menores que o limite, mais a cópia gzipada de `boo
 `boot`, `init_boot` e `vendor_boot` definem o formato e os ramdisks; `vendor_boot`/`dtbo` fornecem a base de DTB e o overlay correspondente; `vbmeta` informa o arranjo AVB. Manter cópias externas e verificáveis dos originais antes de qualquer teste é requisito de segurança. Preservar também `recovery_b` para recuperação.
 
 A coleta necessária para entender o pacote de boot está completa: `boot_b` tem apenas o kernel, o ramdisk genérico está em `init_boot`, e o ramdisk vendor + DTBs estão em `vendor_boot`. Para segurança, manter também uma cópia externa e verificada de `recovery_b` antes de qualquer teste; ela não foi incluída na análise enviada. Não gravar nenhum arquivo de volta nas partições.
+
+## Reempacotamento e ramdisk de bring-up
+
+A ferramenta [`tools/bootimg.py`](../tools/bootimg.py), documentada em
+[`docs/boot-image-tooling.md`](boot-image-tooling.md), valida os formatos por
+ida-e-volta byte a byte nos quatro originais (`boot`, `vendor_boot`, `dtbo`,
+`init_boot`). O script `tools/build_flash_images.sh` gera os arquivos em
+`google_drive/out/` somente; não executa `fastboot` nem escreve em partições.
+
+A ramdisk original de `init_boot` é LZ4 legado contendo CPIO `newc` (2.888.965
+bytes comprimidos; 5.443.072 bytes após descompressão), com `/init` Android e
+`system/bin/snapuserd`, mas sem `adbd`. A ramdisk de `vendor_boot` contém
+`first_stage_ramdisk/fstab.qcom` e módulos vendor 5.15, não um segundo `/init`.
+A fase de boot mínimo substitui só a ramdisk genérica de `init_boot` por um CPIO
+não comprimido com init estático + BusyBox; não tenta carregar os módulos 5.15 e
+não fornece ADB. O objetivo imediato é o console serial (`ttyMSM0`) e `dmesg`.
+
+SHA-256 do `init_boot_b.img` original: `b2f2704ab3ddf53d71aa87e19ad74c279bb3e6194c6ebae33c587d31430085a4`.
+O artefato mínimo derivado e o resultado final de empacotamento estão registrados
+em `docs/boot-image-tooling.md` após o build do CI. Nada foi gravado ou testado no
+aparelho.
