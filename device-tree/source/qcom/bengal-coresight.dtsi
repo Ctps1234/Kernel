@@ -1444,77 +1444,70 @@
 		};
 	};
 
-	cti_cortex_M3: cti@8B30000 {
+	cti_cortex_M3: cti@8b30000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8B30000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_apss_cti0: cti@98E0000 {
+	cti_apss_cti0: cti@98e0000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x98E0000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_apss_cti1: cti@98F0000 {
+	cti_apss_cti1: cti@98f0000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x98F0000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_wcss_cti0: cti@89A4000 {
+	cti_wcss_cti0: cti@89a4000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x89A4000 0x1000>;
-		reg-names = "cti-base";
 		status = "disabled";
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_wcss_cti1: cti@89A5000 {
+	cti_wcss_cti1: cti@89a5000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x89A5000 0x1000>;
-		reg-names = "cti-base";
 		status = "disabled";
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_wcss_cti2: cti@89A6000 {
+	cti_wcss_cti2: cti@89a6000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x89A6000 0x1000>;
-		reg-names = "cti-base";
 		status = "disabled";
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_lpass_q6: cti@8A21000 {
+	cti_lpass_q6: cti@8a21000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8A21000 0x1000>;
-		reg-names = "cti-base";
 
 		status = "disabled";
 
@@ -1526,7 +1519,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8867000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1537,7 +1529,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8833000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1548,62 +1539,56 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8941000 0x1000>;
-		reg-names = "cti-base";
 		status = "disabled";
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_mapss: cti@8A02000 {
+	cti_mapss: cti@8a02000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8A02000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_dlct_cti0: cti@8B59000 {
+	cti_dlct_cti0: cti@8b59000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8B59000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_dlct_cti1: cti@8B5A000 {
+	cti_dlct_cti1: cti@8b5a000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8B5A000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_dlct_cti2: cti@8B5B000 {
+	cti_dlct_cti2: cti@8b5b000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8B5B000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
 		clock-names = "apb_pclk";
 	};
 
-	cti_dlct_cti3: cti@8B5C000 {
+	cti_dlct_cti3: cti@8b5c000 {
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8B5C000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1614,7 +1599,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8010000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1625,7 +1609,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8011000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1636,7 +1619,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x801a000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1647,7 +1629,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x801b000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1658,7 +1639,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x801c000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1669,7 +1649,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x801d000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1680,7 +1659,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x801e000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1691,7 +1669,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x801f000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1702,7 +1679,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8012000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1713,7 +1689,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8013000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1724,7 +1699,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8014000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1735,7 +1709,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8015000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1746,7 +1719,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8016000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1757,7 +1729,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8017000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1768,7 +1739,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8018000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;
@@ -1779,7 +1749,6 @@
 		compatible = "arm,coresight-cti", "arm,primecell";
 		arm,primecell-periphid = <0x000bb922>;
 		reg = <0x8019000 0x1000>;
-		reg-names = "cti-base";
 
 
 		clocks = <&rpmcc RPM_SMD_QDSS_CLK>;

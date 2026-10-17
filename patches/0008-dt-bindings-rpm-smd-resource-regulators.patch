@@ -8,13 +8,14 @@ physical PM6125 rails and generic RPM level votes. Add the resource-node pattern
 to the parent SMD-RPM binding and provide DT constants for the common RPM level
 values and regulator modes.
 
-Give qcom,set and qcom,regulator-type an explicit integer type: dtschema
-rejects a property that only carries an enum, and the regulator names
-pattern was missing its grouping, which made every property starting with
-"s" (including "status") be validated as if it were a regulator.
+Give qcom,set and qcom,regulator-type an explicit type: dtschema rejects
+a property that only carries an enum, and without the reference to
+types.yaml the value was never decoded as an integer. The regulator names
+pattern was also missing its grouping, which made every property starting
+with "s" (including "status") be validated as if it were a regulator.
 
 diff --git a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
-index b7241ce97..06fb52055 100644
+index b7241ce97..e311419f7 100644
 --- a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
 +++ b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
 @@ -9,7 +9,7 @@ title: QCOM SMD RPM REGULATOR
@@ -84,7 +85,7 @@ index b7241ce97..06fb52055 100644
 +
 +      qcom,set:
 +        description: Bitmask selecting active and/or sleep RPM states.
-+        type: integer
++        $ref: /schemas/types.yaml#/definitions/uint32
 +        enum: [1, 2, 3]
 +
 +      qcom,init-voltage:
@@ -183,7 +184,7 @@ index b7241ce97..06fb52055 100644
 +
 +  qcom,regulator-type:
 +    description: RPM regulator type, zero for LDO and one for SMPS.
-+    type: integer
++    $ref: /schemas/types.yaml#/definitions/uint32
 +    enum: [0, 1]
 +
 +  qcom,regulator-hw-type:
