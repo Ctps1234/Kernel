@@ -40,7 +40,7 @@ paridade de storage (fase B1) e, por último, o stack vendor (fase A).
 | 5 | Kernel: partições do Android | `init` da ramdisk | `CONFIG_F2FS_FS` ❌, `CONFIG_EROFS_FS` ❌, `CONFIG_DM_VERITY` ❌, `CONFIG_BLK_DEV_DM=**m**` ⚠️, **`msm_partition` inexistente na base** ❌ | ❌ bloqueante |
 | 6 | Userspace mínimo | `adbd` | `CONFIG_USB_CONFIGFS=**m**` ⚠️ + `CONFIG_USB_CONFIGFS_F_FS=y` ✅ + `CONFIG_USB_DWC3=y` ✅ + PHY USB (`qcom,usb-hsphy-snps-femto` / `qcom,usb-ssphy-qmp-dp-combo`) | ⚠️ módulo; PHYs exigem adaptation de DT/driver |
 | 7 | Framework Android | SurfaceFlinger, HALs | GPU (KGSL ou Adreno a6xx), display (DSI vendor), câmera, WLAN (QCACLD), touch, fingerprint | ❌ fora do escopo do boot mínimo |
-| 8 | **Fallback de recuperação** | `pstore`/`ramoops`, `recovery_b` | `CONFIG_PSTORE=y` ✅, `CONFIG_RAMOOPS` ❌ ausente; partição `recovery_b` nunca extraída | ❌ bloqueante (segurança) |
+| 8 | **Fallback de recuperação** | `pstore/blk`, `recovery_b` | `CONFIG_PSTORE=y` ✅, `CONFIG_PSTORE_BLK` ❌ (e não há ramoops na base ✗); partição `recovery_b` nunca extraída | ❌ bloqueante (segurança) |
 
 ---
 
@@ -59,7 +59,7 @@ paridade de storage (fase B1) e, por último, o stack vendor (fase A).
 | **RAM/SMEM/IPCC/RPM** | `QCOM_SMEM/SCM/IPCC/SMD_RPM=y`, `QCOM_AOSS_QMP=y` | config do CI | ✅ pronto |
 | **Clocks** | `COMMON_CLK_QCOM=y`, `SM_GCC_6225=y` (patches 0010/0011) | fragmento | ✅ pronto |
 | **Interconnect** | `INTERCONNECT_QCOM_BENGAL=y` (patch 0007) | fragmento | ✅ pronto |
-| **PSTORE/recuperação** | `PSTORE=y` ✅, `RAMOOPS` ❌ | config do CI | não (recomendável) |
+| **PSTORE/recuperação** | `PSTORE=y` ✅; a base **não traz** `fs/pstore/ramops.c` (backend ramoops inexistente ✗) — existe o `pstore/blk` (`CONFIG_PSTORE_BLK`, "not set" ❌), que é o backend usado pelo Android (partição "ram") | config do CI + listagem de `fs/pstore` da base | não (recomendável) |
 | **MODVERSIONS/KMI** | `MODVERSIONS` ❌ (KABI não versionado) | config do CI | não (port não modular) |
 | **GPU** | base tem Adreno 6.x (`drivers/gpu/drm/msm/adreno/a6xx_*`) ✅; KGSL do OEM ❌ | base pinada | ❌ não bloqueia kernel |
 | **Display** | `DRM_MSM=m` ✅ mas a base **não tem chips/painéis DSI** (só `dsi_host.c`/`dsi_manager.c`/`phy/`) ❌ → exige port do DSI vendor | base pinada | ❌ não bloqueia kernel (tela escura) |
@@ -87,7 +87,7 @@ partições dinâmicas (`msm_partition`) e os *filesystems* do Android.
 CONFIG_BLK_DEV_DM=m               → precisa =y para o dm-verity
 CONFIG_SCSI_UFS_QCOM=m            → precisa =y (storage boot-critical)
 CONFIG_USB_CONFIGFS=m             → precisa =y (adbd sem insmod)
-# CONFIG_RAMOOPS is not set       → backend de pstore para console de crash
+# CONFIG_PSTORE_BLK is not set    → backend de pstore (a base não tem ramoops)
 # CONFIG_MODVERSIONS is not set    → sem versionamento de símbolos (KMI)
 ```
 
@@ -139,7 +139,7 @@ evidência em cada degrau e mantém o objetivo final (Android usável) no radar.
 1. **Fragmento de config** `config/topaz-khaje.config` — **aplicado nesta rodada**:
    `CONFIG_SCSI_UFS_QCOM=y`, `CONFIG_BLK_DEV_DM=y`, `CONFIG_DM_VERITY=y`,
    `CONFIG_F2FS_FS=y`, `CONFIG_EROFS_FS=y`, `CONFIG_USB_CONFIGFS=y`,
-   `CONFIG_USB_CONFIGFS_F_FS=y`, `CONFIG_RAMOOPS=y`. O script
+   `CONFIG_USB_CONFIGFS_F_FS=y`, `CONFIG_PSTORE_BLK=y`. O script
    `tools/configure_kernel.sh` passou a exigir esses símbolos como `=y`, então o
    CI falha se alguma dependência não for satisfeita na base 6.12.
    **Adiado:** `CONFIG_MODVERSIONS` (sem módulos externos no port, não é
