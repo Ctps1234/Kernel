@@ -1,0 +1,8 @@
+  SCHEMA  Documentation/devicetree/bindings/processed-schema.json
+/home/runner/work/Kernel/Kernel/basekernel/Documentation/devicetree/bindings/firmware/gunyah-cma-mem.yaml: ignoring, error parsing file
+/home/runner/work/Kernel/Kernel/basekernel/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml: linux,phandle: missing type definition
+/home/runner/work/Kernel/Kernel/basekernel/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml: name: missing type definition
+/home/runner/work/Kernel/Kernel/basekernel/Documentation/devicetree/bindings/crypto/fsl,sec-v4.0.yaml: fsl,liodn: multiple incompatible types: uint32
+/home/runner/work/Kernel/Kernel/basekernel/Documentation/devicetree/bindings/soc/fsl/fsl,bman.yaml: fsl,liodn: multiple incompatible types: uint32-array
+/home/runner/work/Kernel/Kernel/basekernel/Documentation/devicetree/bindings/soc/fsl/fsl,qman-portal.yaml: fsl,liodn: multiple incompatible types: uint32-array
+/home/runner/work/Kernel/Kernel/basekernel/Documentation/devicetree/bindings/soc/fsl/fsl,qman.yaml: fsl,liodn: multiple incompatible types: uint32-array
