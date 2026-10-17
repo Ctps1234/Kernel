@@ -87,7 +87,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&key_vol_up_default>;
 
-		vol_up {
+		key-vol-up {
 			label = "volume_up";
 			gpios = <&pm6125_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
