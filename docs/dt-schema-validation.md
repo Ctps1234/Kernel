@@ -10,7 +10,7 @@ O job *Device trees (dtbs + dt-schema)* do workflow
 `.github/workflows/dts-validate.yml` faz, nesta ordem:
 
 1. clone da base fixada (`0efd3abd3c356d644ea49f6ed37e9830b78d34e3`) e
-   aplicação da série 0001–0013;
+   aplicação da série 0001–0014;
 2. staging das DTS de `device-tree/source/` na árvore do kernel
    (`tools/integrate_dts.py`);
 3. verificação estática de includes (`tools/check_dts_includes.py`);

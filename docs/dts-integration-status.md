@@ -18,7 +18,7 @@ dependências SoC (Bengal/Khaje, PM6125, PM8008, SMMU, RDBG, GDSC, qupv3).
 A verificação é automatizada por `tools/check_dts_includes.py`, que resolve
 `#include "..."` (relativos, na ordem do build: diretório do arquivo e
 depois os diretórios globais) e `#include <...>` (caminhos do kernel).
-Último resultado sobre a base fixada com a série 0001–0013 aplicada:
+Último resultado sobre a base fixada com a série 0001–0014 aplicada:
 
 ```
 arquivos .dts/.dtsi/.dtso: 54
@@ -85,7 +85,7 @@ Alvos gerados (mecanismo de multi-dtb do kernel):
 ## Reconciliação de compatibles (estática)
 
 Verificados os compatibles SoC críticos usados pelos DTS importados contra
-os drivers portados na série 0001–0013:
+os drivers portados na série 0001–0014:
 
 | Compatible (DTS) | Driver/patch | Status |
 |---|---|---|

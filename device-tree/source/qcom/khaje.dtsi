@@ -2156,21 +2156,25 @@
 
 	cluster-device0 {
 		compatible = "qcom,lpm-cluster-dev";
+		ranges;
 		power-domains = <&CLUSTER_PD0>;
 	};
 
 	cluster-device1 {
 		compatible = "qcom,lpm-cluster-dev";
+		ranges;
 		power-domains = <&CLUSTER_PD1>;
 	};
 
 	cluster-device2 {
 		compatible = "qcom,lpm-cluster-dev";
+		ranges;
 		power-domains = <&CLUSTER_PD2>;
 	};
 
 	cluster-device3 {
 		compatible = "qcom,lpm-cluster-dev";
+		ranges;
 		power-domains = <&CLUSTER_PD3>;
 	};
 

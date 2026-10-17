@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 16 Oct 2026 22:05:00 +0000
+Subject: [PATCH] dt-bindings: vendor-prefixes: add the "bat" prefix
+
+O device tree do board topaz descreve as informacoes de bateria
+(bat,nr, bat,vid, bat,pid, bat,mfrs, bat,design_cap) com o prefixo "bat"
+usado pelo fuel gauge vendor. Sem uma entrada em vendor-prefixes.yaml o
+dt-validate rejeita cada uma dessas propriedades.
+
+---
+diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+index af9a8d43b..c773b2ee2 100644
+--- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
++++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+@@ -204,6 +204,9 @@ patternProperties:
+     description: BAIKAL ELECTRONICS, JSC
+   "^bananapi,.*":
+     description: BIPAI KEJI LIMITED
++  "^bat,.*":
++    description: Battery information used by the vendor fuel gauge
++
+   "^beacon,.*":
+     description: Compass Electronics Group, LLC
+   "^beagle,.*":
+-- 
+2.39.5
