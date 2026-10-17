@@ -90,16 +90,45 @@ jobs:
             qcom/khaje/camera/topaz-camera-sensor-idp-overlay.dtbo \
             qcom/khaje/display/display/topaz-sde-display-idp-nopmi-overlay.dtbo \
             2>&1 | tee dtbs.log
+          # Copia os artefatos: em alguns casos o make remove arquivos
+          # intermediarios (o DTB base e intermediario do DTB composto).
+          rm -rf /tmp/dtb-artifacts
+          mkdir -p /tmp/dtb-artifacts
+          find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
+            -exec cp --parents {} /tmp/dtb-artifacts/ \;
+          ls -lR /tmp/dtb-artifacts | head -40
 
       - name: Validate dtbs against DT-schema (dt-validate)
         run: |
           set -o pipefail
           cd basekernel
+          # Schema processada (dt-mk-schema sobre os bindings da arvore).
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
-            CHECK_DTBS=1 \
-            qcom/khaje/khaje-idp-nopmi.dtb \
-            qcom/khaje/khaje-idp-nopmi-topaz.dtb \
-            2>&1 | tee dtbs_check.log
+            Documentation/devicetree/bindings/processed-schema.json
+          # O dt-validate roda direto sobre os DTBs ja compilados: refazer o
+          # build com CHECK_DTBS=1 faz os sub-makes do kernel disputarem o
+          # mesmo .dtb.d (corrida do fixdep) e abortar o build.
+          {
+            for dtb in /tmp/dtb-artifacts/arch/arm64/boot/dts/qcom/khaje/*.dtb; do
+              echo "=== $dtb ==="
+              dt-validate -u Documentation/devicetree/bindings \
+                -p Documentation/devicetree/bindings/processed-schema.json \
+                "$dtb" || true
+            done
+          } 2>&1 | tee dtbs_check.log
+
+      - name: Gate dt-validate (sem regressao de schema)
+        run: |
+          set -o pipefail
+          BASE=docs/dt-validate-baseline.json
+          if [ -f "$BASE" ]; then
+            python3 tools/dt_validate_report.py \
+              --log basekernel/dtbs_check.log --baseline "$BASE"
+          else
+            echo "linha de base ausente: gerando a partir deste run"
+            python3 tools/dt_validate_report.py \
+              --log basekernel/dtbs_check.log --baseline "$BASE" --update
+          fi
 
       - name: Validate binding schemas (dt_binding_check)
         run: |
@@ -139,6 +168,11 @@ jobs:
           mkdir -p /tmp/artifacts/dtbs /tmp/artifacts/logs /tmp/artifacts/tools
           cd basekernel
           cp .config /tmp/artifacts/config-khaje.config 2>/dev/null || true
+          # Preferir a copia feita logo apos o build (o make pode remover
+          # intermediarios como o DTB base do DTB composto).
+          if [ -d /tmp/dtb-artifacts ]; then
+            cp -r /tmp/dtb-artifacts/arch /tmp/artifacts/dtbs/ 2>/dev/null || true
+          fi
           find arch/arm64/boot/dts/qcom/khaje \( -name '*.dtb' -o -name '*.dtbo' \) \
             -exec cp --parents {} /tmp/artifacts/dtbs/ \; 2>/dev/null || true
           for log in dtbs.log dtbs_check.log dt_binding_check.log configure.log kernel-build.log defconfig.log; do
