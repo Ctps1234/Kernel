@@ -350,7 +350,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu make
+            gcc-aarch64-linux-gnu libc6-dev-arm64-cross make
 
       - name: Checkout busybox (mirror, commit fixo)
         uses: actions/checkout@v4
@@ -424,6 +424,7 @@ jobs:
             git checkout -q FETCH_HEAD -- . || true
           fi
           mkdir -p /tmp/artifacts/initramfs /tmp/artifacts/logs
+          cd "$GITHUB_WORKSPACE"
           cp /tmp/initramfs.cpio /tmp/artifacts/initramfs/ 2>/dev/null || true
           cp /tmp/ramdisk-root/init /tmp/artifacts/initramfs/minimal-init 2>/dev/null || true
           cp busybox/busybox /tmp/artifacts/initramfs/busybox 2>/dev/null || true
