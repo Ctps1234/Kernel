@@ -6,7 +6,7 @@ port; no device-tree source is added here.
 
 ---
 diff --git a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
-index f9cfbd0b2de6c4d7096fbd8658431ad68c18c4f2..5266bba07c67ec0d9f02dc08c09a481463e4fdaf 100644
+index f9cfbd0b2..5266bba07 100644
 --- a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
 +++ b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
 @@ -21,6 +21,7 @@ properties:

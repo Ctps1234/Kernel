@@ -19,7 +19,7 @@ provider, or any DTS/DTBO source.
 
 ---
 diff --git a/drivers/clk/qcom/clk-smd-rpm.c b/drivers/clk/qcom/clk-smd-rpm.c
-index 45c5255bcd11..cc3194ed5e64 100644
+index 45c5255bc..cc3194ed5 100644
 --- a/drivers/clk/qcom/clk-smd-rpm.c
 +++ b/drivers/clk/qcom/clk-smd-rpm.c
 @@ -5,6 +5,7 @@

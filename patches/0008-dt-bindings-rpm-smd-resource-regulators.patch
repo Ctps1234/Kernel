@@ -9,7 +9,7 @@ to the parent SMD-RPM binding and provide DT constants for the common RPM level
 values and regulator modes.
 
 diff --git a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
-index b7241ce975b9..91dde7ec3595 100644
+index b7241ce97..91dde7ec3 100644
 --- a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
 +++ b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
 @@ -9,7 +9,7 @@ title: QCOM SMD RPM REGULATOR
@@ -251,7 +251,7 @@ index b7241ce975b9..91dde7ec3595 100644
 +    };
  ...
 diff --git a/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml b/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
-index 270bcd079f88..9468c8b4589e 100644
+index 270bcd079..9468c8b45 100644
 --- a/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
 +++ b/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
 @@ -16,9 +16,10 @@ description: |
@@ -281,7 +281,7 @@ index 270bcd079f88..9468c8b4589e 100644
      compatible:
 diff --git a/include/dt-bindings/regulator/qcom,rpm-smd-regulator.h b/include/dt-bindings/regulator/qcom,rpm-smd-regulator.h
 new file mode 100644
-index 000000000000..b5782b29eaee
+index 000000000..b5782b29e
 --- /dev/null
 +++ b/include/dt-bindings/regulator/qcom,rpm-smd-regulator.h
 @@ -0,0 +1,34 @@

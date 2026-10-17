@@ -7,7 +7,7 @@ validated.
 
 ---
 diff --git a/drivers/phy/qualcomm/phy-qcom-qmp-ufs.c b/drivers/phy/qualcomm/phy-qcom-qmp-ufs.c
-index ca943ce4c8a9ea46725680c41b9217c0d51e00d8..7bb9243c8f57b576aae05dc63a5c545cfc8be07f 100644
+index ca943ce4c..7bb9243c8 100644
 --- a/drivers/phy/qualcomm/phy-qcom-qmp-ufs.c
 +++ b/drivers/phy/qualcomm/phy-qcom-qmp-ufs.c
 @@ -198,6 +198,65 @@ static const struct qmp_phy_init_tbl sc7280_ufsphy_rx[] = {

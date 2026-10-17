@@ -10,7 +10,7 @@ Subject: [PATCH] dt-bindings: phy: add qcom,khaje-qmp-usb3 constants
 
 diff --git a/include/dt-bindings/phy/qcom,khaje-qmp-usb3.h b/include/dt-bindings/phy/qcom,khaje-qmp-usb3.h
 new file mode 100644
-index 0000000..5d01d8e
+index 000000000..5d01d8ea6
 --- /dev/null
 +++ b/include/dt-bindings/phy/qcom,khaje-qmp-usb3.h
 @@ -0,0 +1,768 @@

@@ -16,8 +16,13 @@ clk_set_parent. No voltage vote is removed by this patch.
 This patch has not been compiled or validated on hardware.
 
 ---
+
+The shared voltage-corner tables are marked __maybe_unused because each
+translation unit includes the header without using both tables, which
+the 6.12 build rejects as an unused variable.
+
 diff --git a/drivers/clk/qcom/clk-alpha-pll.c b/drivers/clk/qcom/clk-alpha-pll.c
-index e76ecc466351..88e01d2d32e6 100644
+index e76ecc466..88e01d2d3 100644
 --- a/drivers/clk/qcom/clk-alpha-pll.c
 +++ b/drivers/clk/qcom/clk-alpha-pll.c
 @@ -1154,6 +1154,10 @@ const struct clk_ops clk_alpha_pll_hwfsm_ops = {
@@ -304,7 +309,7 @@ index e76ecc466351..88e01d2d32e6 100644
  	.disable = clk_zonda_pll_disable,
  	.is_enabled = clk_trion_pll_is_enabled,
 diff --git a/drivers/clk/qcom/clk-alpha-pll.h b/drivers/clk/qcom/clk-alpha-pll.h
-index c6d1b8429f95..222b28728142 100644
+index c6d1b8429..222b28728 100644
 --- a/drivers/clk/qcom/clk-alpha-pll.h
 +++ b/drivers/clk/qcom/clk-alpha-pll.h
 @@ -122,6 +122,7 @@ struct clk_alpha_pll_postdiv {
@@ -335,598 +340,9 @@ index c6d1b8429f95..222b28728142 100644
  void clk_lucid_5lpe_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
  				  const struct alpha_pll_config *config);
  void clk_lucid_evo_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
-diff --git a/drivers/clk/qcom/clk-rcg2.c b/drivers/clk/qcom/clk-rcg2.c
-index 6aa9dcdabffd..4eda7f203be8 100644
---- a/drivers/clk/qcom/clk-rcg2.c
-+++ b/drivers/clk/qcom/clk-rcg2.c
-@@ -19,6 +19,7 @@
- #include <asm/div64.h>
- 
- #include "clk-rcg.h"
-+#include "clk-regmap.h"
- #include "common.h"
- 
- #define CMD_REG			0x0
-@@ -631,6 +632,10 @@ static int clk_rcg2_set_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
- }
- 
- const struct clk_ops clk_rcg2_ops = {
-+	.prepare = clk_prepare_regmap,
-+	.unprepare = clk_unprepare_regmap,
-+	.pre_rate_change = clk_pre_change_regmap,
-+	.post_rate_change = clk_post_change_regmap,
- 	.is_enabled = clk_rcg2_is_enabled,
- 	.get_parent = clk_rcg2_get_parent,
- 	.set_parent = clk_rcg2_set_parent,
-@@ -644,6 +649,10 @@ const struct clk_ops clk_rcg2_ops = {
- EXPORT_SYMBOL_GPL(clk_rcg2_ops);
- 
- const struct clk_ops clk_rcg2_floor_ops = {
-+	.prepare = clk_prepare_regmap,
-+	.unprepare = clk_unprepare_regmap,
-+	.pre_rate_change = clk_pre_change_regmap,
-+	.post_rate_change = clk_post_change_regmap,
- 	.is_enabled = clk_rcg2_is_enabled,
- 	.get_parent = clk_rcg2_get_parent,
- 	.set_parent = clk_rcg2_set_parent,
-@@ -921,6 +930,10 @@ static int clk_byte2_set_rate_and_parent(struct clk_hw *hw,
- }
- 
- const struct clk_ops clk_byte2_ops = {
-+	.prepare = clk_prepare_regmap,
-+	.unprepare = clk_unprepare_regmap,
-+	.pre_rate_change = clk_pre_change_regmap,
-+	.post_rate_change = clk_post_change_regmap,
- 	.is_enabled = clk_rcg2_is_enabled,
- 	.get_parent = clk_rcg2_get_parent,
- 	.set_parent = clk_rcg2_set_parent,
-diff --git a/drivers/clk/qcom/clk-regmap.c b/drivers/clk/qcom/clk-regmap.c
-index 92ac4e0d7dbe..2900766eb051 100644
---- a/drivers/clk/qcom/clk-regmap.c
-+++ b/drivers/clk/qcom/clk-regmap.c
-@@ -5,6 +5,8 @@
- 
- #include <linux/device.h>
- #include <linux/clk-provider.h>
-+#include <linux/err.h>
-+#include <linux/kernel.h>
- #include <linux/regmap.h>
- #include <linux/export.h>
- 
-@@ -104,3 +106,125 @@ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
- 	return devm_clk_hw_register(dev, &rclk->hw);
- }
- EXPORT_SYMBOL_GPL(devm_clk_register_regmap);
-+
-+int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
-+			  unsigned long new_rate)
-+{
-+	struct clk_regmap *rclk = to_clk_regmap(hw);
-+	int old_level = rclk->vdd_data.vdd_level;
-+	int new_level, ret;
-+
-+	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max)
-+		return 0;
-+
-+	new_level = clk_find_vdd_level(hw, &rclk->vdd_data, new_rate);
-+	if (new_level < 0)
-+		return new_level;
-+
-+	if (new_level <= old_level) {
-+		if (!clk_hw_is_prepared(hw))
-+			rclk->vdd_data.vdd_level = new_level;
-+		return 0;
-+	}
-+
-+	if (clk_hw_is_prepared(hw)) {
-+		ret = clk_vote_vdd_level(&rclk->vdd_data, new_level);
-+		if (ret)
-+			return ret;
-+
-+		if (old_level > 0) {
-+			ret = clk_unvote_vdd_level(&rclk->vdd_data, old_level);
-+			if (ret) {
-+				clk_unvote_vdd_level(&rclk->vdd_data, new_level);
-+				return ret;
-+			}
-+		}
-+	}
-+
-+	rclk->vdd_data.vdd_level = new_level;
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(clk_pre_change_regmap);
-+
-+int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
-+			   unsigned long cur_rate)
-+{
-+	struct clk_regmap *rclk = to_clk_regmap(hw);
-+	int old_level = rclk->vdd_data.vdd_level;
-+	int new_level, ret;
-+
-+	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max)
-+		return 0;
-+
-+	new_level = clk_find_vdd_level(hw, &rclk->vdd_data, cur_rate);
-+	if (new_level < 0)
-+		return new_level;
-+	if (new_level >= old_level)
-+		return 0;
-+
-+	if (clk_hw_is_prepared(hw)) {
-+		if (new_level > 0) {
-+			ret = clk_vote_vdd_level(&rclk->vdd_data, new_level);
-+			if (ret)
-+				return ret;
-+		}
-+
-+		if (old_level > 0) {
-+			ret = clk_unvote_vdd_level(&rclk->vdd_data, old_level);
-+			if (ret) {
-+				if (new_level > 0)
-+					clk_unvote_vdd_level(&rclk->vdd_data,
-+							     new_level);
-+				return ret;
-+			}
-+		}
-+	}
-+
-+	rclk->vdd_data.vdd_level = new_level;
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(clk_post_change_regmap);
-+
-+int clk_prepare_regmap(struct clk_hw *hw)
-+{
-+	struct clk_regmap *rclk = to_clk_regmap(hw);
-+	int level, ret;
-+
-+	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max)
-+		return 0;
-+
-+	level = clk_find_vdd_level(hw, &rclk->vdd_data, clk_hw_get_rate(hw));
-+	if (level < 0)
-+		return level;
-+
-+	rclk->vdd_data.vdd_level = level;
-+	if (!level)
-+		return 0;
-+
-+	ret = clk_vote_vdd_level(&rclk->vdd_data, level);
-+	if (ret)
-+		rclk->vdd_data.vdd_level = 0;
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(clk_prepare_regmap);
-+
-+void clk_unprepare_regmap(struct clk_hw *hw)
-+{
-+	struct clk_regmap *rclk = to_clk_regmap(hw);
-+	int level = rclk->vdd_data.vdd_level;
-+	int ret;
-+
-+	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max || !level)
-+		return;
-+
-+	ret = clk_unvote_vdd_level(&rclk->vdd_data, level);
-+	if (ret) {
-+		pr_warn("%s: failed to remove voltage vote at level %d: %d\n",
-+			clk_hw_get_name(hw), level, ret);
-+		return;
-+	}
-+
-+	rclk->vdd_data.vdd_level = 0;
-+}
-+EXPORT_SYMBOL_GPL(clk_unprepare_regmap);
-diff --git a/drivers/clk/qcom/clk-regmap.h b/drivers/clk/qcom/clk-regmap.h
-index 14ec659a3a77..c6c72c4e6da4 100644
---- a/drivers/clk/qcom/clk-regmap.h
-+++ b/drivers/clk/qcom/clk-regmap.h
-@@ -6,6 +6,8 @@
- 
- #include <linux/clk-provider.h>
- 
-+#include "vdd-class.h"
-+
- struct regmap;
- 
- /**
-@@ -23,6 +25,7 @@ struct clk_regmap {
- 	unsigned int enable_reg;
- 	unsigned int enable_mask;
- 	bool enable_is_inverted;
-+	struct clk_vdd_class_data vdd_data;
- };
- 
- static inline struct clk_regmap *to_clk_regmap(struct clk_hw *hw)
-@@ -34,5 +37,11 @@ int clk_is_enabled_regmap(struct clk_hw *hw);
- int clk_enable_regmap(struct clk_hw *hw);
- void clk_disable_regmap(struct clk_hw *hw);
- int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk);
-+int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
-+			  unsigned long new_rate);
-+int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
-+			   unsigned long cur_rate);
-+int clk_prepare_regmap(struct clk_hw *hw);
-+void clk_unprepare_regmap(struct clk_hw *hw);
- 
- #endif
-diff --git a/drivers/clk/qcom/common.c b/drivers/clk/qcom/common.c
-index e1a83ec48150..ece68d9ae1d7 100644
---- a/drivers/clk/qcom/common.c
-+++ b/drivers/clk/qcom/common.c
-@@ -7,16 +7,19 @@
- #include <linux/module.h>
- #include <linux/regmap.h>
- #include <linux/platform_device.h>
-+#include <linux/clk.h>
- #include <linux/clk-provider.h>
- #include <linux/interconnect-clk.h>
- #include <linux/reset-controller.h>
- #include <linux/of.h>
-+#include <linux/slab.h>
- 
- #include "common.h"
- #include "clk-rcg.h"
- #include "clk-regmap.h"
- #include "reset.h"
- #include "gdsc.h"
-+#include "vdd-class.h"
- 
- struct qcom_cc {
- 	struct qcom_reset_controller reset;
-@@ -114,6 +117,63 @@ qcom_cc_map(struct platform_device *pdev, const struct qcom_cc_desc *desc)
- }
- EXPORT_SYMBOL_GPL(qcom_cc_map);
- 
-+int qcom_cc_update_regmap_sequence(
-+		struct device *dev, struct regmap *regmap,
-+		const struct qcom_cc_regmap_update *updates, size_t num_updates)
-+{
-+	u32 *old_values;
-+	size_t i, j;
-+	int ret, rollback_ret;
-+
-+	if (!regmap || (!updates && num_updates))
-+		return -EINVAL;
-+	if (!num_updates)
-+		return 0;
-+
-+	old_values = kcalloc(num_updates, sizeof(*old_values), GFP_KERNEL);
-+	if (!old_values)
-+		return -ENOMEM;
-+
-+	for (i = 0; i < num_updates; i++) {
-+		ret = regmap_read(regmap, updates[i].reg, &old_values[i]);
-+		if (ret) {
-+			dev_err_probe(dev, ret, "failed to read register %#x\n",
-+				      updates[i].reg);
-+			goto out;
-+		}
-+	}
-+
-+	for (i = 0; i < num_updates; i++) {
-+		ret = regmap_update_bits(regmap, updates[i].reg,
-+					 updates[i].mask, updates[i].val);
-+		if (!ret)
-+			continue;
-+
-+		dev_err_probe(dev, ret, "failed to update register %#x\n",
-+			      updates[i].reg);
-+		for (j = i + 1; j > 0; j--) {
-+			size_t index = j - 1;
-+
-+			rollback_ret = regmap_update_bits(regmap,
-+							  updates[index].reg,
-+							  updates[index].mask,
-+							  old_values[index] &
-+							  updates[index].mask);
-+			if (rollback_ret)
-+				dev_warn(dev,
-+					 "failed to restore register %#x: %d\n",
-+					 updates[index].reg, rollback_ret);
-+		}
-+		goto out;
-+	}
-+
-+	ret = 0;
-+out:
-+	kfree(old_values);
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(qcom_cc_update_regmap_sequence);
-+
- void
- qcom_pll_set_fsm_mode(struct regmap *map, u32 reg, u8 bias_count, u8 lock_count)
- {
-@@ -237,6 +297,148 @@ static void qcom_cc_drop_protected(struct device *dev, struct qcom_cc *cc)
- 	}
- }
- 
-+static void qcom_cc_disable_critical_clk(void *data)
-+{
-+	clk_disable_unprepare(data);
-+}
-+
-+static int qcom_cc_enable_critical_clk(struct device *dev,
-+				       struct qcom_cc *cc,
-+				       bool *enabled, u32 idx)
-+{
-+	struct clk *clk;
-+	int ret;
-+
-+	if (idx >= cc->num_rclks)
-+		return dev_err_probe(dev, -EINVAL,
-+				     "critical clock index %u is out of range\n", idx);
-+	if (!cc->rclks[idx])
-+		return dev_err_probe(dev, -ENOENT,
-+				     "critical clock %u is not registered\n", idx);
-+	if (enabled[idx])
-+		return 0;
-+
-+	clk = devm_clk_hw_get_clk(dev, &cc->rclks[idx]->hw, "critical");
-+	if (IS_ERR(clk))
-+		return dev_err_probe(dev, PTR_ERR(clk),
-+				     "failed to get critical clock %u\n", idx);
-+
-+	ret = clk_prepare_enable(clk);
-+	if (ret)
-+		return dev_err_probe(dev, ret,
-+				     "failed to enable critical clock %u\n", idx);
-+
-+	ret = devm_add_action_or_reset(dev, qcom_cc_disable_critical_clk, clk);
-+	if (ret)
-+		return ret;
-+
-+	enabled[idx] = true;
-+	return 0;
-+}
-+
-+/*
-+ * Keep clocks used by nodes listed in qcom,critical-devices enabled. The
-+ * referenced device can be a child of a node that carries the clock list, so
-+ * inspect each ancestor as well as the referenced node.
-+ */
-+static int qcom_cc_enable_critical_device(struct device *dev,
-+					  struct qcom_cc *cc,
-+					  struct device_node *np,
-+					  bool *enabled)
-+{
-+	struct device_node *parent;
-+	struct of_phandle_args args;
-+	bool found = false;
-+	int count, i, ret;
-+
-+	while (np) {
-+		if (of_find_property(np, "clocks", NULL)) {
-+			count = of_count_phandle_with_args(np, "clocks",
-+							   "#clock-cells");
-+			if (count < 0) {
-+				ret = dev_err_probe(dev, count,
-+						    "failed to parse clocks for critical device %pOF\n",
-+						    np);
-+				goto out_put_node;
-+			}
-+
-+			for (i = 0; i < count; i++) {
-+				ret = of_parse_phandle_with_args(np, "clocks",
-+								 "#clock-cells", i, &args);
-+				if (ret)
-+					goto out_put_node;
-+
-+				if (args.np == dev->of_node) {
-+					found = true;
-+					if (!args.args_count)
-+						ret = -EINVAL;
-+					else
-+						ret = qcom_cc_enable_critical_clk(dev, cc,
-+									 enabled,
-+									 args.args[0]);
-+				} else {
-+					ret = 0;
-+				}
-+
-+				of_node_put(args.np);
-+				if (ret)
-+					goto out_put_node;
-+			}
-+		}
-+
-+		parent = of_get_parent(np);
-+		of_node_put(np);
-+		np = parent;
-+	}
-+
-+	if (!found)
-+		return dev_err_probe(dev, -ENOENT,
-+				     "critical device has no clocks from this controller\n");
-+
-+	return 0;
-+
-+out_put_node:
-+	of_node_put(np);
-+	return ret;
-+}
-+
-+static int qcom_cc_enable_critical_clocks(struct device *dev,
-+					  struct qcom_cc *cc)
-+{
-+	struct device_node *np;
-+	bool *enabled;
-+	u32 phandle, idx;
-+	int ret;
-+
-+	if (!of_find_property(dev->of_node, "qcom,critical-clocks", NULL) &&
-+	    !of_find_property(dev->of_node, "qcom,critical-devices", NULL))
-+		return 0;
-+
-+	enabled = devm_kcalloc(dev, cc->num_rclks, sizeof(*enabled), GFP_KERNEL);
-+	if (!enabled && cc->num_rclks)
-+		return -ENOMEM;
-+
-+	of_property_for_each_u32(dev->of_node, "qcom,critical-clocks", idx) {
-+		ret = qcom_cc_enable_critical_clk(dev, cc, enabled, idx);
-+		if (ret)
-+			return ret;
-+	}
-+
-+	of_property_for_each_u32(dev->of_node, "qcom,critical-devices", phandle) {
-+		np = of_find_node_by_phandle(phandle);
-+		if (!np)
-+			return dev_err_probe(dev, -EINVAL,
-+					     "critical device phandle %#x not found\n",
-+					     phandle);
-+
-+		ret = qcom_cc_enable_critical_device(dev, cc, np, enabled);
-+		if (ret)
-+			return ret;
-+	}
-+
-+	return 0;
-+}
-+
- static struct clk_hw *qcom_cc_clk_hw_get(struct of_phandle_args *clkspec,
- 					 void *data)
- {
-@@ -283,6 +485,16 @@ static int qcom_cc_icc_register(struct device *dev,
- 						     desc->num_icc_hws, icd);
- }
- 
-+static void qcom_cc_clk_regulator_deinit(void *data)
-+{
-+	clk_regulator_deinit(data);
-+}
-+
-+static void qcom_cc_vdd_proxy_unvote(void *data)
-+{
-+	clk_vdd_proxy_unvote(NULL, data);
-+}
-+
- int qcom_cc_really_probe(struct device *dev,
- 			 const struct qcom_cc_desc *desc, struct regmap *regmap)
- {
-@@ -299,6 +511,34 @@ int qcom_cc_really_probe(struct device *dev,
- 	if (!cc)
- 		return -ENOMEM;
- 
-+	if (desc->num_clk_regulators) {
-+		ret = clk_regulator_init(dev, desc);
-+		if (ret)
-+			return ret;
-+
-+		ret = devm_add_action_or_reset(dev, qcom_cc_clk_regulator_deinit,
-+					       (void *)desc);
-+		if (ret)
-+			return ret;
-+
-+		ret = clk_vdd_proxy_vote(dev, desc);
-+		if (ret)
-+			return ret;
-+
-+		ret = devm_add_action_or_reset(dev,
-+					       qcom_cc_vdd_proxy_unvote,
-+					       (void *)desc);
-+		if (ret)
-+			return ret;
-+	}
-+
-+	if (desc->pre_probe) {
-+		ret = desc->pre_probe(dev, regmap);
-+		if (ret)
-+			return dev_err_probe(dev, ret,
-+					     "clock-controller pre-probe setup failed\n");
-+	}
-+
- 	reset = &cc->reset;
- 	reset->rcdev.of_node = dev->of_node;
- 	reset->rcdev.ops = &qcom_reset_ops;
-@@ -351,6 +591,10 @@ int qcom_cc_really_probe(struct device *dev,
- 	if (ret)
- 		return ret;
- 
-+	ret = qcom_cc_enable_critical_clocks(dev, cc);
-+	if (ret)
-+		return ret;
-+
- 	return qcom_cc_icc_register(dev, desc);
- }
- EXPORT_SYMBOL_GPL(qcom_cc_really_probe);
-@@ -385,5 +629,17 @@ int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
- }
- EXPORT_SYMBOL_GPL(qcom_cc_probe_by_index);
- 
-+void qcom_cc_sync_state(struct device *dev, const struct qcom_cc_desc *desc)
-+{
-+	int ret;
-+
-+	clk_sync_state(dev);
-+	ret = clk_vdd_proxy_unvote(dev, desc);
-+	if (ret)
-+		dev_warn(dev, "failed to remove clock voltage proxy vote: %d\n",
-+			 ret);
-+}
-+EXPORT_SYMBOL_GPL(qcom_cc_sync_state);
-+
- MODULE_LICENSE("GPL v2");
- MODULE_DESCRIPTION("QTI Common Clock module");
-diff --git a/drivers/clk/qcom/common.h b/drivers/clk/qcom/common.h
-index 7e57f8fe8ea6..f24aed426e68 100644
---- a/drivers/clk/qcom/common.h
-+++ b/drivers/clk/qcom/common.h
-@@ -4,9 +4,11 @@
- #ifndef __QCOM_CLK_COMMON_H__
- #define __QCOM_CLK_COMMON_H__
- 
-+struct device;
- struct platform_device;
- struct regmap_config;
- struct clk_regmap;
-+struct clk_vdd_class;
- struct qcom_reset_map;
- struct regmap;
- struct freq_tbl;
-@@ -25,10 +27,19 @@ struct qcom_icc_hws_data {
- 	int clk_id;
- };
- 
-+struct qcom_cc_regmap_update {
-+	u32 reg;
-+	u32 mask;
-+	u32 val;
-+};
-+
- struct qcom_cc_desc {
- 	const struct regmap_config *config;
- 	struct clk_regmap **clks;
- 	size_t num_clks;
-+	struct clk_vdd_class **clk_regulators;
-+	size_t num_clk_regulators;
-+	int (*pre_probe)(struct device *dev, struct regmap *regmap);
- 	const struct qcom_reset_map *resets;
- 	size_t num_resets;
- 	struct gdsc **gdscs;
-@@ -69,6 +80,9 @@ extern int qcom_cc_register_sleep_clk(struct device *dev);
- 
- extern struct regmap *qcom_cc_map(struct platform_device *pdev,
- 				  const struct qcom_cc_desc *desc);
-+extern int qcom_cc_update_regmap_sequence(
-+		struct device *dev, struct regmap *regmap,
-+		const struct qcom_cc_regmap_update *updates, size_t num_updates);
- extern int qcom_cc_really_probe(struct device *dev,
- 				const struct qcom_cc_desc *desc,
- 				struct regmap *regmap);
-@@ -76,5 +90,7 @@ extern int qcom_cc_probe(struct platform_device *pdev,
- 			 const struct qcom_cc_desc *desc);
- extern int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
- 				  const struct qcom_cc_desc *desc);
-+extern void qcom_cc_sync_state(struct device *dev,
-+			       const struct qcom_cc_desc *desc);
- 
- #endif
 diff --git a/drivers/clk/qcom/clk-debug.c b/drivers/clk/qcom/clk-debug.c
 new file mode 100644
-index 000000000000..364f3dcd4ccb
+index 000000000..364f3dcd4
 --- /dev/null
 +++ b/drivers/clk/qcom/clk-debug.c
 @@ -0,0 +1,516 @@
@@ -1448,7 +864,7 @@ index 000000000000..364f3dcd4ccb
 +MODULE_LICENSE("GPL");
 diff --git a/drivers/clk/qcom/clk-debug.h b/drivers/clk/qcom/clk-debug.h
 new file mode 100644
-index 000000000000..c3071c3a82d7
+index 000000000..c3071c3a8
 --- /dev/null
 +++ b/drivers/clk/qcom/clk-debug.h
 @@ -0,0 +1,63 @@
@@ -1515,9 +931,598 @@ index 000000000000..c3071c3a82d7
 +		    struct clk_debug_mux *mux);
 +
 +#endif /* __QCOM_CLK_DEBUG_H__ */
+diff --git a/drivers/clk/qcom/clk-rcg2.c b/drivers/clk/qcom/clk-rcg2.c
+index 6aa9dcdab..4eda7f203 100644
+--- a/drivers/clk/qcom/clk-rcg2.c
++++ b/drivers/clk/qcom/clk-rcg2.c
+@@ -19,6 +19,7 @@
+ #include <asm/div64.h>
+ 
+ #include "clk-rcg.h"
++#include "clk-regmap.h"
+ #include "common.h"
+ 
+ #define CMD_REG			0x0
+@@ -631,6 +632,10 @@ static int clk_rcg2_set_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
+ }
+ 
+ const struct clk_ops clk_rcg2_ops = {
++	.prepare = clk_prepare_regmap,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.is_enabled = clk_rcg2_is_enabled,
+ 	.get_parent = clk_rcg2_get_parent,
+ 	.set_parent = clk_rcg2_set_parent,
+@@ -644,6 +649,10 @@ const struct clk_ops clk_rcg2_ops = {
+ EXPORT_SYMBOL_GPL(clk_rcg2_ops);
+ 
+ const struct clk_ops clk_rcg2_floor_ops = {
++	.prepare = clk_prepare_regmap,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.is_enabled = clk_rcg2_is_enabled,
+ 	.get_parent = clk_rcg2_get_parent,
+ 	.set_parent = clk_rcg2_set_parent,
+@@ -921,6 +930,10 @@ static int clk_byte2_set_rate_and_parent(struct clk_hw *hw,
+ }
+ 
+ const struct clk_ops clk_byte2_ops = {
++	.prepare = clk_prepare_regmap,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.is_enabled = clk_rcg2_is_enabled,
+ 	.get_parent = clk_rcg2_get_parent,
+ 	.set_parent = clk_rcg2_set_parent,
+diff --git a/drivers/clk/qcom/clk-regmap.c b/drivers/clk/qcom/clk-regmap.c
+index 92ac4e0d7..2900766eb 100644
+--- a/drivers/clk/qcom/clk-regmap.c
++++ b/drivers/clk/qcom/clk-regmap.c
+@@ -5,6 +5,8 @@
+ 
+ #include <linux/device.h>
+ #include <linux/clk-provider.h>
++#include <linux/err.h>
++#include <linux/kernel.h>
+ #include <linux/regmap.h>
+ #include <linux/export.h>
+ 
+@@ -104,3 +106,125 @@ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
+ 	return devm_clk_hw_register(dev, &rclk->hw);
+ }
+ EXPORT_SYMBOL_GPL(devm_clk_register_regmap);
++
++int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
++			  unsigned long new_rate)
++{
++	struct clk_regmap *rclk = to_clk_regmap(hw);
++	int old_level = rclk->vdd_data.vdd_level;
++	int new_level, ret;
++
++	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max)
++		return 0;
++
++	new_level = clk_find_vdd_level(hw, &rclk->vdd_data, new_rate);
++	if (new_level < 0)
++		return new_level;
++
++	if (new_level <= old_level) {
++		if (!clk_hw_is_prepared(hw))
++			rclk->vdd_data.vdd_level = new_level;
++		return 0;
++	}
++
++	if (clk_hw_is_prepared(hw)) {
++		ret = clk_vote_vdd_level(&rclk->vdd_data, new_level);
++		if (ret)
++			return ret;
++
++		if (old_level > 0) {
++			ret = clk_unvote_vdd_level(&rclk->vdd_data, old_level);
++			if (ret) {
++				clk_unvote_vdd_level(&rclk->vdd_data, new_level);
++				return ret;
++			}
++		}
++	}
++
++	rclk->vdd_data.vdd_level = new_level;
++	return 0;
++}
++EXPORT_SYMBOL_GPL(clk_pre_change_regmap);
++
++int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
++			   unsigned long cur_rate)
++{
++	struct clk_regmap *rclk = to_clk_regmap(hw);
++	int old_level = rclk->vdd_data.vdd_level;
++	int new_level, ret;
++
++	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max)
++		return 0;
++
++	new_level = clk_find_vdd_level(hw, &rclk->vdd_data, cur_rate);
++	if (new_level < 0)
++		return new_level;
++	if (new_level >= old_level)
++		return 0;
++
++	if (clk_hw_is_prepared(hw)) {
++		if (new_level > 0) {
++			ret = clk_vote_vdd_level(&rclk->vdd_data, new_level);
++			if (ret)
++				return ret;
++		}
++
++		if (old_level > 0) {
++			ret = clk_unvote_vdd_level(&rclk->vdd_data, old_level);
++			if (ret) {
++				if (new_level > 0)
++					clk_unvote_vdd_level(&rclk->vdd_data,
++							     new_level);
++				return ret;
++			}
++		}
++	}
++
++	rclk->vdd_data.vdd_level = new_level;
++	return 0;
++}
++EXPORT_SYMBOL_GPL(clk_post_change_regmap);
++
++int clk_prepare_regmap(struct clk_hw *hw)
++{
++	struct clk_regmap *rclk = to_clk_regmap(hw);
++	int level, ret;
++
++	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max)
++		return 0;
++
++	level = clk_find_vdd_level(hw, &rclk->vdd_data, clk_hw_get_rate(hw));
++	if (level < 0)
++		return level;
++
++	rclk->vdd_data.vdd_level = level;
++	if (!level)
++		return 0;
++
++	ret = clk_vote_vdd_level(&rclk->vdd_data, level);
++	if (ret)
++		rclk->vdd_data.vdd_level = 0;
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(clk_prepare_regmap);
++
++void clk_unprepare_regmap(struct clk_hw *hw)
++{
++	struct clk_regmap *rclk = to_clk_regmap(hw);
++	int level = rclk->vdd_data.vdd_level;
++	int ret;
++
++	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max || !level)
++		return;
++
++	ret = clk_unvote_vdd_level(&rclk->vdd_data, level);
++	if (ret) {
++		pr_warn("%s: failed to remove voltage vote at level %d: %d\n",
++			clk_hw_get_name(hw), level, ret);
++		return;
++	}
++
++	rclk->vdd_data.vdd_level = 0;
++}
++EXPORT_SYMBOL_GPL(clk_unprepare_regmap);
+diff --git a/drivers/clk/qcom/clk-regmap.h b/drivers/clk/qcom/clk-regmap.h
+index 14ec659a3..c6c72c4e6 100644
+--- a/drivers/clk/qcom/clk-regmap.h
++++ b/drivers/clk/qcom/clk-regmap.h
+@@ -6,6 +6,8 @@
+ 
+ #include <linux/clk-provider.h>
+ 
++#include "vdd-class.h"
++
+ struct regmap;
+ 
+ /**
+@@ -23,6 +25,7 @@ struct clk_regmap {
+ 	unsigned int enable_reg;
+ 	unsigned int enable_mask;
+ 	bool enable_is_inverted;
++	struct clk_vdd_class_data vdd_data;
+ };
+ 
+ static inline struct clk_regmap *to_clk_regmap(struct clk_hw *hw)
+@@ -34,5 +37,11 @@ int clk_is_enabled_regmap(struct clk_hw *hw);
+ int clk_enable_regmap(struct clk_hw *hw);
+ void clk_disable_regmap(struct clk_hw *hw);
+ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk);
++int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
++			  unsigned long new_rate);
++int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
++			   unsigned long cur_rate);
++int clk_prepare_regmap(struct clk_hw *hw);
++void clk_unprepare_regmap(struct clk_hw *hw);
+ 
+ #endif
+diff --git a/drivers/clk/qcom/common.c b/drivers/clk/qcom/common.c
+index e1a83ec48..ece68d9ae 100644
+--- a/drivers/clk/qcom/common.c
++++ b/drivers/clk/qcom/common.c
+@@ -7,16 +7,19 @@
+ #include <linux/module.h>
+ #include <linux/regmap.h>
+ #include <linux/platform_device.h>
++#include <linux/clk.h>
+ #include <linux/clk-provider.h>
+ #include <linux/interconnect-clk.h>
+ #include <linux/reset-controller.h>
+ #include <linux/of.h>
++#include <linux/slab.h>
+ 
+ #include "common.h"
+ #include "clk-rcg.h"
+ #include "clk-regmap.h"
+ #include "reset.h"
+ #include "gdsc.h"
++#include "vdd-class.h"
+ 
+ struct qcom_cc {
+ 	struct qcom_reset_controller reset;
+@@ -114,6 +117,63 @@ qcom_cc_map(struct platform_device *pdev, const struct qcom_cc_desc *desc)
+ }
+ EXPORT_SYMBOL_GPL(qcom_cc_map);
+ 
++int qcom_cc_update_regmap_sequence(
++		struct device *dev, struct regmap *regmap,
++		const struct qcom_cc_regmap_update *updates, size_t num_updates)
++{
++	u32 *old_values;
++	size_t i, j;
++	int ret, rollback_ret;
++
++	if (!regmap || (!updates && num_updates))
++		return -EINVAL;
++	if (!num_updates)
++		return 0;
++
++	old_values = kcalloc(num_updates, sizeof(*old_values), GFP_KERNEL);
++	if (!old_values)
++		return -ENOMEM;
++
++	for (i = 0; i < num_updates; i++) {
++		ret = regmap_read(regmap, updates[i].reg, &old_values[i]);
++		if (ret) {
++			dev_err_probe(dev, ret, "failed to read register %#x\n",
++				      updates[i].reg);
++			goto out;
++		}
++	}
++
++	for (i = 0; i < num_updates; i++) {
++		ret = regmap_update_bits(regmap, updates[i].reg,
++					 updates[i].mask, updates[i].val);
++		if (!ret)
++			continue;
++
++		dev_err_probe(dev, ret, "failed to update register %#x\n",
++			      updates[i].reg);
++		for (j = i + 1; j > 0; j--) {
++			size_t index = j - 1;
++
++			rollback_ret = regmap_update_bits(regmap,
++							  updates[index].reg,
++							  updates[index].mask,
++							  old_values[index] &
++							  updates[index].mask);
++			if (rollback_ret)
++				dev_warn(dev,
++					 "failed to restore register %#x: %d\n",
++					 updates[index].reg, rollback_ret);
++		}
++		goto out;
++	}
++
++	ret = 0;
++out:
++	kfree(old_values);
++	return ret;
++}
++EXPORT_SYMBOL_GPL(qcom_cc_update_regmap_sequence);
++
+ void
+ qcom_pll_set_fsm_mode(struct regmap *map, u32 reg, u8 bias_count, u8 lock_count)
+ {
+@@ -237,6 +297,148 @@ static void qcom_cc_drop_protected(struct device *dev, struct qcom_cc *cc)
+ 	}
+ }
+ 
++static void qcom_cc_disable_critical_clk(void *data)
++{
++	clk_disable_unprepare(data);
++}
++
++static int qcom_cc_enable_critical_clk(struct device *dev,
++				       struct qcom_cc *cc,
++				       bool *enabled, u32 idx)
++{
++	struct clk *clk;
++	int ret;
++
++	if (idx >= cc->num_rclks)
++		return dev_err_probe(dev, -EINVAL,
++				     "critical clock index %u is out of range\n", idx);
++	if (!cc->rclks[idx])
++		return dev_err_probe(dev, -ENOENT,
++				     "critical clock %u is not registered\n", idx);
++	if (enabled[idx])
++		return 0;
++
++	clk = devm_clk_hw_get_clk(dev, &cc->rclks[idx]->hw, "critical");
++	if (IS_ERR(clk))
++		return dev_err_probe(dev, PTR_ERR(clk),
++				     "failed to get critical clock %u\n", idx);
++
++	ret = clk_prepare_enable(clk);
++	if (ret)
++		return dev_err_probe(dev, ret,
++				     "failed to enable critical clock %u\n", idx);
++
++	ret = devm_add_action_or_reset(dev, qcom_cc_disable_critical_clk, clk);
++	if (ret)
++		return ret;
++
++	enabled[idx] = true;
++	return 0;
++}
++
++/*
++ * Keep clocks used by nodes listed in qcom,critical-devices enabled. The
++ * referenced device can be a child of a node that carries the clock list, so
++ * inspect each ancestor as well as the referenced node.
++ */
++static int qcom_cc_enable_critical_device(struct device *dev,
++					  struct qcom_cc *cc,
++					  struct device_node *np,
++					  bool *enabled)
++{
++	struct device_node *parent;
++	struct of_phandle_args args;
++	bool found = false;
++	int count, i, ret;
++
++	while (np) {
++		if (of_find_property(np, "clocks", NULL)) {
++			count = of_count_phandle_with_args(np, "clocks",
++							   "#clock-cells");
++			if (count < 0) {
++				ret = dev_err_probe(dev, count,
++						    "failed to parse clocks for critical device %pOF\n",
++						    np);
++				goto out_put_node;
++			}
++
++			for (i = 0; i < count; i++) {
++				ret = of_parse_phandle_with_args(np, "clocks",
++								 "#clock-cells", i, &args);
++				if (ret)
++					goto out_put_node;
++
++				if (args.np == dev->of_node) {
++					found = true;
++					if (!args.args_count)
++						ret = -EINVAL;
++					else
++						ret = qcom_cc_enable_critical_clk(dev, cc,
++									 enabled,
++									 args.args[0]);
++				} else {
++					ret = 0;
++				}
++
++				of_node_put(args.np);
++				if (ret)
++					goto out_put_node;
++			}
++		}
++
++		parent = of_get_parent(np);
++		of_node_put(np);
++		np = parent;
++	}
++
++	if (!found)
++		return dev_err_probe(dev, -ENOENT,
++				     "critical device has no clocks from this controller\n");
++
++	return 0;
++
++out_put_node:
++	of_node_put(np);
++	return ret;
++}
++
++static int qcom_cc_enable_critical_clocks(struct device *dev,
++					  struct qcom_cc *cc)
++{
++	struct device_node *np;
++	bool *enabled;
++	u32 phandle, idx;
++	int ret;
++
++	if (!of_find_property(dev->of_node, "qcom,critical-clocks", NULL) &&
++	    !of_find_property(dev->of_node, "qcom,critical-devices", NULL))
++		return 0;
++
++	enabled = devm_kcalloc(dev, cc->num_rclks, sizeof(*enabled), GFP_KERNEL);
++	if (!enabled && cc->num_rclks)
++		return -ENOMEM;
++
++	of_property_for_each_u32(dev->of_node, "qcom,critical-clocks", idx) {
++		ret = qcom_cc_enable_critical_clk(dev, cc, enabled, idx);
++		if (ret)
++			return ret;
++	}
++
++	of_property_for_each_u32(dev->of_node, "qcom,critical-devices", phandle) {
++		np = of_find_node_by_phandle(phandle);
++		if (!np)
++			return dev_err_probe(dev, -EINVAL,
++					     "critical device phandle %#x not found\n",
++					     phandle);
++
++		ret = qcom_cc_enable_critical_device(dev, cc, np, enabled);
++		if (ret)
++			return ret;
++	}
++
++	return 0;
++}
++
+ static struct clk_hw *qcom_cc_clk_hw_get(struct of_phandle_args *clkspec,
+ 					 void *data)
+ {
+@@ -283,6 +485,16 @@ static int qcom_cc_icc_register(struct device *dev,
+ 						     desc->num_icc_hws, icd);
+ }
+ 
++static void qcom_cc_clk_regulator_deinit(void *data)
++{
++	clk_regulator_deinit(data);
++}
++
++static void qcom_cc_vdd_proxy_unvote(void *data)
++{
++	clk_vdd_proxy_unvote(NULL, data);
++}
++
+ int qcom_cc_really_probe(struct device *dev,
+ 			 const struct qcom_cc_desc *desc, struct regmap *regmap)
+ {
+@@ -299,6 +511,34 @@ int qcom_cc_really_probe(struct device *dev,
+ 	if (!cc)
+ 		return -ENOMEM;
+ 
++	if (desc->num_clk_regulators) {
++		ret = clk_regulator_init(dev, desc);
++		if (ret)
++			return ret;
++
++		ret = devm_add_action_or_reset(dev, qcom_cc_clk_regulator_deinit,
++					       (void *)desc);
++		if (ret)
++			return ret;
++
++		ret = clk_vdd_proxy_vote(dev, desc);
++		if (ret)
++			return ret;
++
++		ret = devm_add_action_or_reset(dev,
++					       qcom_cc_vdd_proxy_unvote,
++					       (void *)desc);
++		if (ret)
++			return ret;
++	}
++
++	if (desc->pre_probe) {
++		ret = desc->pre_probe(dev, regmap);
++		if (ret)
++			return dev_err_probe(dev, ret,
++					     "clock-controller pre-probe setup failed\n");
++	}
++
+ 	reset = &cc->reset;
+ 	reset->rcdev.of_node = dev->of_node;
+ 	reset->rcdev.ops = &qcom_reset_ops;
+@@ -351,6 +591,10 @@ int qcom_cc_really_probe(struct device *dev,
+ 	if (ret)
+ 		return ret;
+ 
++	ret = qcom_cc_enable_critical_clocks(dev, cc);
++	if (ret)
++		return ret;
++
+ 	return qcom_cc_icc_register(dev, desc);
+ }
+ EXPORT_SYMBOL_GPL(qcom_cc_really_probe);
+@@ -385,5 +629,17 @@ int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
+ }
+ EXPORT_SYMBOL_GPL(qcom_cc_probe_by_index);
+ 
++void qcom_cc_sync_state(struct device *dev, const struct qcom_cc_desc *desc)
++{
++	int ret;
++
++	clk_sync_state(dev);
++	ret = clk_vdd_proxy_unvote(dev, desc);
++	if (ret)
++		dev_warn(dev, "failed to remove clock voltage proxy vote: %d\n",
++			 ret);
++}
++EXPORT_SYMBOL_GPL(qcom_cc_sync_state);
++
+ MODULE_LICENSE("GPL v2");
+ MODULE_DESCRIPTION("QTI Common Clock module");
+diff --git a/drivers/clk/qcom/common.h b/drivers/clk/qcom/common.h
+index 7e57f8fe8..f24aed426 100644
+--- a/drivers/clk/qcom/common.h
++++ b/drivers/clk/qcom/common.h
+@@ -4,9 +4,11 @@
+ #ifndef __QCOM_CLK_COMMON_H__
+ #define __QCOM_CLK_COMMON_H__
+ 
++struct device;
+ struct platform_device;
+ struct regmap_config;
+ struct clk_regmap;
++struct clk_vdd_class;
+ struct qcom_reset_map;
+ struct regmap;
+ struct freq_tbl;
+@@ -25,10 +27,19 @@ struct qcom_icc_hws_data {
+ 	int clk_id;
+ };
+ 
++struct qcom_cc_regmap_update {
++	u32 reg;
++	u32 mask;
++	u32 val;
++};
++
+ struct qcom_cc_desc {
+ 	const struct regmap_config *config;
+ 	struct clk_regmap **clks;
+ 	size_t num_clks;
++	struct clk_vdd_class **clk_regulators;
++	size_t num_clk_regulators;
++	int (*pre_probe)(struct device *dev, struct regmap *regmap);
+ 	const struct qcom_reset_map *resets;
+ 	size_t num_resets;
+ 	struct gdsc **gdscs;
+@@ -69,6 +80,9 @@ extern int qcom_cc_register_sleep_clk(struct device *dev);
+ 
+ extern struct regmap *qcom_cc_map(struct platform_device *pdev,
+ 				  const struct qcom_cc_desc *desc);
++extern int qcom_cc_update_regmap_sequence(
++		struct device *dev, struct regmap *regmap,
++		const struct qcom_cc_regmap_update *updates, size_t num_updates);
+ extern int qcom_cc_really_probe(struct device *dev,
+ 				const struct qcom_cc_desc *desc,
+ 				struct regmap *regmap);
+@@ -76,5 +90,7 @@ extern int qcom_cc_probe(struct platform_device *pdev,
+ 			 const struct qcom_cc_desc *desc);
+ extern int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
+ 				  const struct qcom_cc_desc *desc);
++extern void qcom_cc_sync_state(struct device *dev,
++			       const struct qcom_cc_desc *desc);
+ 
+ #endif
 diff --git a/drivers/clk/qcom/vdd-class.c b/drivers/clk/qcom/vdd-class.c
 new file mode 100644
-index 000000000000..e615b96474bc
+index 000000000..e615b9647
 --- /dev/null
 +++ b/drivers/clk/qcom/vdd-class.c
 @@ -0,0 +1,506 @@
@@ -2029,7 +2034,7 @@ index 000000000000..e615b96474bc
 +EXPORT_SYMBOL_GPL(clk_vdd_proxy_unvote);
 diff --git a/drivers/clk/qcom/vdd-class.h b/drivers/clk/qcom/vdd-class.h
 new file mode 100644
-index 000000000000..45519baa7a82
+index 000000000..45519baa7
 --- /dev/null
 +++ b/drivers/clk/qcom/vdd-class.h
 @@ -0,0 +1,82 @@
@@ -2117,7 +2122,7 @@ index 000000000000..45519baa7a82
 +#endif /* __QCOM_CLK_VDD_CLASS_H__ */
 diff --git a/drivers/clk/qcom/vdd-level-bengal.h b/drivers/clk/qcom/vdd-level-bengal.h
 new file mode 100644
-index 000000000000..24e2d0596f56
+index 000000000..1b97a1418
 --- /dev/null
 +++ b/drivers/clk/qcom/vdd-level-bengal.h
 @@ -0,0 +1,64 @@
@@ -2145,7 +2150,7 @@ index 000000000000..24e2d0596f56
 +	VDD_NUM,
 +};
 +
-+static int vdd_corner[] = {
++static int vdd_corner[] __maybe_unused = {
 +	[VDD_NONE]    = 0,
 +	[VDD_MIN]     = RPM_SMD_REGULATOR_LEVEL_MIN_SVS,
 +	[VDD_LOWER]   = RPM_SMD_REGULATOR_LEVEL_LOW_SVS,
@@ -2171,7 +2176,7 @@ index 000000000000..24e2d0596f56
 +	VDD_L2_NUM,
 +};
 +
-+static int vdd_l2_corner[] = {
++static int vdd_l2_corner[] __maybe_unused = {
 +	[VDD_L2_NONE]    = 0,
 +	[VDD_L2_MIN]     = RPM_SMD_REGULATOR_LEVEL_MIN_SVS,
 +	[VDD_L2_LOWER]   = RPM_SMD_REGULATOR_LEVEL_LOW_SVS,
