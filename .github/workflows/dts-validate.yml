@@ -149,10 +149,15 @@ jobs:
           git init -q
           git config user.email "ci@local"
           git config user.name "CI"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Preserva o que a outra job ja publicou no branch.
+          git fetch -q --depth 1 origin ci-artifacts 2>/dev/null || true
+          if git rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
+            git checkout -q FETCH_HEAD -- . || true
+          fi
           git add -A
-          git commit -q -m "artefatos da run ${GITHUB_RUN_ID}"
-          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            HEAD:refs/heads/ci-artifacts
+          git commit -q -m "artefatos da run ${GITHUB_RUN_ID}" || true
+          git push -f origin HEAD:refs/heads/ci-artifacts
           echo "artefatos publicados em ci-artifacts"
 
       - name: Archive logs and artifacts
@@ -248,14 +253,21 @@ jobs:
             cp "$log" /tmp/artifacts/logs/ 2>/dev/null || true
           done
           cp scripts/dtc/dtc scripts/dtc/fdtoverlay /tmp/artifacts/tools/ 2>/dev/null || true
+          cp arch/arm64/boot/Image /tmp/artifacts/Image-khaje 2>/dev/null || true
+          cp System.map /tmp/artifacts/System.map 2>/dev/null || true
           cd /tmp/artifacts
           git init -q
           git config user.email "ci@local"
           git config user.name "CI"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Preserva o que a outra job ja publicou no branch.
+          git fetch -q --depth 1 origin ci-artifacts 2>/dev/null || true
+          if git rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
+            git checkout -q FETCH_HEAD -- . || true
+          fi
           git add -A
-          git commit -q -m "artefatos da run ${GITHUB_RUN_ID}"
-          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            HEAD:refs/heads/ci-artifacts
+          git commit -q -m "artefatos da run ${GITHUB_RUN_ID}" || true
+          git push -f origin HEAD:refs/heads/ci-artifacts
           echo "artefatos publicados em ci-artifacts"
 
       - name: Archive build log
