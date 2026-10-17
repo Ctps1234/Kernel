@@ -103,15 +103,18 @@ jobs:
           set -o pipefail
           cd basekernel
           # Schema processada (dt-mk-schema sobre os bindings da arvore).
+          # O alvoDocumentation/.../processed-schema.json so existe dentro
+          # do sub-make de Documentation/devicetree/bindings; o alvo de
+          # primeiro nivel que o constroi e dt_binding_schemas.
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
-            Documentation/devicetree/bindings/processed-schema.json
+            dt_binding_schemas
           # O dt-validate roda direto sobre os DTBs ja compilados: refazer o
           # build com CHECK_DTBS=1 faz os sub-makes do kernel disputarem o
           # mesmo .dtb.d (corrida do fixdep) e abortar o build.
           {
             for dtb in /tmp/dtb-artifacts/arch/arm64/boot/dts/qcom/khaje/*.dtb; do
               echo "=== $dtb ==="
-              dt-validate -u Documentation/devicetree/bindings \
+              dt-validate -m -u Documentation/devicetree/bindings \
                 -p Documentation/devicetree/bindings/processed-schema.json \
                 "$dtb" || true
             done
