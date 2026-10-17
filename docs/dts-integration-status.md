@@ -18,11 +18,11 @@ dependências SoC (Bengal/Khaje, PM6125, PM8008, SMMU, RDBG, GDSC, qupv3).
 A verificação é automatizada por `tools/check_dts_includes.py`, que resolve
 `#include "..."` (relativos, na ordem do build: diretório do arquivo e
 depois os diretórios globais) e `#include <...>` (caminhos do kernel).
-Último resultado sobre a base fixada com a série 0001–0014 aplicada:
+Último resultado sobre a base fixada com a série 0001–0015 aplicada (0015 altera somente o binding pinctrl):
 
 ```
 arquivos .dts/.dtsi/.dtso: 54
-includes verificados: 102
+includes verificados: 103
 todos os includes resolvem
 ```
 
@@ -101,12 +101,13 @@ Nenhuma divergência restante nos compatibles de fundação de boot.
 
 ## Validação com dtc
 
-- A base `khaje-idp-nopmi.dts` compila com dtc 1.4.4 (70 avisos de
-  `reg_format`/`unit_address_format`/`avoid_default_addr_size`, todos
-  ruído de DT vendor suprimido pelas flags `-Wno-*` que o kernel usa).
-- Os overlays usam a sintaxe `&label { ... }` de topo, que só existe a
-  partir do dtc 1.5; por isso a validação autoritativa roda no CI com o
-  dtc 1.7.0 que a árvore base vendoriza em `scripts/dtc`.
+- A compilação local mais recente usou `tools/build_dts.py`, dtc 1.7 e
+  `fdtoverlay`; base e overlays topaz/tapas foram reconstruídos das fontes
+  staged e compostos com sucesso. Permanecem avisos preexistentes de DT
+  vendor (`reg_format`, `ranges_format`, `unit_address_format`, etc.).
+- Os overlays usam a sintaxe `&label { ... }` de topo, que exige dtc 1.5+;
+  a validação autoritativa continua sendo o CI com dtc 1.7.0 da árvore base
+  em `scripts/dtc`.
 - CI (`.github/workflows/dts-validate.yml`): job `dts-validate` compila os
   DTBs/DTBOs, roda `dt-validate` (DT-schema) e `dt_binding_check`; job
   `kernel-build` compila a imagem do kernel para validar o port dos
@@ -121,9 +122,12 @@ quando aparece uma assinatura de erro nova ou quando alguma contagem
 cresce. Detalhes, medição e backlog por schema em
 [`docs/dt-schema-validation.md`](dt-schema-validation.md).
 
-Estado atual: 3009 erros em 778 assinaturas (833 só no DTB base, contra
-1143 no começo da rodada). O que resta é majoritariamente propriedade
-`qcom,*` do 5.15 sem binding na árvore 6.12.
+O último baseline oficial (antes do patch 0015) registrava 3009 erros em
+778 assinaturas (833 no DTB base, contra 1143 no começo da rodada). A
+validação local posterior, com o binding 0015 e `gpio-ranges`, reduziu o total
+a 2791 (769 base; 1011 em cada composto), com zero erros de pinctrl Khaje e
+664 avisos sem schema. O CI ainda deve confirmar essa redução; o backlog
+restante é majoritariamente propriedade `qcom,*` do 5.15 sem binding 6.12.
 
 ## Bloqueadores conhecidos para build/DTBS_CHECK
 
@@ -135,8 +139,10 @@ Estado atual: 3009 erros em 778 assinaturas (833 só no DTB base, contra
    `tools/integrate_dts.py` + Makefiles em `device-tree/kernel/`.
 6. ~~Defconfig final~~ — resolvido: `config/topaz-khaje.config` +
    `tools/configure_kernel.sh`, e o build da imagem do kernel passou no CI.
-7. `dt-validate` verde — em andamento: o gate de regressão está no CI, mas
-   o backlog de bindings vendor ainda tem 833 erros no DTB base (ver
+7. Reduzir erros de `dt-validate` — em andamento: o patch pinctrl 0015 e o
+   `gpio-ranges` zeram localmente os erros do binding nos três DTBs; o total
+   caiu para 769 no base e 1011 em cada composto. A confirmação oficial e a
+   atualização do baseline ainda dependem do CI (ver
    [`docs/dt-schema-validation.md`](dt-schema-validation.md)).
 
 ## Recomendação

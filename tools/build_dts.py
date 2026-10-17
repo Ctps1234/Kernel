@@ -109,24 +109,16 @@ def find_sources(kernel_tree):
     if os.path.isfile(base):
         targets.append(("khaje-idp-nopmi.dtb", base, True))
 
-    overlays = {
-        "topaz-khaje-idp-nopmi-overlay.dtso": "khaje-idp-nopmi-topaz.dtb",
-        "tapas-khaje-idp-nopmi-overlay.dtbo": "khaje-idp-nopmi-tapas.dtb",
-        "topaz-sm5602-khaje-idp-nopmi-overlay.dtbo": "khaje-idp-nopmi-topaz-sm5602.dtb",
-        "tapas-sm5602-khaje-idp-nopmi-overlay.dtbo": "khaje-idp-nopmi-tapas-sm5602.dtb",
-    }
     for dirpath, _dirnames, filenames in os.walk(root):
         for name in sorted(filenames):
             if not name.endswith(".dtso"):
                 continue
             source = os.path.join(dirpath, name)
             rel = os.path.relpath(dirpath, root)
-            if rel == ".":
-                out = overlays.get(name, name[:-len(".dtso")] + ".dtbo")
-                targets.append((out, source, False))
-            else:
-                out = os.path.join(rel, name[:-len(".dtso")] + ".dtbo")
-                targets.append((out, source, False))
+            out = name[:-len(".dtso")] + ".dtbo"
+            if rel != ".":
+                out = os.path.join(rel, out)
+            targets.append((out, source, False))
     return targets
 
 

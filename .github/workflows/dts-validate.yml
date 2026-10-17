@@ -4,12 +4,16 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - arena/f49f65df-kernel
+      - 'arena/**'
     paths:
       - "device-tree/**"
       - "patches/**"
       - "tools/**"
+      - "tests/**"
+      - "config/**"
       - "docs/**"
+      - "README.md"
+      - ".github/workflows/dts-validate.yml"
 
 env:
   BASE_REPO: https://github.com/EdMory/android_kernel_common_sm8850

@@ -1,0 +1,144 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Sat, 17 Oct 2026 00:00:00 -0300
+Subject: [PATCH] dt-bindings: pinctrl: khaje: validate legacy nested states
+
+O dt-validate identificou dois problemas no binding original: o patternProperties
+na raiz tambem validava propriedades do controlador como estados de pinmux, e o
+modelo de estado nao aceitava a forma legacy usada pelas DTS Khaje/Bengal, com
+grupamentos e subnos separados `mux`/`config`.
+
+Descreve explicitamente as propriedades do controlador, os grupos recursivos,
+os estados de mux e os estados pinconf-only. O estado `config` usa os tipos
+pinconf genericos (incluindo `input-enable`, suportado pelo driver MSM) sem
+exigir `function`; o estado `mux` exige `pins` e `function`. Isso tambem impede
+que nos pinconf caiam simultaneamente em duas alternativas de `oneOf`.
+
+Validado com `dt-doc-validate` e `dt-mk-schema`; os DTBs base, topaz e tapas
+recompilados/compostos localmente nao geram erros do schema qcom,khaje-pinctrl.
+
+---
+diff --git a/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml b/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml
+index cf88977b1..40cf5981c 100644
+--- a/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml
++++ b/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml
+@@ -22,41 +22,97 @@
+     maxItems: 1
+ 
+   interrupts:
+     maxItems: 1
+ 
++  gpio-controller: true
++
++  '#gpio-cells':
++    const: 2
++
++  interrupt-controller: true
++
++  '#interrupt-cells':
++    const: 2
++
++  gpio-ranges:
++    maxItems: 1
++
+   gpio-reserved-ranges: true
+ 
++  gpio-line-names: true
++
++  wakeup-parent: true
++
++  pinctrl-use-default: true
++
++  status: true
++
++  phandle: true
++
++  linux,phandle:
++    $ref: /schemas/types.yaml#/definitions/uint32
++
++
+ patternProperties:
+-  "^[A-Za-z0-9,_-]+$":
++  "^(?!compatible$|reg$|interrupts$|gpio-controller$|gpio-ranges$|gpio-reserved-ranges$|gpio-line-names$|interrupt-controller$|wakeup-parent$|pinctrl-use-default$|status$|phandle$|linux,phandle$)[A-Za-z0-9,_-]+$":
+     $ref: "#/$defs/qcom-khaje-pin-node"
+ 
+ $defs:
+   qcom-khaje-pin-node:
+     oneOf:
+       - $ref: "#/$defs/qcom-khaje-tlmm-state"
++      - $ref: "#/$defs/qcom-khaje-pinconf-state"
+       - type: object
+         properties:
+           phandle: true
+-          linux,phandle: true
+-          name: true
++          linux,phandle:
++            $ref: /schemas/types.yaml#/definitions/uint32
+         patternProperties:
+-          "^[A-Za-z0-9,_-]+$":
++          "^(?!phandle$|linux,phandle$)[A-Za-z0-9,_-]+$":
+             $ref: "#/$defs/qcom-khaje-pin-node"
+         additionalProperties: false
++
++  qcom-khaje-pinconf-state:
++    type: object
++    description:
++      Pin configuration subnode used by the legacy Qualcomm pinctrl format.
++      This node carries pin configuration only; its sibling mux node selects
++      the pin function.
++    allOf:
++      - $ref: /schemas/pinctrl/pincfg-node.yaml#
++    properties:
++      phandle: true
++      linux,phandle:
++        $ref: /schemas/types.yaml#/definitions/uint32
++      pins:
++        description:
++          List of GPIO or dedicated pins affected by the properties in this
++          subnode.
++        items:
++          oneOf:
++            - pattern: "^gpio([0-9]|[1-9][0-9]|10[0-9]|11[0-2])$"
++            - enum: [ sdc1_rclk, sdc1_clk, sdc1_cmd, sdc1_data,
++                      sdc2_clk, sdc2_cmd, sdc2_data, ufs_reset ]
++        minItems: 1
++    required:
++      - pins
++    unevaluatedProperties: false
+ 
+   qcom-khaje-tlmm-state:
+     type: object
+     description:
+       Pinctrl node's client devices use subnodes for desired pin configuration.
+-      Client device subnodes use standard pinconf and pinmux properties.
+-    $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
++      A mux node selects the function and may also carry pin configuration.
++    allOf:
++      - $ref: /schemas/pinctrl/pincfg-node.yaml#
+     unevaluatedProperties: false
+ 
+     properties:
+       phandle: true
+-      linux,phandle: true
++      linux,phandle:
++        $ref: /schemas/types.yaml#/definitions/uint32
+       pins:
+         description:
+           List of GPIO or dedicated pins affected by the properties in this
+           subnode.
+         items:
+@@ -256,10 +312,11 @@
+           - phase_flag31
+           - dac_calib25
+ 
+     required:
+       - pins
++      - function
+ 
+ allOf:
+   - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
+ 
+ required:
+
+-- 
+2.39.5

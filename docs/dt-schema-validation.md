@@ -10,7 +10,7 @@ O job *Device trees (dtbs + dt-schema)* do workflow
 `.github/workflows/dts-validate.yml` faz, nesta ordem:
 
 1. clone da base fixada (`0efd3abd3c356d644ea49f6ed37e9830b78d34e3`) e
-   aplicação da série 0001–0014;
+   aplicação da série 0001–0015;
 2. staging das DTS de `device-tree/source/` na árvore do kernel
    (`tools/integrate_dts.py`);
 3. verificação estática de includes (`tools/check_dts_includes.py`);
@@ -66,6 +66,8 @@ A linha de base é versionada; reduções de erro exigem regenerá-la
 
 ## Estado medido
 
+### Última rodada oficial antes do patch 0015
+
 Rodada `38991765488` (branch `arena/f49f65df-kernel`), três DTBs validados
 (base Khaje + compostos topaz e tapas):
 
@@ -79,15 +81,48 @@ Rodada `38991765488` (branch `arena/f49f65df-kernel`), três DTBs validados
 O DTB base tinha 1143 erros no começo da rodada (o mesmo build, com o
 `dt-validate` embutido no `make`): as correções de schema e de DTS tiraram
 310 erros do DTB base (-27%), e os compostos topaz/tapas caíram de 1354
-para 1088.
+para 1088. Esses números são a última medição oficial no CI antes da nova
+correção de pinctrl; o baseline versionado continua refletindo essa rodada.
 
-### Backlog por schema (DTB base)
+### Validação local após 0015 (17/10/2026)
+
+O binding Khaje agora descreve explicitamente as propriedades do controlador,
+os wrappers/grupos recursivos e os dois tipos de estado: mux (`pins` +
+`function`) e pinconf-only (`config`, sem `function`, incluindo
+`input-enable`). `device-tree/source/qcom/bengal-pinctrl.dtsi` declara
+`gpio-ranges = <&tlmm 0 0 114>;`, alinhado ao `.ngpios = 114` do driver
+Khaje. Também foi corrigido `tools/build_dts.py`: os overlays topaz/tapas são
+compilados para `.dtbo` antes da composição, em vez de confundir o overlay
+Topaz com a saída do DTB composto.
+
+`dt-doc-validate` e `dt-mk-schema` passaram para o binding final. Base e
+compostos foram recompilados de todas as fontes staged com `tools/build_dts.py`
+(dtc 1.7 e `fdtoverlay`) e validados individualmente:
+
+| DTB | Erros | Assinaturas | Erros pinctrl Khaje | Avisos (sem schema) | Diferença vs. CI anterior |
+|---|---:|---:|---:|---:|---:|
+| `khaje-idp-nopmi.dtb` | 769 | 563 | 0 | 210 | -64 |
+| `khaje-idp-nopmi-topaz.dtb` | 1011 | 720 | 0 | 227 | -77 |
+| `khaje-idp-nopmi-tapas.dtb` | 1011 | 721 | 0 | 227 | -77 |
+| **total (assinaturas únicas)** | **2791** | **724** | **0** | **664** | **-218** |
+
+O `tools/dt_validate_report.py`, aplicado à saída concatenada, retornou
+`OK (sem regressao em relacao a linha de base)`. A medição local usou um
+adaptador temporário de `libfdt` apoiado em `tools/fdt_inventory.py`: o
+`pylibfdt` não compilou no host porque falta `Python.h`. Portanto estes números
+são uma confirmação local, não um resultado oficial do workflow. O baseline
+não foi atualizado; a série 0015 ainda precisa passar no CI, incluindo
+`dt_binding_check` e a validação com as ferramentas oficiais do job. A tentativa
+local de `make dt_binding_check DT_SCHEMA_FILES=...` parou antes da validação
+porque o clone sparse não contém `arch/x86/Makefile`.
+
+### Backlog por schema (DTB base, CI anterior a 0015)
 
 | Schema | Erros | Causa |
 |---|---|---|
 | `dt-core.yaml` | 549 | propriedades `qcom,*` do 5.15 sem binding na árvore 6.12 (`qcom,cpus`, `qcom,qmi-dev-name`, `qcom,instance-id`, `qcom,devfreq`, `qcom,glink-label`, `transport`, `vote`, `qcom,freq-domain`, `qcom,lmh-dcvs`, `qcom,dump-size`, `qcom,cdev-alias`, ...) |
 | `simple-bus.yaml` | 85 | filhos de `/soc` sem `reg` e sem `ranges` (o schema exige `ranges` vazio quando não há `reg`) |
-| `pinctrl/qcom,khaje-pinctrl.yaml` | 64 | binding Khaje (patch 0001) ainda não descreve os grupos usados pela DTS 5.15 |
+| `pinctrl/qcom,khaje-pinctrl.yaml` | 64 | binding Khaje incompleto no baseline anterior (patch 0001); patch 0015 + `gpio-ranges` zeraram localmente esse grupo de erros |
 | `soc/qcom/qcom,geni-se.yaml` | 22 | `clock-names` do GENI 5.15 (`se`) não confere com o schema 6.12 |
 | demais | ~113 | `sdhci-msm`, `qcom,mpm`, `qcom,spmi-pmic`, `syscon-common`, `qcom,ufs`, `bengal`, `opp-v2`, `qcom,smmu`, `qcom,geni-se`, `idle-states`, ... |
 
@@ -97,6 +132,7 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 
 ### Correções já aplicadas
 
+- **binding pinctrl Khaje** (patch 0015): separa estados mux de estados pinconf-only, valida wrappers aninhados e evita que `patternProperties` trate propriedades do controlador como nós de estado. **DTS**: acrescenta `gpio-ranges = <&tlmm 0 0 114>` ao controller Bengal; os dois itens zeraram localmente os erros `qcom,khaje-pinctrl.yaml` nos três DTBs. A confirmação oficial fica pendente no CI.
 - **binding RPM-SMD** (patch 0008): `qcom,set` e `qcom,regulator-type` sem
   `type` faziam o dtschema recusar a propriedade ("missing type
   definition") e comparar os bytes crus contra o `enum`. Note que
@@ -123,16 +159,17 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 
 ## Próximos passos do backlog
 
-1. **Bindings vendor das propriedades `qcom,*`** (maior fatia do backlog):
+1. **Confirmar no CI e atualizar a linha de base** depois que patch 0015 e a
+   alteração de DTS forem integrados; a confirmação local usou um adaptador
+   temporário de libfdt.
+2. **Bindings vendor das propriedades `qcom,*`** (maior fatia restante):
    escrever bindings para as propriedades que a DTS 5.15 usa e que a
    árvore 6.12 não descreve, começando pelas que mais repetem
    (`qcom,cpus`, `qcom,qmi-dev-name`, `qcom,instance-id`, `qcom,freq-domain`,
    `qcom,lmh-dcvs`, `qcom,dump-size`, `qcom,cdev-alias`, `qcom,glink-label`).
-2. **Binding do pinctrl Khaje** (patch 0001): completar os grupos de pin
-   usados pela DTS 5.15 (`qupv*_se*_i2c_pins`, `cam_sensor_*`, ...).
 3. **Filhos de `/soc` sem `reg`**: o `simple-bus` do upstream exige
    `ranges` (vazio) nesses nós; são ~40 marcadores de vendor que hoje
-   só geram 85 erros no DTB base.
+   geram 85 erros no DTB base.
 4. **GENI/SE e `sdhci-msm`**: alinhar `clock-names`/`reg-names` da DTS com o
    schema 6.12, ou estender os bindings para aceitar os nomes 5.15.
 5. Manter o gate: cada correção deve reduzir a linha de base, e nunca
