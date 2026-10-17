@@ -6,9 +6,10 @@ os artefatos do CI (kernel 6.12 + DTB/DTBO + ramdisk mínima) em **imagens flash
 preservando byte a byte tudo o que não muda (cmdline, bootconfig, ramdisk vendor,
 rodapé AVB, padding).
 
-> **Estado:** as três imagens de kernel/DTB/overlay foram geradas; a imagem
-> `init_boot` mínima está em construção no CI. Os quatro originais passam na
-> ida-e-volta byte a byte. **Nenhum flash foi feito** e **nada foi testado em hardware**.
+> **Estado:** as imagens de kernel/DTB/overlay foram geradas; a imagem
+> `init_boot` mínima está em construção/validação no workflow independente
+> [`initramfs.yml`](../.github/workflows/initramfs.yml). Os quatro originais passam
+> na ida-e-volta byte a byte. **Nenhum flash foi feito** e **nada foi testado em hardware**.
 
 ---
 
