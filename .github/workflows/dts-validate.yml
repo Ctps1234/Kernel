@@ -9,6 +9,7 @@ on:
       - "device-tree/**"
       - "patches/**"
       - "tools/**"
+      - "docs/**"
       - ".github/workflows/dts-validate.yml"
 
 env:
