@@ -112,6 +112,19 @@ Nenhuma divergência restante nos compatibles de fundação de boot.
   `kernel-build` compila a imagem do kernel para validar o port dos
   drivers.
 
+## Validação DT-schema (dt-validate)
+
+O job *Device trees* do CI roda o `dt-validate` sobre os três DTBs (base
+Khaje e compostos topaz/tapas) e um gate de regressão
+(`tools/dt_validate_report.py` + `docs/dt-validate-baseline.json`) que falha
+quando aparece uma assinatura de erro nova ou quando alguma contagem
+cresce. Detalhes, medição e backlog por schema em
+[`docs/dt-schema-validation.md`](dt-schema-validation.md).
+
+Estado atual: 3048 erros em 792 assinaturas (838 só no DTB base, contra
+1143 no começo da rodada). O que resta é majoritariamente propriedade
+`qcom,*` do 5.15 sem binding na árvore 6.12.
+
 ## Bloqueadores conhecidos para build/DTBS_CHECK
 
 1. ~~Header `qcom,khaje-qmp-usb3.h` ausente (USB)~~ — resolvido (patch 0012).
@@ -120,8 +133,11 @@ Nenhuma divergência restante nos compatibles de fundação de boot.
 4. ~~Headers RPMh/DMA-heap/thermal/DCC/power-on ausentes~~ — resolvido (patch 0013).
 5. ~~DTS/DTBO não versionáveis~~ — resolvido: staging por
    `tools/integrate_dts.py` + Makefiles em `device-tree/kernel/`.
-6. Defconfig final e validação `dtbs_check`/`dt_binding_check` estão no CI
-   (execução em andamento na primeira rodada).
+6. ~~Defconfig final~~ — resolvido: `config/topaz-khaje.config` +
+   `tools/configure_kernel.sh`, e o build da imagem do kernel passou no CI.
+7. `dt-validate` verde — em andamento: o gate de regressão está no CI, mas
+   o backlog de bindings vendor ainda tem 838 erros no DTB base (ver
+   [`docs/dt-schema-validation.md`](dt-schema-validation.md)).
 
 ## Recomendação
 

@@ -1,6 +1,6 @@
 # Redmi Note 12 4G — kernel Android GKI 6.12
 
-Projeto de bring-up/port para o Redmi Note 12 4G (topaz/tapas). **Estado: par FDT/DTBO confirmado e série local 0001–0013 aplicada e verificada na base Android Common 6.12 fixada (`0efd3abd...`): pinctrl/RPMCC Khaje, PHY UFS SM6225, interconnect Bengal, reguladores RPM-SMD e providers GCC/DISPCC/GPUCC/debugcc com votos de tensão. As device trees de topaz/tapas estão versionadas em `device-tree/source/` e entram na árvore do kernel por staging determinístico (`tools/integrate_dts.py`): 102/102 includes resolvidos, DTB/DTBO compilados pelo build do kernel com dtc 1.7, `dt-validate`/`dt_binding_check` verdes e fragmento de configuração do port em `config/topaz-khaje.config`. Falta fechar o build da imagem do kernel com os drivers portados e a paridade Android (KGSL, câmera, QCACLD, fingerprint, carregador); nada foi testado em hardware.**
+Projeto de bring-up/port para o Redmi Note 12 4G (topaz/tapas). **Estado: par FDT/DTBO confirmado e série local 0001–0013 aplicada e verificada na base Android Common 6.12 fixada (`0efd3abd...`): pinctrl/RPMCC Khaje, PHY UFS SM6225, interconnect Bengal, reguladores RPM-SMD e providers GCC/DISPCC/GPUCC/debugcc com votos de tensão. As device trees de topaz/tapas estão versionadas em `device-tree/source/` e entram na árvore do kernel por staging determinístico (`tools/integrate_dts.py`): 102/102 includes resolvidos, DTB/DTBO compilados pelo build do kernel com dtc 1.7 e fragmento de configuração do port em `config/topaz-khaje.config`. O build da imagem do kernel passou no CI (`LD vmlinux`, `OBJCOPY arch/arm64/boot/Image`) e o `dt-validate` virou um gate de regressão com linha de base versionada (838 erros known no DTB base, backlog de bindings vendor em [`docs/dt-schema-validation.md`](docs/dt-schema-validation.md)). Falta a paridade Android (KGSL, câmera, QCACLD, fingerprint, carregador); nada foi testado em hardware.**
 
 ## Hardware confirmado
 
@@ -44,10 +44,10 @@ O KMI é específico da combinação de release Android e versão do kernel; a c
 
 ## Próximos passos
 
-1. Fechar o build da imagem do kernel com o fragmento de configuração do port (`config/topaz-khaje.config`): é a primeira compilação real da série 0002/0004/0006/0007/0009/0010/0011 e deve revelar os erros de API restantes no port para 6.12.
+1. Fechar o backlog de DT-schema: escrever os bindings vendor das propriedades `qcom,*` que a DTS 5.15 usa (a maior fatia são ~550 erros de `dt-core.yaml`), completar o binding de pinctrl Khaje e alinhar os `clock-names` do GENI. Cada redução tem de baixar a linha de base do gate, nunca subi-la.
 2. Revisar estaticamente as novas dependências de votos (RPM-SMD/regulator e clocks críticos) e mapear cada consumidor do FDT à série port, agora com o DTB compilado como referência.
 3. Só então avançar para periféricos e paridade Android: KGSL/GPU, SDE/display, câmera, QCACLD/Wi‑Fi, fingerprint (FPC/Goodix), carregador e ANT; os nós desses periféricos só existem no DTBO real do aparelho e precisam ser recriados a partir da referência. Não reutilizar binários 5.15 no KMI 6.12.
-4. Manter a validação no CI (`.github/workflows/dts-validate.yml`): clone do commit fixado `0efd3abd3c356d644ea49f6ed37e9830b78d34e3`, aplicação da série, staging das DTS, `dtbs`, `dt-validate`, `dt_binding_check` e build da imagem, com logs publicados no branch `ci-artifacts`.
+4. Manter a validação no CI (`.github/workflows/dts-validate.yml`): clone do commit fixado `0efd3abd3c356d644ea49f6ed37e9830b78d34e3`, aplicação da série, staging das DTS, `dtbs`, `dt-validate` com gate de regressão, `dt_binding_check` e build da imagem, com logs e artefatos publicados no branch `ci-artifacts`.
 5. Antes de qualquer teste de boot, confirmar backups verificáveis de `boot` e recovery e um método de recuperação. Não sobrescrever partições durante a fase de levantamento.
 
 **Não flashar nenhuma imagem produzida nesta fase de levantamento.**
