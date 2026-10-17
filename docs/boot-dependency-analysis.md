@@ -164,7 +164,23 @@ evidência em cada degrau e mantém o objetivo final (Android usável) no radar.
 
 ---
 
-## 8. Referências internas
+## 8. Validação do ajuste de configuração
+
+| Item | Resultado |
+|---|---|
+| Run `39026074996` | ❌ **falhou de propósito** no gate de `tools/configure_kernel.sh`: o fragmento pedia `CONFIG_RAMOOPS`, que **não existe** na base (a base traz `fs/pstore/blk.c`, sem `ramops.c`). O gate funcionou: build barrado antes de gastar tempo de compilação. |
+| Correção | `CONFIG_RAMOOPS` → `CONFIG_PSTORE_BLK` (backend de pstore usado pelo Android, partição "ram"). |
+| Run `39026267325` | ✅ **verde** — job `Kernel build (port dos drivers)` e job `Device trees (dtbs + dt-schema)` (3m37s), incluindo o gate de `dt-validate` e o `dt_binding_check`. |
+| `.config` final (publicado no branch `ci-artifacts`, 11.274 linhas) | `CONFIG_SCSI_UFS_QCOM=y`, `CONFIG_BLK_DEV_DM=y`, `CONFIG_DM_VERITY=y`, `CONFIG_F2FS_FS=y`, `CONFIG_EROFS_FS=y`, `CONFIG_USB_CONFIGFS=y`, `CONFIG_USB_CONFIGFS_F_FS=y`, `CONFIG_PSTORE_BLK=y` — todos aplicados. |
+
+Ou seja: **o storage do Android (host UFS + f2fs + EROFS + dm-verity) e o canal de
+ADB (gadget USB embutido) já estão habilitados no build oficial**; o que ainda falta
+para o aparelho subir é a árvore de drivers (o `msm_partition`), a imagem de boot
+empacotada, a `init_boot` mínima e a verificação do bootloader.
+
+---
+
+## 9. Referências internas
 
 - `docs/boot-partition-inventory.md` — layout do boot chain, offsets e hashes das DTBs.
 - `docs/module-inventory.md` — 320 módulos 5.15 e suas dependências (base do escopo da fase A).
