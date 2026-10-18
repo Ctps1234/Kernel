@@ -94,7 +94,7 @@ os drivers portados na série 0001–0014:
 | `qcom,khaje-gcc/dispcc/gpucc/debugcc` | 0011 | OK |
 | `qcom,bengal-{system_noc,config_noc,bimc,clk_virt,mmnrt_virt,mmrt_virt}` | 0007 | OK |
 | `qcom,rpm-smd-regulator-resource` / `qcom,rpm-smd-regulator` | 0008/0009 | OK |
-| `qcom,sm6225-qmp-ufs-phy` | 0005/0006/0017 | PHY schema-clean no CI 39090488896 (DTS corrigido de `qcom,ufs-phy-qmp-v4-khaje`); patch 0018 prepara a validação do host `ufshc`, CI pendente |
+| `qcom,sm6225-qmp-ufs-phy` + host UFS SM6225 | 0005/0006/0017/0018 | PHY/host sem diagnósticos nos três DTBs; run 39129187629 passou binding/example e compilou a imagem do kernel. Nenhum boot ou teste em hardware |
 | `qcom,khaje` (SoC) | common kernel | OK |
 
 Nenhuma divergência restante nos compatibles de fundação de boot.
@@ -131,11 +131,12 @@ que levaram ao patch 0016. A run 39071211672 aplicou 0001–0016 e validou
 schemas/exemplos, gate `dt-validate` e kernel. A run 39090488896 aplicou
 0001–0017, passou `dt_binding_check`/`dt-doc-validate` sem diagnósticos e
 compilou DTBs/kernel; `dt-validate` caiu para 2686 erros/695 assinaturas, com
-664 avisos. A PHY UFS e os 54 valores de status agora estão limpos. O patch
-0018 prepara o alinhamento do host SM6225 ao binding/driver 6.12, preservando
-`ufs_mem` para MCQ e nomeando ICE como `ice`; a validação CI ainda está
-pendente. O backlog restante é majoritariamente propriedade `qcom,*` do 5.15
-sem binding 6.12.
+664 avisos. A run `39129187629` aplicou 0018: DTBs, gate de `dt-validate`,
+`dt_binding_check` e `dt-doc-validate` passaram. O total baixou para 2632
+erros/679 assinaturas/664 avisos, sem diagnósticos do host UFS nos três DTBs;
+o baseline foi atualizado. O job separado compilou a imagem do kernel com
+sucesso. A PHY UFS e os 54 valores de status permanecem limpos. O backlog
+restante é majoritariamente propriedade `qcom,*` do 5.15 sem binding 6.12.
 
 ## Bloqueadores conhecidos para build/DTBS_CHECK
 
@@ -147,12 +148,13 @@ sem binding 6.12.
    `tools/integrate_dts.py` + Makefiles em `device-tree/kernel/`.
 6. ~~Defconfig final~~ — resolvido: `config/topaz-khaje.config` +
    `tools/configure_kernel.sh`, e o build da imagem do kernel passou no CI.
-7. A run 39090488896 confirmou os 12 schemas da série 0001–0017 e seus
-   exemplos sem diagnósticos; o patch 0018 acrescenta `qcom,ufs.yaml` ao
-   escopo e aguarda validação. Ver [`docs/dt-schema-validation.md`](dt-schema-validation.md).
-8. **Host UFS:** validar o patch 0018 (compatible SM6225, `ufs_mem` para MCQ,
-   `ice`/`ice_core_clk` para ICE e remoção de propriedades sem consumidor 6.12);
-   depois atualizar o baseline oficial e seguir com os bindings vendor restantes.
+7. A run `39129187629` validou 13 schemas selecionados, incluindo
+   `qcom,ufs.yaml`; o exemplo SM6225 compilou e o `dt-doc-validate` direto
+   passou sem diagnósticos. Ver [`docs/dt-schema-validation.md`](dt-schema-validation.md).
+8. **Host UFS:** alinhamento da binding/DTS concluído e validado nos três DTBs:
+   `ufs_mem` permanece para MCQ e `ice`/`ice_core_clk` são consumidos pelo ICE.
+   O baseline oficial foi atualizado e a imagem do kernel da run foi compilada.
+   O gear e a sequência elétrica não foram testados em hardware.
 
 ## Recomendação
 

@@ -48,7 +48,7 @@ imagem foi testada no aparelho.
 
 | Subsistema | Driver 6.12 | Evidência | Bloqueia o *boot mínimo*? |
 |---|---|---|---|
-| **Storage UFS (host)** | `drivers/ufs/host/ufs-qcom.c` casa com fallback `qcom,ufshc` do nó `qcom,sm6225-ufshc`; MCQ usa `ufs_mem` e o helper ICE usa `ice`/`ice_core_clk` | base pinada + patch DTS/binding 0018 (CI pendente) | `CONFIG_SCSI_UFS_QCOM=y`; probe, gear e hardware ainda não testados |
+| **Storage UFS (host)** | `drivers/ufs/host/ufs-qcom.c` casa com fallback `qcom,ufshc` do nó `qcom,sm6225-ufshc`; MCQ usa `ufs_mem` e o helper ICE usa `ice`/`ice_core_clk` | base pinada + patch DTS/binding 0018; run 39129187629 passou DTBs/schema e compilou a imagem do kernel | `CONFIG_SCSI_UFS_QCOM=y`; probe, gear e hardware ainda não testados |
 | **PHY UFS** | `drivers/phy/qualcomm/phy-qcom-qmp-ufs.c` + patch 0006 | patch 0006 | ✅ config/build conferidos |
 | **Regulador UFS** | `REGULATOR_QCOM_SMD_RPM` (0009) + `PINCTRL_KHAJE` (0002) | fragmento de config | ✅ config/build conferidos |
 | **Filesystems** | `EXT4=y`, `F2FS=y`, `EROFS=y` | config CI `39040529520` | ✅ símbolos embutidos; B2a não monta storage |

@@ -45,18 +45,29 @@ O alvo do projeto é Linux 6.12 com Android/GKI para Android 17 sobre vendor/bas
 - A tabela Khaje R67 coincide com a série local nos 113 primeiros conjuntos `PINGROUP` e nos 56 pares de `wakeirq_map`; a fonte R67 acrescenta o mux virtual `egpio` (seletor 11, GPIO98–112) e marca GPIO0–3 como reservados para o gpiochip. A série foi ampliada para documentar/implementar `egpio` no core 6.12 e adota a reserva 0–3: no core fixado `reserved_gpios` só altera a máscara de linhas exportadas pelo gpiochip, sem retirar os grupos pinctrl; o FDT ativo usa 0–3 em estados QUP0 e não contém consumidor GPIO direto nessas linhas. A fonte Qualcomm também inclui `.wake_reg`/`.wake_bit` e `msm_gpio_mpm_wake_set()`, ausentes no core 6.12 alvo; essa parte vendor não foi copiada e o wake de hardware continua sem validação.
 - **Decisão:** conservar `EdMory/...` no commit `0efd3abd...` como alvo de API/build que possui linhagem e metadados inspecionáveis; usar R47 como referência de implementação SoC Qualcomm e de build tooling, sem presumir que o kernel efetivamente gerado seja 6.12. Só reconsiderar o alvo se o commit R79 oficial puder ser obtido e sua versão Linux, linhagem, build config e KMI forem comparados explicitamente.
 
-## Estado do build no ambiente
+## Estado do build e validação
 
-Foram usadas sparse checkouts/worktrees temporárias da base fixada em `/tmp/android16-6.12` para aplicar e conferir a série local 0001–0011 (pinctrl, RPMCC, PHY UFS, interconnect Bengal, reguladores RPM-SMD e clocks Khaje); cada `git apply --check` e o `git diff --check` acumulado passaram. Essas árvores não estão incluídas no repositório do projeto. Nenhum build foi iniciado. O ambiente não tem `clang`/`ld.lld`, compilador AArch64, `flex`, `bison` ou `bc`; portanto, não há build arm64 Android/GKI confiável disponível neste host. Não vamos substituir silenciosamente a toolchain Android especificada pela branch por uma qualquer.
+O host local ainda não dispõe de `clang`/`ld.lld`, compilador AArch64, `flex`,
+`bison` ou `bc`; portanto, não foi feita uma compilação nativa local. A
+validação executável ocorreu no GitHub Actions (`.github/workflows/dts-validate.yml`)
+contra o commit fixado `0efd3abd3c356d644ea49f6ed37e9830b78d34e3`. Na run
+[`39129187629`](https://github.com/Ctps1234/Kernel/actions/runs/39129187629),
+a série 0001–0018 foi aplicada, os DTBs e schemas passaram seus gates e o job
+separado compilou a imagem do kernel; ambos os jobs terminaram com sucesso.
+Logs e artefatos foram publicados pela própria run no branch `ci-artifacts`.
 
-## Próximos passos (ordem escolhida pelo usuário)
+## Próximos passos
 
-1. Concluir a fundação de boot primeiro: traduzir a base Khaje + overlay topaz para DTS/DTBO validáveis, revisar a série 0001–0011 e fechar a configuração GKI/defconfig; os providers GCC/DISPCC/GPUCC/debugcc e o framework de votos de tensão estão portados estaticamente, ainda sem validação formal/build. A matriz de compatibilidade está em [`driver-port-matrix.md`](driver-port-matrix.md).
-2. Só depois avançar para os drivers de periféricos/paridade Android. A integração solicitada deve estar concluída antes de compilar; não iniciar build nesta fase.
-3. Quando a integração estiver pronta para validar, obter a toolchain/dependências que correspondem à base e configurar GitHub Actions para clonar esse hash, construir e guardar logs/hashes. O usuário indicou Actions como ambiente de build posterior; nenhuma compilação deve ser presumida agora.
-4. Registrar o resultado do build (hashes, toolchain, config e artefatos) antes de qualquer teste no aparelho; manter ferramentas e outputs fora do Git.
-5. Confirmar backups verificáveis das partições e recuperação antes de testar qualquer imagem; não flashar durante a fase atual.
+1. Continuar a revisão/port dos restantes bloqueadores de boot e da paridade
+   Android; a compilação bem-sucedida do port não substitui teste de probe,
+   negociação de gear, rails ou sequência elétrica.
+2. Manter os logs, hashes, configuração e toolchain associados ao artefato CI
+   ao avaliar reproduções ou builds posteriores.
+3. Antes de qualquer teste em aparelho, confirmar backups verificáveis das
+   partições e um método de recuperação; nenhum boot/flash foi realizado nesta
+   etapa.
 
-A decisão de fazer primeiro a integração DTS/drivers substitui a ordem preliminar de estabelecer um build genérico local antes do port. O alvo continua Android/GKI 6.12.
-
-Essa checagem valida a linhagem e metadados da base candidata; **não** demonstra que ela compile neste ambiente, que o mirror esteja perfeitamente sincronizado com CodeLinaro, ou que o hardware topaz funcione sem port adicional.
+A execução CI demonstra que a série compilou contra o alvo fixado nessa
+execução, mas não valida a linhagem do `kernel/common` do manifest R47, não
+prova equivalência desse source com o alvo Android Common, e não demonstra boot
+ou funcionamento do hardware topaz.

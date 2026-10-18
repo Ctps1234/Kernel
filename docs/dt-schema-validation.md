@@ -162,9 +162,16 @@ o último dos nove clocks, conforme os consumidores upstream. A condição do
 binding exige também os clocks, a PHY e os dois caminhos ICC que o driver
 obtém no probe. A DTS remove propriedades vendor sem consumidor 6.12, incluindo
 os limites de Gear 3, não lidos pelo driver; o gear efetivo depende da
-negociação host/dispositivo e precisa ser conferido em hardware. A execução CI
-do patch 0018 ainda está pendente; os 2686 erros/695 assinaturas são o último
-baseline oficial anterior a essa mudança.
+negociação host/dispositivo e precisa ser conferido em hardware.
+
+A run `39129187629` (commit `2f66a18`) compilou os três DTBs, passou o gate
+de `dt-validate`, `dt_binding_check` e `dt-doc-validate` direto. O schema
+`qcom,ufs.yaml` e seu exemplo SM6225 foram selecionados/compilados, sem
+avisos/erros de binding, e não há diagnósticos do host UFS em nenhum dos três
+DTBs. O baseline oficial foi atualizado de **2686/695/664** para **2632
+erros/679 assinaturas/664 avisos**; a redução é de 54 erros e 16 assinaturas.
+O job separado de build do kernel também passou e compilou a imagem. Nenhum
+teste de boot ou hardware foi executado.
 
 ### Backlog por schema (DTB base, CI anterior a 0015)
 
@@ -224,9 +231,9 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 2. **Filhos de `/soc` sem `reg`**: o `simple-bus` do upstream exige
    `ranges` (vazio) nesses nós; são ~40 marcadores de vendor que hoje
    geram 85 erros no DTB base.
-3. **Host UFS e GENI/SE/`sdhci-msm`**: validar no CI o patch 0018 do host
-   SM6225 (mantém `ufs_mem` para MCQ e usa `ice`/`ice_core_clk` para ICE);
-   depois alinhar `clock-names`/`reg-names` dos demais hosts ao schema ou
-   justificar uma extensão específica do binding.
+3. **GENI/SE/`sdhci-msm`**: o host UFS SM6225 passou no `dt-validate` da
+   run 39129187629, preservando `ufs_mem` para MCQ e usando `ice`/`ice_core_clk`
+   para ICE. Alinhar agora `clock-names`/`reg-names` dos demais hosts ao schema
+   ou justificar uma extensão específica do binding.
 4. Manter o gate: cada correção deve reduzir a linha de base, e nunca
    aumentá-la.
