@@ -4,7 +4,7 @@
 &soc {
 	fpc_fp: fpc1020 {
 		compatible = "fpc,fpc1020";
-		status = "ok";
+		status = "okay";
 		interrupt-parent = <&tlmm>;
 		interrupts = <83 0>;
 		fpc,gpio_rst = <&tlmm 104 0>;
@@ -145,7 +145,7 @@
 		pinctrl-names = "onewire_active", "onewire_sleep";
 		pinctrl-0 = <&onewire_gpio_active>;
 		pinctrl-1 = <&onewire_gpio_sleep>;
-		status = "ok";
+		status = "okay";
 	};
 
 	maxim_ds28e16: maxim_ds28e16 {
@@ -153,7 +153,7 @@
 		compatible = "maxim,ds28e16";
 		label = "max_ds28e16";
 		maxim,version = <2>;
-		status = "ok";
+		status = "okay";
 	};
 
 	qcom_cp_manager {
@@ -210,7 +210,7 @@
 	};
 
 	vibrator_gpio {
-		status = "ok";
+		status = "okay";
 		compatible = "qcom,qpnp-vibrator-ldo-tz";
 		pinctrl-names = "default";
 		pinctrl-0 = <&vib_out_gpio8_default>;
@@ -219,7 +219,7 @@
 };
 
 &qupv3_se1_i2c {
-	status = "ok";
+	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
 

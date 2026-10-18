@@ -1,0 +1,101 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Sat, 17 Oct 2026 00:00:00 -0300
+Subject: [PATCH] dt-bindings: phy: qcom: validate SM6225 UFS PHY resources
+
+The SM6225-specific clock tuple already describes nine clocks, but the base
+schema still caps clocks and clock-names at three. Raise the common ceiling
+and keep the SoC conditional exact. Khaje uses the QMP software reset and has
+no genpd power-domain provider, so make external reset and power-domain
+references unavailable for this compatible. Add a schema example for the
+nine-clock Khaje form.
+
+---
+diff --git a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
+index 6f16bda18..a1f475246 100644
+--- a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
++++ b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
+@@ -42,11 +42,11 @@
+ 
+   clocks:
+     minItems: 2
+-    maxItems: 3
++    maxItems: 9
+ 
+   clock-names:
+     minItems: 2
+-    maxItems: 3
++    maxItems: 9
+ 
+   power-domains:
+     maxItems: 1
+@@ -73,8 +73,6 @@
+   - reg
+   - clocks
+   - clock-names
+-  - resets
+-  - reset-names
+   - vdda-phy-supply
+   - vdda-pll-supply
+   - "#phy-cells"
+@@ -159,6 +157,7 @@
+             enum:
+               - qcom,msm8996-qmp-ufs-phy
+               - qcom,msm8998-qmp-ufs-phy
++              - qcom,sm6225-qmp-ufs-phy
+     then:
+       properties:
+         power-domains:
+@@ -167,6 +166,20 @@
+       required:
+         - power-domains
+ 
++  - if:
++      properties:
++        compatible:
++          contains:
++            const: qcom,sm6225-qmp-ufs-phy
++    then:
++      properties:
++        resets: false
++        reset-names: false
++    else:
++      required:
++        - resets
++        - reset-names
++
+ additionalProperties: false
+ 
+ examples:
+@@ -193,3 +206,30 @@
+ 
+         #phy-cells = <0>;
+     };
++
++  - |
++    #include <dt-bindings/clock/qcom,rpmcc.h>
++    #include <dt-bindings/clock/qcom,gcc-khaje.h>
++
++    ufsphy_mem: phy@4807000 {
++        compatible = "qcom,sm6225-qmp-ufs-phy";
++        reg = <0x04807000 0xe00>;
++        #phy-cells = <0>;
++
++        clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
++                 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>,
++                 <&gcc GCC_UFS_CLKREF_CLK>,
++                 <&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK_SRC>,
++                 <&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK_SRC>,
++                 <&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK_SRC>,
++                 <&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
++                 <&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>,
++                 <&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>;
++        clock-names = "ref_clk_src", "ref_aux_clk", "qref_clk",
++                      "rx_sym0_mux_clk", "rx_sym1_mux_clk",
++                      "tx_sym0_mux_clk", "rx_sym0_phy_clk",
++                      "rx_sym1_phy_clk", "tx_sym0_phy_clk";
++
++        vdda-phy-supply = <&vreg_l4a>;
++        vdda-pll-supply = <&vreg_l18a>;
++    };
+

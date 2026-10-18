@@ -81,7 +81,7 @@
 	novatek@62 {
 		compatible = "novatek,NVT-ts";
 		reg = <0x62>;
-		status = "ok";
+		status = "okay";
 
 		interrupt-parent = <&tlmm>;
 		interrupts = <80 0x2008>;

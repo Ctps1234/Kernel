@@ -59,7 +59,7 @@
 &soc {
     cam_res_mgr_label: qcom,cam-res-mgr {
         compatible = "qcom,cam-res-mgr";
-        status = "ok";
+        status = "okay";
     };
 
     cam_vaf_2p8: cam-vaf {
@@ -87,6 +87,6 @@
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&cam_sensor_rear0_vaf_active>;
 		pinctrl-1 = <&cam_sensor_rear0_vaf_suspend>;
-		status = "ok";
+		status = "okay";
 	};
 };

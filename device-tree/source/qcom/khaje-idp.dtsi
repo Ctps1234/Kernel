@@ -5,7 +5,7 @@
 #include "bengal-thermal-overlay.dtsi"
 
 &qupv3_se4_2uart {
-	status = "ok";
+	status = "okay";
 };
 
 &pm6125_vadc {
@@ -21,7 +21,7 @@
 };
 
 &pm6125_adc_tm {
-	status = "ok";
+	status = "okay";
 
 	rf_pa1_therm {
 		reg = <3>;
@@ -173,7 +173,7 @@
 	pinctrl-0 = <&sdc1_on>;
 	pinctrl-1 = <&sdc1_off>;
 
-	status = "ok";
+	status = "okay";
 };
 
 &sdhc_2 {
@@ -194,7 +194,7 @@
 	pinctrl-1 = <&sdc2_off>;
 
 	cd-gpios = <&tlmm 88 GPIO_ACTIVE_LOW>;
-	status = "ok";
+	status = "okay";
 };
 
 &ufsphy_mem {
@@ -202,10 +202,8 @@
 
 	vdda-phy-supply = <&L4A>; /* 0.9v */
 	vdda-pll-supply = <&L18A>; /* 1.8v */
-	vdda-phy-max-microamp = <85700>;
-	vdda-pll-max-microamp = <18300>;
 
-	status = "ok";
+	status = "okay";
 };
 
 &ufshc_mem {
@@ -225,11 +223,11 @@
 	resets = <&gcc GCC_UFS_PHY_BCR>;
 	reset-names = "rst";
 
-	status = "ok";
+	status = "okay";
 };
 
 &pm6125_pwm {
-	status = "ok";
+	status = "okay";
 };
 
 &qupv3_se2_i2c {
@@ -261,7 +259,7 @@
 
 	novatek@62 {
 		reg = <0x62>;
-		status = "ok";
+		status = "okay";
 
 		interrupt-parent = <&tlmm>;
 		interrupts = <80 0x2008>;

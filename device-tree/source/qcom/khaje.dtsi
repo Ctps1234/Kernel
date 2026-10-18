@@ -423,7 +423,7 @@
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,discard";
 					fsmgr_flags = "wait,slotselect,avb";
-					status = "ok";
+					status = "okay";
 				};
 			};
 		};
@@ -2096,7 +2096,7 @@
 		qcom,eud-clock-vote-req;
 		clocks = <&gcc GCC_AHB2PHY_USB_CLK>;
 		clock-names = "eud_ahb2phy_clk";
-		status = "ok";
+		status = "okay";
 	};
 
 	qcom,msm-gladiator-v2@f100000 {
@@ -2666,10 +2666,7 @@
 
 	ufsphy_mem: ufsphy_mem@4807000 {
 		reg = <0x4807000 0xe00>; /* PHY regs */
-		reg-names = "phy_mem";
 		#phy-cells = <0>;
-
-		lanes-per-direction = <2>;
 
 		clock-names = "ref_clk_src",
 		"ref_aux_clk", "qref_clk",
@@ -2685,7 +2682,6 @@
 		<&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>,
 		<&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>;
 
-		resets = <&ufshc_mem 0>;
 		status = "disabled";
 	};
 
@@ -2998,13 +2994,13 @@
 
 	mini_dump_mode {
 		compatible = "qcom,minidump";
-		status = "ok";
+		status = "okay";
 	};
 
 	va_mini_dump {
 		compatible = "qcom,va-minidump";
 		memory-region = <&va_md_mem>;
-		status = "ok";
+		status = "okay";
 	};
 
 	tcsr_mutex_block: syscon@00340000 {
@@ -3962,56 +3958,56 @@ tpdm_turing_llm: tpdm@8861000 {
 #include "pm6125.dtsi"
 
 &gcc_camss_top_gdsc {
-	status = "ok";
+	status = "okay";
 };
 
 &gcc_ufs_phy_gdsc {
-	status = "ok";
+	status = "okay";
 };
 
 &gcc_usb30_prim_gdsc {
-	status = "ok";
+	status = "okay";
 };
 
 &gcc_vcodec0_gdsc {
 	qcom,support-hw-trigger;
-	status = "ok";
+	status = "okay";
 };
 
 &gcc_venus_gdsc {
-	status = "ok";
+	status = "okay";
 };
 
 &hlos1_vote_turing_mmu_tbu1_gdsc {
-	status = "ok";
+	status = "okay";
 };
 
 &hlos1_vote_turing_mmu_tbu0_gdsc {
-	status = "ok";
+	status = "okay";
 };
 
 &hlos1_vote_mm_snoc_mmu_tbu_rt_gdsc {
-	status = "ok";
+	status = "okay";
 };
 
 &hlos1_vote_mm_snoc_mmu_tbu_nrt_gdsc {
-	status = "ok";
+	status = "okay";
 };
 
 &mdss_core_gdsc {
 	reg = <0x5f01004 0x4>;
 	qcom,support-hw-trigger;
-	status = "ok";
+	status = "okay";
 };
 
 &gpu_cx_gdsc {
 	parent-supply = <&VDD_CX_LEVEL>;
-	status = "ok";
+	status = "okay";
 };
 
 &gpu_gx_gdsc {
 	parent-supply = <&VDD_CX_LEVEL>;
-	status = "ok";
+	status = "okay";
 };
 
 #include "msm-arm-smmu-bengal.dtsi"
@@ -4029,7 +4025,7 @@ tpdm_turing_llm: tpdm@8861000 {
 };
 
 &qupv3_se1_i2c {
-	status = "ok";
+	status = "okay";
 	qcom,leica-used-i2c;
 	#include "pm8008.dtsi"
 };
@@ -4095,11 +4091,11 @@ tpdm_turing_llm: tpdm@8861000 {
 };
 
 &qupv3_se4_2uart {
-	status = "ok";
+	status = "okay";
 };
 
 &qupv3_se3_4uart {
-	status = "ok";
+	status = "okay";
 };
 
 &pm6125_vadc {

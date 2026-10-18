@@ -22,7 +22,7 @@
 		iommus = <&apps_smmu 0xf6 0x0>;
 		qcom,gpi-ee-offset = <0x10000>;
 		qcom,iommu-dma-addr-pool = <0x100000 0x100000>;
-		status = "ok";
+		status = "okay";
 	};
 
 	/* QUPv3_0  wrapper  instance */
@@ -39,7 +39,7 @@
 		qcom,iommu-geometry = <0x40000000 0x10000000>;
 		qcom,iommu-dma = "fastmap";
 		ranges;
-		status = "ok";
+		status = "okay";
 
 		/* Debug UART Instance */
 		qupv3_se4_2uart: qcom,qup_uart@4a90000 {
@@ -159,26 +159,26 @@
 			status = "disabled";
 		};
 
-        /* I2C Instance */
-    	qupv3_se4_i2c: i2c@4a90000 {
-           	status = "ok";
-           	compatible = "qcom,i2c-geni";
-           	reg = <0x4a90000 0x4000>;
-           	interrupts = <0 331 4>;
-           	#address-cells = <1>;
-           	#size-cells = <0>;
-           	clock-names = "se-clk";
-           	clocks = <&gcc 100>;
-           	interconnect-names = "qup-core", "qup-config", "qup-memory";
-           	interconnects = <257 6 257 514 139 0 140 550 138 23 139 512>;
-           	dmas = <261 0 4 3 64 0 261 1 4 3 64 0>;
-           	dma-names = "tx", "rx";
-           	pinctrl-names = "default", "sleep";
-           	pinctrl-0 = <&qupv3_se4_i2c_active>;
-           	pinctrl-1 = <&qupv3_se4_i2c_sleep>;
-           	qcom,wrapper-core = <&qupv3_0>;
-           	qcom,clk-freq-out = <400000>;
-        };
+		/* I2C Instance */
+		qupv3_se4_i2c: i2c@4a90000 {
+			status = "okay";
+			compatible = "qcom,i2c-geni";
+			reg = <0x4a90000 0x4000>;
+			interrupts = <0 331 4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-names = "se-clk";
+			clocks = <&gcc 100>;
+			interconnect-names = "qup-core", "qup-config", "qup-memory";
+			interconnects = <257 6 257 514 139 0 140 550 138 23 139 512>;
+			dmas = <261 0 4 3 64 0 261 1 4 3 64 0>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&qupv3_se4_i2c_active>;
+			pinctrl-1 = <&qupv3_se4_i2c_sleep>;
+			qcom,wrapper-core = <&qupv3_0>;
+			qcom,clk-freq-out = <400000>;
+		};
 
 		/* SPI Instance */
 		qupv3_se0_spi: spi@4a80000 {

@@ -60,7 +60,7 @@
 };
 
 &qupv3_se1_i2c {
-	status = "ok";
+	status = "okay";
 
 	wl2866d@28 {
 		compatible = "ovti,wl2866d-i2c";
@@ -71,7 +71,7 @@
 		init_num = <2>;
 		inits = <4 75 14 15>;
 		en-gpio = <&tlmm 26 0>;
-		status = "ok";
+		status = "okay";
 	};
 };
 
@@ -101,7 +101,7 @@
 					"CAM_RESET0";
 		sensor-mode = <0>;
 		cci-master = <0>;
-		status = "ok";
+		status = "okay";
 		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
 		clock-names = "cam_clk";
 		clock-cntl-level = "turbo";
@@ -134,7 +134,7 @@
 					"CUSTOM_GPIO2";
 		sensor-mode = <0>;
 		cci-master = <1>;
-		status = "ok";
+		status = "okay";
 		clocks = <&gcc GCC_CAMSS_MCLK2_CLK>;
 		clock-names = "cam_clk";
 		clock-cntl-level = "turbo";
@@ -164,7 +164,7 @@
 					"CAM_RESET1";
 		sensor-mode = <0>;
 		cci-master = <1>;
-		status = "ok";
+		status = "okay";
 		clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
 		clock-names = "cam_clk";
 		clock-cntl-level = "turbo";
@@ -196,7 +196,7 @@
 					"CAM_RESET3";
 		sensor-mode = <0>;
 		cci-master = <0>;
-		status = "ok";
+		status = "okay";
 		clocks = <&gcc GCC_CAMSS_MCLK3_CLK>;
 		clock-names = "cam_clk";
 		clock-cntl-level = "turbo";
@@ -214,7 +214,7 @@
 		rgltr-max-voltage = <1800000>;
 		rgltr-load-current = <120000>;
 		gpio-no-mux = <0>;
-		status = "ok";
+		status = "okay";
 	};
 
 	led_flash_rear_aux: qcom,camera-flash@1 {
@@ -236,7 +236,7 @@
 		gpio-req-tbl-num = <0>;
 		gpio-req-tbl-flags = <0>;
 		gpio-req-tbl-label = "CUSTOM_GPIO1";
-		status = "ok";
+		status = "okay";
 	};
 
 	led_flash_rear_aux2: qcom,camera-flash@2 {
@@ -258,7 +258,7 @@
 		gpio-req-tbl-num = <0>;
 		gpio-req-tbl-flags = <0>;
 		gpio-req-tbl-label = "CUSTOM_GPIO1";
-		status = "ok";
+		status = "okay";
 	};
 
 	 /* Rear*/
@@ -294,7 +294,7 @@
 					"CAM_RESET0";
 		sensor-mode = <0>;
 		cci-master = <0>;
-		status = "ok";
+		status = "okay";
 		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
 		clock-names = "cam_clk";
 		clock-cntl-level = "turbo";
@@ -332,7 +332,7 @@
 					"CAM_RESET1";
 		sensor-mode = <0>;
 		cci-master = <1>;
-		status = "ok";
+		status = "okay";
 		clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
 		clock-names = "cam_clk";
 		clock-cntl-level = "turbo";
@@ -374,7 +374,7 @@
 		gpio-req-tbl-label = "CAMIF_MCLK2", "CAM_RESET2", "CUSTOM_GPIO2";
 		sensor-mode = <0>;
 		cci-master = <1>;
-		status = "ok";
+		status = "okay";
 		clocks = <&gcc GCC_CAMSS_MCLK2_CLK>;
 		clock-names = "cam_clk";
 		clock-cntl-level = "turbo";
@@ -412,7 +412,7 @@
 		gpio-req-tbl-label = "CAMIF_MCLK3", "CUSTOM_GPIO1", "CAM_RESET3";
 		sensor-mode = <0>;
 		cci-master = <0>;
-		status = "ok";
+		status = "okay";
 		clocks = <&gcc GCC_CAMSS_MCLK3_CLK>;
 		clock-names = "cam_clk";
 		clock-cntl-level = "turbo";

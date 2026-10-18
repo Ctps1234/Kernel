@@ -18,5 +18,5 @@
 };
 
 &qupv3_se4_2uart {
-    status = "ok";
+    status = "okay";
 };
