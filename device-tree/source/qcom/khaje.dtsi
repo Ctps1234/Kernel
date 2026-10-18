@@ -2686,126 +2686,53 @@
 	};
 
 	ufshc_mem: ufshc@4804000 {
-		compatible = "qcom,ufshc";
+		compatible = "qcom,sm6225-ufshc", "qcom,ufshc",
+			     "jedec,ufs-2.0";
 		reg = <0x4804000 0x3000>, <0x4810000 0x8000>;
-		reg-names = "ufs_mem", "ufs_ice";
+		reg-names = "ufs_mem", "ice";
 		interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 		phys = <&ufsphy_mem>;
 		phy-names = "ufsphy";
 
-		qcom,dynamic-irq-affinity;
-		limit-rx-hs-gear = <3>;
-		limit-tx-hs-gear = <3>;
 		lanes-per-direction = <2>;
-		limit-phy-submode = <0>;
-		dev-ref-clk-freq = <0>; /* 19.2 MHz */
 		#reset-cells = <1>;
-
-		nvmem-cells = <&boot_config>;
-		nvmem-cell-names = "boot_conf";
 
 		clock-names =
 			"core_clk",
 			"bus_aggr_clk",
 			"iface_clk",
 			"core_clk_unipro",
-			"core_clk_ice",
 			"ref_clk",
 			"tx_lane0_sync_clk",
 			"rx_lane0_sync_clk",
-			"rx_lane1_sync_clk";
+			"rx_lane1_sync_clk",
+			"ice_core_clk";
 		clocks =
 			<&gcc GCC_UFS_PHY_AXI_CLK>,
 			<&gcc GCC_SYS_NOC_UFS_PHY_AXI_CLK>,
 			<&gcc GCC_UFS_PHY_AHB_CLK>,
 			<&gcc GCC_UFS_PHY_UNIPRO_CORE_CLK>,
-			<&gcc GCC_UFS_PHY_ICE_CORE_CLK>,
 			<&rpmcc RPM_SMD_XO_CLK_SRC>,
 			<&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>,
 			<&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
-			<&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>;
+			<&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>,
+			<&gcc GCC_UFS_PHY_ICE_CORE_CLK>;
 		freq-table-hz =
 			<50000000 200000000>,
 			<0 0>,
 			<0 0>,
 			<37500000 150000000>,
-			<75000000 300000000>,
 			<0 0>,
 			<0 0>,
 			<0 0>,
-			<0 0>;
+			<0 0>,
+			<75000000 300000000>;
 		interconnects = <&system_noc MASTER_UFS_MEM &bimc SLAVE_EBI_CH0>,
 			<&bimc MASTER_AMPSS_M0 &config_noc SLAVE_UFS_MEM_CFG>;
 		interconnect-names = "ufs-ddr", "cpu-ufs";
-		qcom,ufs-bus-bw,name = "ufshc_mem";
-		qcom,ufs-bus-bw,num-cases = <22>;
-		qcom,ufs-bus-bw,num-paths = <2>;
-		qcom,ufs-bus-bw,vectors-KBps =
-		/*
-		 * During HS G3 UFS runs at nominal voltage corner, vote
-		 * higher bandwidth to push other buses in the data path
-		 * to run at nominal to achieve max throughput.
-		 * 4GBps pushes BIMC to run at nominal.
-		 * 200MBps pushes CNOC to run at nominal.
-		 * Vote for half of this bandwidth for HS G3 1-lane.
-		 * For max bandwidth, vote high enough to push the buses
-		 * to run in turbo voltage corner.
-		 */
-		<123 512 0 0>, <1 757 0 0>,          /* No vote */
-		<123 512 922 0>, <1 757 1000 0>,     /* PWM G1 */
-		<123 512 1844 0>, <1 757 1000 0>,    /* PWM G2 */
-		<123 512 3688 0>, <1 757 1000 0>,    /* PWM G3 */
-		<123 512 7376 0>, <1 757 1000 0>,    /* PWM G4 */
-		<123 512 1844 0>, <1 757 1000 0>,    /* PWM G1 L2 */
-		<123 512 3688 0>, <1 757 1000 0>,    /* PWM G2 L2 */
-		<123 512 7376 0>, <1 757 1000 0>,    /* PWM G3 L2 */
-		<123 512 14752 0>, <1 757 1000 0>,   /* PWM G4 L2 */
-		<123 512 127796 0>, <1 757 1000 0>,  /* HS G1 RA */
-		<123 512 255591 0>, <1 757 1000 0>,  /* HS G2 RA */
-		<123 512 2097152 0>, <1 757 102400 0>,  /* HS G3 RA */
-		<123 512 255591 0>, <1 757 1000 0>,  /* HS G1 RA L2 */
-		<123 512 511181 0>, <1 757 1000 0>,  /* HS G2 RA L2 */
-		<123 512 4194304 0>, <1 757 204800 0>, /* HS G3 RA L2 */
-		<123 512 149422 0>, <1 757 1000 0>,  /* HS G1 RB */
-		<123 512 298189 0>, <1 757 1000 0>,  /* HS G2 RB */
-		<123 512 2097152 0>, <1 757 102400 0>,  /* HS G3 RB */
-		<123 512 298189 0>, <1 757 1000 0>,  /* HS G1 RB L2 */
-		<123 512 596378 0>, <1 757 1000 0>,  /* HS G2 RB L2 */
-		/* As UFS working in HS G3 RB L2 mode, aggregated
-		 * bandwidth (AB) should take care of providing
-		 * optimum throughput requested. However, as tested,
-		 * in order to scale up CNOC clock, instantaneous
-		 * bindwidth (IB) needs to be given a proper value too.
-		 */
-		<123 512 4194304 0>, <1 757 204800 409600>, /* HS G3 RB L2 */
-		<123 512 7643136 0>, <1 757 307200 0>; /* Max. bandwidth */
-
-		qcom,bus-vector-names = "MIN",
-		"PWM_G1_L1", "PWM_G2_L1", "PWM_G3_L1", "PWM_G4_L1",
-		"PWM_G1_L2", "PWM_G2_L2", "PWM_G3_L2", "PWM_G4_L2",
-		"HS_RA_G1_L1", "HS_RA_G2_L1", "HS_RA_G3_L1",
-		"HS_RA_G1_L2", "HS_RA_G2_L2", "HS_RA_G3_L2",
-		"HS_RB_G1_L1", "HS_RB_G2_L1", "HS_RB_G3_L1",
-		"HS_RB_G1_L2", "HS_RB_G2_L2", "HS_RB_G3_L2",
-		"MAX";
-
-		reset-names = "core_reset";
-		non-removable;
 
 		status = "disabled";
 		iommus = <&apps_smmu 0x100 0x0>;
-		qcom,iommu-dma = "fastmap";
-		qcom,iommu-dma-addr-pool = <0x40000000 0x10000000>;
-		qcom,iommu-geometry = <0x40000000 0x10000000>;
-
-		qos0 {
-			vote = <26>;
-			perf;
-		};
-		qos1 {
-			vote = <26>;
-		};
-
 	};
 
 	thermal_zones: thermal-zones {};

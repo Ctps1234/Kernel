@@ -10,7 +10,7 @@ O job *Device trees (dtbs + dt-schema)* do workflow
 `.github/workflows/dts-validate.yml` faz, nesta ordem:
 
 1. clone da base fixada (`0efd3abd3c356d644ea49f6ed37e9830b78d34e3`) e
-   aplicação da série 0001–0017;
+   aplicação da série 0001–0018;
 2. staging das DTS de `device-tree/source/` na árvore do kernel
    (`tools/integrate_dts.py`);
 3. verificação estática de includes (`tools/check_dts_includes.py`);
@@ -154,10 +154,17 @@ mais diagnósticos em nenhum dos três DTBs. Os 54 valores `status = "ok"` em
 
 O baseline oficial caiu de **2791 erros/724 assinaturas** para **2686/695**,
 com os mesmos **664 avisos sem schema**; o gate retornou `OK (sem regressao)`.
-O restante de UFS está no host `ufshc@4804000`: compatible genérico curto,
-`reg-names` divergentes e propriedades vendor não descritas. A validação não
-renomeia `ufs_mem`, pois o driver MCQ procura esse recurso; a adequação do
-host ao binding permanece como próximo trabalho.
+Na medição de 39090488896, o host `ufshc@4804000` ainda tinha compatible
+curto, `reg-names` divergentes e propriedades vendor não descritas. O patch
+0018 acrescenta `qcom,sm6225-ufshc` com fallback `qcom,ufshc`, preserva
+`ufs_mem` para MCQ, nomeia a outra região `ice` e ordena `ice_core_clk` como
+o último dos nove clocks, conforme os consumidores upstream. A condição do
+binding exige também os clocks, a PHY e os dois caminhos ICC que o driver
+obtém no probe. A DTS remove propriedades vendor sem consumidor 6.12, incluindo
+os limites de Gear 3, não lidos pelo driver; o gear efetivo depende da
+negociação host/dispositivo e precisa ser conferido em hardware. A execução CI
+do patch 0018 ainda está pendente; os 2686 erros/695 assinaturas são o último
+baseline oficial anterior a essa mudança.
 
 ### Backlog por schema (DTB base, CI anterior a 0015)
 
@@ -217,9 +224,9 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 2. **Filhos de `/soc` sem `reg`**: o `simple-bus` do upstream exige
    `ranges` (vazio) nesses nós; são ~40 marcadores de vendor que hoje
    geram 85 erros no DTB base.
-3. **Host UFS e GENI/SE/`sdhci-msm`**: alinhar compatible e propriedades do
-   host UFS ao schema 6.12 sem renomear `ufs_mem` (consumido pela configuração
-   MCQ); depois alinhar `clock-names`/`reg-names` dos demais hosts ao schema ou
+3. **Host UFS e GENI/SE/`sdhci-msm`**: validar no CI o patch 0018 do host
+   SM6225 (mantém `ufs_mem` para MCQ e usa `ice`/`ice_core_clk` para ICE);
+   depois alinhar `clock-names`/`reg-names` dos demais hosts ao schema ou
    justificar uma extensão específica do binding.
 4. Manter o gate: cada correção deve reduzir a linha de base, e nunca
    aumentá-la.

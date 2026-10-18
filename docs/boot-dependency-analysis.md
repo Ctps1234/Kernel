@@ -48,7 +48,7 @@ imagem foi testada no aparelho.
 
 | Subsistema | Driver 6.12 | Evidência | Bloqueia o *boot mínimo*? |
 |---|---|---|---|
-| **Storage UFS (host)** | `drivers/ufs/host/ufs-qcom.c` existe e casa com `compatible = "qcom,ufshc"` (`khaje.dtsi:2693`) | base pinada + DTS do port | `CONFIG_SCSI_UFS_QCOM=y`; hardware ainda não testado |
+| **Storage UFS (host)** | `drivers/ufs/host/ufs-qcom.c` casa com fallback `qcom,ufshc` do nó `qcom,sm6225-ufshc`; MCQ usa `ufs_mem` e o helper ICE usa `ice`/`ice_core_clk` | base pinada + patch DTS/binding 0018 (CI pendente) | `CONFIG_SCSI_UFS_QCOM=y`; probe, gear e hardware ainda não testados |
 | **PHY UFS** | `drivers/phy/qualcomm/phy-qcom-qmp-ufs.c` + patch 0006 | patch 0006 | ✅ config/build conferidos |
 | **Regulador UFS** | `REGULATOR_QCOM_SMD_RPM` (0009) + `PINCTRL_KHAJE` (0002) | fragmento de config | ✅ config/build conferidos |
 | **Filesystems** | `EXT4=y`, `F2FS=y`, `EROFS=y` | config CI `39040529520` | ✅ símbolos embutidos; B2a não monta storage |
@@ -115,7 +115,7 @@ monolítico, mas sem prometer compatibilidade de módulos externos.
 
 ### Opção B — caminho de boot mínimo
 - **B1 — manter a ramdisk original (`init_boot` genérica):** exige o stack completo de storage (UFS embutido + F2FS + EROFS + dm-verity + `msm_partition`) e ainda assim o framework gráfico não sobe (sem DSI/GPU vendor) → o `init` do Android morre ao montar `/system` ou falha depois. Ganha-se pouco em relação a B2 e custa o parser de partições dinâmicas.
-- **B2 — ramdisk `init_boot` mínima própria (init estático + BusyBox shell):** o objetivo é o kernel subir e deixar o *dmesg* acessível pelo console serial. Esta ramdisk ainda **não inclui `adbd`**; o shell é pelo UART (`console=ttyMSM0,115200n8`). É o marco clássico de "kernel bring-up": valida pinctrl, clocks, RPM-SMD, interconnect, PHY UFS, host UFS e console — exatamente o que a série 0001–0014 entrega. Risco baixo, reversível (o `init_boot` original permanece preservado).
+- **B2 — ramdisk `init_boot` mínima própria (init estático + BusyBox shell):** o objetivo é o kernel subir e deixar o *dmesg* acessível pelo console serial. Esta ramdisk ainda **não inclui `adbd`**; o shell é pelo UART (`console=ttyMSM0,115200n8`). É o marco clássico de "kernel bring-up": valida pinctrl, clocks, RPM-SMD, interconnect, PHY UFS, host UFS e console — o objetivo de validação da série local 0001–0018, ainda sem prova de boot. Risco baixo, reversível (o `init_boot` original permanece preservado).
 - **Veredicto:** **B2a (serial) está preparado e validado estaticamente**; B2b (ADB) permanece pendente; B1 é a fase seguinte após coletar evidência do primeiro boot.
 
 ### Opção C — híbrida B2 → B1 → A (recomendada)
