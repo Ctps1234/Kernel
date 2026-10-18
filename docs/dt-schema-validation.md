@@ -10,7 +10,7 @@ O job *Device trees (dtbs + dt-schema)* do workflow
 `.github/workflows/dts-validate.yml` faz, nesta ordem:
 
 1. clone da base fixada (`0efd3abd3c356d644ea49f6ed37e9830b78d34e3`) e
-   aplicação da série 0001–0016;
+   aplicação da série 0001–0017;
 2. staging das DTS de `device-tree/source/` na árvore do kernel
    (`tools/integrate_dts.py`);
 3. verificação estática de includes (`tools/check_dts_includes.py`);
@@ -142,6 +142,23 @@ schema estão confirmadas pelo CI; o backlog restante é dos bindings 6.12/5.15
 listados abaixo. A tentativa local anterior, no clone sparse, parou por faltar
 `arch/x86/Makefile`.
 
+### Confirmação oficial do port UFS 0017 e status (17/10/2026)
+
+A run `39090488896` (commit `5b21a5a`) aplicou a série 0001–0017. O kernel e
+os DTBs compilaram; `dt_binding_check` e o `dt-doc-validate` direto passaram
+sem avisos nem erros. A binding QMP agora permite os nove clocks específicos
+do SM6225, mantém as listas exatas por compatible e descreve a ausência de
+reset externo/domínio de energia no PHY Khaje. `ufsphy_mem@4807000` não gera
+mais diagnósticos em nenhum dos três DTBs. Os 54 valores `status = "ok"` em
+`device-tree/source/` também foram normalizados para `"okay"`.
+
+O baseline oficial caiu de **2791 erros/724 assinaturas** para **2686/695**,
+com os mesmos **664 avisos sem schema**; o gate retornou `OK (sem regressao)`.
+O restante de UFS está no host `ufshc@4804000`: compatible genérico curto,
+`reg-names` divergentes e propriedades vendor não descritas. A validação não
+renomeia `ufs_mem`, pois o driver MCQ procura esse recurso; a adequação do
+host ao binding permanece como próximo trabalho.
+
 ### Backlog por schema (DTB base, CI anterior a 0015)
 
 | Schema | Erros | Causa |
@@ -167,9 +184,16 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
   O padrão dos nomes de regulador (`"^((s|l|lvs|5vs)[0-9]*)|(boost-bypass)|(bob)$"`)
   também estava sem agrupamento, o que fazia qualquer propriedade iniciada
   em `s` (inclusive `status`) ser validada como se fosse um regulador.
-- **binding PHY UFS** (patch 0005): o SM6225 (Khaje) tem nove clocks
-  (`ref_clk_src`, `ref_aux_clk`, `qref_clk` + clocks de símbolo RX/TX) e
-  não os três clocks do grupo compartilhado.
+- **binding PHY UFS** (patches 0005/0017): o SM6225 (Khaje) tem nove clocks
+  (`ref_clk_src`, `ref_aux_clk`, `qref_clk` + clocks de símbolo RX/TX), não os
+  três do grupo compartilhado. O patch 0017 eleva o limite geral que impedia a
+  exceção de nove, mantém as restrições específicas por compatible, admite a
+  ausência de reset externo/domínio de energia para este PHY e acrescenta um
+  exemplo compilável. A DTS remove do nó PHY `reg-names`, `lanes-per-direction`,
+  o reset acoplado ao host e limites de corrente que o driver QMP não consome.
+- **valores `status` na DTS**: as 54 propriedades `status = "ok"` foram
+  convertidas para `status = "okay"`, valor aceito pelo core schema; os erros
+  correspondentes desapareceram do baseline oficial.
 - **DTS**: `coresight-name` (87 nós) removida — a propriedade foi eliminada
   no upstream 6.12 e nenhum driver da árvore a lê; `reg-names` dos nós CTI
   removida e unidades normalizadas para hex minúsculo (o schema exige
@@ -193,7 +217,9 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 2. **Filhos de `/soc` sem `reg`**: o `simple-bus` do upstream exige
    `ranges` (vazio) nesses nós; são ~40 marcadores de vendor que hoje
    geram 85 erros no DTB base.
-3. **GENI/SE e `sdhci-msm`**: alinhar `clock-names`/`reg-names` da DTS com o
-   schema 6.12, ou estender os bindings para aceitar os nomes 5.15.
+3. **Host UFS e GENI/SE/`sdhci-msm`**: alinhar compatible e propriedades do
+   host UFS ao schema 6.12 sem renomear `ufs_mem` (consumido pela configuração
+   MCQ); depois alinhar `clock-names`/`reg-names` dos demais hosts ao schema ou
+   justificar uma extensão específica do binding.
 4. Manter o gate: cada correção deve reduzir a linha de base, e nunca
    aumentá-la.

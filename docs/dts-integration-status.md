@@ -18,7 +18,7 @@ dependências SoC (Bengal/Khaje, PM6125, PM8008, SMMU, RDBG, GDSC, qupv3).
 A verificação é automatizada por `tools/check_dts_includes.py`, que resolve
 `#include "..."` (relativos, na ordem do build: diretório do arquivo e
 depois os diretórios globais) e `#include <...>` (caminhos do kernel).
-Último resultado sobre a base fixada com a série 0001–0016 aplicada (0015/0016 alteram somente bindings):
+Último resultado sobre a base fixada com a série 0001–0017 aplicada (0015–0017 alteram bindings):
 
 ```
 arquivos .dts/.dtsi/.dtso: 54
@@ -94,7 +94,7 @@ os drivers portados na série 0001–0014:
 | `qcom,khaje-gcc/dispcc/gpucc/debugcc` | 0011 | OK |
 | `qcom,bengal-{system_noc,config_noc,bimc,clk_virt,mmnrt_virt,mmrt_virt}` | 0007 | OK |
 | `qcom,rpm-smd-regulator-resource` / `qcom,rpm-smd-regulator` | 0008/0009 | OK |
-| `qcom,sm6225-qmp-ufs-phy` | 0005/0006 | OK (DTS corrigido de `qcom,ufs-phy-qmp-v4-khaje`) |
+| `qcom,sm6225-qmp-ufs-phy` | 0005/0006/0017 | PHY schema-clean no CI 39090488896 (DTS corrigido de `qcom,ufs-phy-qmp-v4-khaje`); host `ufshc` ainda requer alinhamento |
 | `qcom,khaje` (SoC) | common kernel | OK |
 
 Nenhuma divergência restante nos compatibles de fundação de boot.
@@ -127,10 +127,14 @@ O baseline anterior ao patch 0015 registrava 3009 erros em 778 assinaturas
 com o binding 0015 e `gpio-ranges`, confirmou 2791 erros (769 base; 1011 em
 cada composto), zero erros de pinctrl Khaje e 664 avisos sem schema; o baseline
 versionado foi atualizado. A run 39069450075 encontrou os erros de meta-schema
-que levaram ao patch 0016. A run 39071211672 aplicou 0001–0016, passou a
-validação de schemas e exemplos sem diagnósticos, manteve os mesmos totais no
-gate `dt-validate` e compilou o kernel. O backlog restante é majoritariamente
-propriedade `qcom,*` do 5.15 sem binding 6.12.
+que levaram ao patch 0016. A run 39071211672 aplicou 0001–0016 e validou
+schemas/exemplos, gate `dt-validate` e kernel. A run 39090488896 aplicou
+0001–0017, passou `dt_binding_check`/`dt-doc-validate` sem diagnósticos e
+compilou DTBs/kernel; `dt-validate` caiu para 2686 erros/695 assinaturas, com
+664 avisos. A PHY UFS e os 54 valores de status agora estão limpos; o host UFS
+ainda diverge do binding em compatible, `reg-names` e propriedades vendor.
+O backlog restante é majoritariamente propriedade `qcom,*` do 5.15 sem
+binding 6.12.
 
 ## Bloqueadores conhecidos para build/DTBS_CHECK
 
@@ -142,9 +146,11 @@ propriedade `qcom,*` do 5.15 sem binding 6.12.
    `tools/integrate_dts.py` + Makefiles em `device-tree/kernel/`.
 6. ~~Defconfig final~~ — resolvido: `config/topaz-khaje.config` +
    `tools/configure_kernel.sh`, e o build da imagem do kernel passou no CI.
-7. ~~Validar os bindings sem erros~~ — concluído pela run 39071211672: os 12
+7. ~~Validar os bindings sem erros~~ — concluído pela run 39090488896: os 12
    schemas selecionados, seus exemplos e o `dt-doc-validate` direto passaram
    sem diagnósticos. Ver [`docs/dt-schema-validation.md`](dt-schema-validation.md).
+8. **Alinhar o host UFS:** preservando `ufs_mem` necessário ao MCQ, ajustar o
+   compatible, `reg-names` e o tratamento explícito das propriedades vendor.
 
 ## Recomendação
 
