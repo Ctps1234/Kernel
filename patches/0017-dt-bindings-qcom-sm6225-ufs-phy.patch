@@ -12,7 +12,7 @@ nine-clock Khaje form.
 
 ---
 diff --git a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
-index 6f16bda18..a1f475246 100644
+index 6f16bda18..4a3674bd0 100644
 --- a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
 +++ b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
 @@ -42,11 +42,11 @@
@@ -67,14 +67,13 @@ index 6f16bda18..a1f475246 100644
  additionalProperties: false
  
  examples:
-@@ -193,3 +206,30 @@
+@@ -193,3 +206,29 @@
  
          #phy-cells = <0>;
      };
 +
 +  - |
 +    #include <dt-bindings/clock/qcom,rpmcc.h>
-+    #include <dt-bindings/clock/qcom,gcc-khaje.h>
 +
 +    ufsphy_mem: phy@4807000 {
 +        compatible = "qcom,sm6225-qmp-ufs-phy";
@@ -82,14 +81,14 @@ index 6f16bda18..a1f475246 100644
 +        #phy-cells = <0>;
 +
 +        clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
-+                 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>,
-+                 <&gcc GCC_UFS_CLKREF_CLK>,
-+                 <&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK_SRC>,
-+                 <&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK_SRC>,
-+                 <&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK_SRC>,
-+                 <&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
-+                 <&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>,
-+                 <&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>;
++                 <&gcc 123> /* GCC_UFS_PHY_PHY_AUX_CLK */,
++                 <&gcc 117> /* GCC_UFS_CLKREF_CLK */,
++                 <&gcc 126> /* GCC_UFS_PHY_RX_SYMBOL_0_CLK_SRC */,
++                 <&gcc 128> /* GCC_UFS_PHY_RX_SYMBOL_1_CLK_SRC */,
++                 <&gcc 130> /* GCC_UFS_PHY_TX_SYMBOL_0_CLK_SRC */,
++                 <&gcc 125> /* GCC_UFS_PHY_RX_SYMBOL_0_CLK */,
++                 <&gcc 127> /* GCC_UFS_PHY_RX_SYMBOL_1_CLK */,
++                 <&gcc 129> /* GCC_UFS_PHY_TX_SYMBOL_0_CLK */;
 +        clock-names = "ref_clk_src", "ref_aux_clk", "qref_clk",
 +                      "rx_sym0_mux_clk", "rx_sym1_mux_clk",
 +                      "tx_sym0_mux_clk", "rx_sym0_phy_clk",
