@@ -260,8 +260,17 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
   padrão. Os context banks legacy `qcom,qcedev`, IPA e SDE não têm leitor
   6.12 para esse campo. Mantivemos `iommus` e os recursos DMA padrão; a
   remoção não valida funcionamento dos stacks vendor, pools downstream,
-  firmware ou hardware. A alteração aguarda CI; a medição 2487/643/640
-  continua sendo da run `39289149697`, anterior a esta remoção.
+  firmware ou hardware. A primeira run após a remoção (`39294474977`) mediu
+  2430 erros/635 assinaturas/640 avisos, mas o gate falhou por uma nova
+  assinatura agregada de `Unevaluated properties` no DWC3; a etapa não foi
+  concluída. A correção em validação alinha o filho a `usb@4e00000` e remove,
+  após auditoria do alvo, `qcom,iommu-dma`, `snps,disable-clk-gating`,
+  `snps,usb3-u1u2-disable` e `usb-core-id` do nó DWC3, sem leitor/binding 6.12.
+  `maximum-speed` foi mantido porque `drivers/usb/dwc3/core.c` o lê via
+  `usb_get_maximum_speed()`; `iommus` também foi preservado. A correção aguarda
+  nova CI; 2487/643/640 da run `39289149697` continua sendo a última medição
+  verde. Outras ocorrências de `qcom,iommu-dma` em nós distintos ainda
+  aguardam auditoria separada. Não houve teste em hardware.
 - **prefixos vendor** (patch 0014): `bat`, `synaptics`, `fpc`, `fsm`,
   `mi`, `nopmi`, `pd`, `sc`, `si`, `sm`, `touch`, `vib`, `gpio-key`,
   `rt-tcpc`, `rt1711pd`, `tcpc-dual`, `typec`, `ln8000_charger`,
