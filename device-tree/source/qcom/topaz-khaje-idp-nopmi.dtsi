@@ -332,34 +332,17 @@
 		};
 	};
 
-	bq2589x: bq2589x@6A {
+	bq2589x: bq2589x@6a {
 		#io-channel-cells = <1>;
 		compatible = "ti,bq2589x-1";
-		reg = <106>;
+		reg = <0x6a>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <105 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bq2589x_int_default &bq2589x_usb_switch_default>;
-		intr-gpio = <&tlmm 105 0>;
-		usb-switch1 = <&tlmm 66 0>;
 		dpdm-supply = <&usb2_phy0>;
-		ti,bq2589x,vbus-volt-high-level = <8700>;
-		ti,bq2589x,vbus-volt-low-level = <4400>;
-		ti,bq2589x,vbat-min-volt-to-tuneup = <3000>;
-		ti,bq2589x,charge-voltage = <4450>;
-		ti,bq2589x,charge-current = <2000>;
-		ti,bq2589x,charge-current-1500 = <1500>;
-		ti,bq2589x,charge-current-1000 = <1000>;
-		ti,bq2589x,charge-current-500 = <500>;
-		ti,bq2589x,charge-current-3500 = <3500>;
-		ti,bq2589x,input-current-2000 = <2000>;
-		ti,bq2589x,term-current = <256>;
-		ti,bq2589x,enable-auto-dpdm;
-		ti,bq2589x,enable-termination;
-		ti,bq2589x,enable-ico;
-		ti,bq2589x,use-absolute-vindpm;
 
 		io-channels = <&maxim_ds28e16 139>,          /* ds_chip_ok */
 		              <&sm5602        162>,          /* fastcharge_mode */
