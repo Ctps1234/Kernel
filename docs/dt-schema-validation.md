@@ -267,10 +267,13 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
   após auditoria do alvo, `qcom,iommu-dma`, `snps,disable-clk-gating`,
   `snps,usb3-u1u2-disable` e `usb-core-id` do nó DWC3, sem leitor/binding 6.12.
   `maximum-speed` foi mantido porque `drivers/usb/dwc3/core.c` o lê via
-  `usb_get_maximum_speed()`; `iommus` também foi preservado. A correção aguarda
-  nova CI; 2487/643/640 da run `39289149697` continua sendo a última medição
-  verde. Outras ocorrências de `qcom,iommu-dma` em nós distintos ainda
-  aguardam auditoria separada. Não houve teste em hardware.
+  `usb_get_maximum_speed()`; `iommus` também foi preservado. A run
+  `39297306053` passou `dtbs`, gate `dt-validate`, `dt_binding_check`,
+  `dt-doc-validate` e build do kernel; o reporter retornou 2418 erros/631
+  assinaturas/640 avisos e `OK (sem regressao)`, contra o baseline
+  2632/679/664, que permaneceu intacto. O log não contém diagnósticos DWC3.
+  Outras ocorrências de `qcom,iommu-dma` em nós distintos ainda aguardam
+  auditoria separada. Não houve teste em hardware.
 - **prefixos vendor** (patch 0014): `bat`, `synaptics`, `fpc`, `fsm`,
   `mi`, `nopmi`, `pd`, `sc`, `si`, `sm`, `touch`, `vib`, `gpio-key`,
   `rt-tcpc`, `rt1711pd`, `tcpc-dual`, `typec`, `ln8000_charger`,
@@ -282,18 +285,19 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 1. **Propriedades vendor `qcom,*`** (maior fatia restante): auditar cada
    propriedade contra leitor e binding 6.12. Estender binding apenas quando
    houver consumidor no alvo; remover a propriedade da DTS importada quando
-   não houver leitor, sem inventar schema para metadado inerte. A remoção de
-   `qcom,iommu-dma-addr-pool` está aplicada, mas aguarda CI; priorizar depois
-   propriedades recorrentes como `qcom,cpus`, `qcom,qmi-dev-name`,
+   não houver leitor, sem inventar schema para metadado inerte. A propriedade
+   `qcom,iommu-dma-addr-pool` foi removida e a run `39297306053` validou a
+   correção sem regressão; continuar a auditoria das propriedades restantes,
+   como `qcom,cpus`, `qcom,qmi-dev-name`,
    `qcom,instance-id`, `qcom,freq-domain`, `qcom,lmh-dcvs`, `qcom,dump-size`,
    `qcom,cdev-alias` e `qcom,glink-label`.
 2. **Filhos de `/soc` sem `reg`**: o `simple-bus` do upstream exige
    `ranges` (vazio) nesses nós; são ~40 marcadores de vendor que hoje
    geram 85 erros no DTB base.
-3. **Propriedades `qcom,*` ainda sem binding/leitor**: continuar pelo log da
-   próxima CI após a auditoria e remoção de `qcom,iommu-dma-addr-pool`; a medição
-   desta remoção ainda não é conhecida. Os diagnósticos GENI foram zerados na run
-   `39289149697`; não reabrir esse bloco sem nova evidência. `sdhci-msm` e
-   `simple-bus` continuam entre os demais grupos de erro.
+3. **Propriedades `qcom,*` ainda sem binding/leitor**: continuar a auditoria
+   propriedade a propriedade pelo log da run `39297306053`; o pool IOMMU e as
+   propriedades sem consumidor do DWC3 já foram removidos/validados. Não
+   reabrir GENI sem nova evidência. `sdhci-msm` e `simple-bus` continuam entre
+   os demais grupos de erro.
 4. Manter o gate: cada correção deve reduzir ou manter o baseline, e nunca
    introduzir assinatura/regressão.

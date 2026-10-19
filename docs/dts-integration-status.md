@@ -18,7 +18,7 @@ dependências SoC (Bengal/Khaje, PM6125, PM8008, SMMU, RDBG, GDSC, qupv3).
 A verificação é automatizada por `tools/check_dts_includes.py`, que resolve
 `#include "..."` (relativos, na ordem do build: diretório do arquivo e
 depois os diretórios globais) e `#include <...>` (caminhos do kernel).
-Último resultado oficial CI: run `39289149697` (commit `e71b4f5`), com a série 0001–0018 e as DTS/DTBO atuais; a verificação confirmou 103 includes e todos resolvem:
+Último resultado oficial CI: run `39297306053` (commit `a3ba576`), com a série 0001–0018 e as DTS/DTBO atuais; a verificação confirmou 103 includes e todos resolvem:
 
 ```
 arquivos .dts/.dtsi/.dtso: 54
@@ -139,7 +139,10 @@ três DTBs; o job separado compilou a imagem do kernel. A run `39289149697`
 revalidou a integração GENI: DTBs, gate, `dt_binding_check`,
 `dt-doc-validate` e build do kernel passaram. A medição dessa run foi 2487
 erros/643 assinaturas/640 avisos, abaixo do baseline, que não foi regravado;
-GENI e UFS não têm diagnósticos nos três DTBs. O backlog restante é
+GENI e UFS não têm diagnósticos nos três DTBs. A run `39297306053` também
+passou após a correção do nó DWC3, medindo 2418 erros/631 assinaturas/640
+avisos sem schema, abaixo do baseline 2632/679/664; o gate não detectou
+regressão e o log não contém diagnósticos DWC3. O backlog restante é
 majoritariamente propriedade `qcom,*` do 5.15 sem binding/leitor 6.12.
 
 ## Bloqueadores conhecidos para build/DTBS_CHECK
@@ -152,15 +155,15 @@ majoritariamente propriedade `qcom,*` do 5.15 sem binding/leitor 6.12.
    `tools/integrate_dts.py` + Makefiles em `device-tree/kernel/`.
 6. ~~Defconfig final~~ — resolvido: `config/topaz-khaje.config` +
    `tools/configure_kernel.sh`, e o build da imagem do kernel passou no CI.
-7. A run `39289149697` voltou a validar os schemas selecionados, incluindo
+7. A run `39297306053` voltou a validar os schemas selecionados, incluindo
    `qcom,ufs.yaml`; `dt_binding_check` e `dt-doc-validate` passaram. Ver
    [`docs/dt-schema-validation.md`](dt-schema-validation.md).
 8. **Host UFS:** `ufs_mem` permanece para MCQ e `ice`/`ice_core_clk` são
    consumidos pelo ICE; sem diagnósticos em nenhum dos três DTBs também na
-   run `39289149697`. Gear e sequência elétrica não foram testados em hardware.
+   run `39297306053`. Gear e sequência elétrica não foram testados em hardware.
 9. **GENI/QUP:** alinhamento 6.12 de wrapper, I2C/SPI/UART, ICC, DMA, clocks e
-   pinctrl passou o gate na run `39289149697`; a medição global é
-   2487/643/640 frente ao baseline versionado 2632/679/664. UART e periféricos
+   pinctrl passou o gate na run `39297306053`; a medição global é
+   2418/631/640 frente ao baseline versionado 2632/679/664. UART e periféricos
    ainda não foram testados em hardware.
 
 ## Recomendação
