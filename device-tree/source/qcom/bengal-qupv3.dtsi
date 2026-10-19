@@ -63,17 +63,13 @@
 			interconnect-names = "qup-core", "qup-config";
 			interconnects = <&clk_virt MASTER_QUP_CORE_0 &clk_virt SLAVE_QUP_CORE_0>,
 			<&bimc MASTER_AMPSS_M0 &config_noc SLAVE_QUP_0>;
-			pinctrl-names = "default", "active", "sleep", "shutdown";
+			pinctrl-names = "default", "sleep";
 			interrupts-extended = <&intc GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
 					<&tlmm 11 IRQ_TYPE_LEVEL_HIGH>;
-			pinctrl-0 = <&qupv3_se3_default_cts>, <&qupv3_se3_default_rts>,
-				<&qupv3_se3_default_tx>, <&qupv3_se3_default_rx>;
-			pinctrl-1 = <&qupv3_se3_cts>, <&qupv3_se3_rts>,
+			pinctrl-0 = <&qupv3_se3_cts>, <&qupv3_se3_rts>,
 				<&qupv3_se3_tx>, <&qupv3_se3_rx>;
-			pinctrl-2 = <&qupv3_se3_cts>, <&qupv3_se3_rts>,
+			pinctrl-1 = <&qupv3_se3_cts>, <&qupv3_se3_rts>,
 				<&qupv3_se3_tx>, <&qupv3_se3_default_rx>;
-			pinctrl-3 = <&qupv3_se3_default_cts>, <&qupv3_se3_default_rts>,
-				<&qupv3_se3_default_tx>, <&qupv3_se3_default_rx>;
 			status = "disabled";
 		};
 
@@ -154,8 +150,11 @@
 			clock-names = "se";
 			clocks = <&gcc 100>;
 			interconnect-names = "qup-core", "qup-config", "qup-memory";
-			interconnects = <257 6 257 514 139 0 140 550 138 23 139 512>;
-			dmas = <261 0 4 3 64 0 261 1 4 3 64 0>;
+			interconnects = <&clk_virt MASTER_QUP_CORE_0 &clk_virt SLAVE_QUP_CORE_0>,
+				<&bimc MASTER_AMPSS_M0 &config_noc SLAVE_QUP_0>,
+				<&system_noc MASTER_QUP_0 &bimc SLAVE_EBI_CH0>;
+			dmas = <&gpi_dma0 0 4 3 64 0>,
+				<&gpi_dma0 1 4 3 64 0>;
 			dma-names = "tx", "rx";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&qupv3_se4_i2c_active>;
