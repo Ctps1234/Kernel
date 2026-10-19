@@ -332,10 +332,10 @@
 		};
 	};
 
-	bq2589x: bq2589x@6A {
+	bq2589x: bq2589x@6a {
 		#io-channel-cells = <1>;
 		compatible = "ti,bq2589x-1";
-		reg = <106>;
+		reg = <0x6a>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		interrupt-parent = <&tlmm>;

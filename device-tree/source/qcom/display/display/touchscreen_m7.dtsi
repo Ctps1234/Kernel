@@ -1,6 +1,4 @@
 &qupv3_se2_i2c {
-	qcom,i2c-touch-active = "focaltech,fts";
-	qcom,touch-active = "goodix,gt9896";
 	status = "okay";
 
 	focaltech@38 {
