@@ -1,0 +1,66 @@
+usando compilador cruzado: aarch64-linux-gnu-gcc
+== defconfig GKI ==
+  HOSTCC  scripts/basic/fixdep
+  HOSTCC  scripts/kconfig/conf.o
+  HOSTCC  scripts/kconfig/confdata.o
+  HOSTCC  scripts/kconfig/expr.o
+  LEX     scripts/kconfig/lexer.lex.c
+  YACC    scripts/kconfig/parser.tab.[ch]
+  HOSTCC  scripts/kconfig/lexer.lex.o
+  HOSTCC  scripts/kconfig/menu.o
+  HOSTCC  scripts/kconfig/parser.tab.o
+  HOSTCC  scripts/kconfig/preprocess.o
+  HOSTCC  scripts/kconfig/symbol.o
+  HOSTCC  scripts/kconfig/util.o
+  HOSTLD  scripts/kconfig/conf
+*** Default configuration is based on 'defconfig'
+#
+# configuration written to .config
+#
+== mesclando /home/runner/work/Kernel/Kernel/config/topaz-khaje.config ==
+.merged-khaje.config:11262:warning: override: reassigning to symbol ARCH_QCOM
+.merged-khaje.config:11263:warning: override: reassigning to symbol QCOM_SMD_RPM
+.merged-khaje.config:11265:warning: override: reassigning to symbol COMMON_CLK_QCOM
+.merged-khaje.config:11266:warning: override: reassigning to symbol SM_GCC_6225
+.merged-khaje.config:11268:warning: override: reassigning to symbol SM_GPUCC_6225
+.merged-khaje.config:11271:warning: override: reassigning to symbol PINCTRL_MSM
+.merged-khaje.config:11272:warning: override: reassigning to symbol PINCTRL_KHAJE
+.merged-khaje.config:11274:warning: override: reassigning to symbol INTERCONNECT_QCOM
+.merged-khaje.config:11275:warning: override: reassigning to symbol INTERCONNECT_QCOM_BENGAL
+.merged-khaje.config:11277:warning: override: reassigning to symbol REGULATOR_QCOM_SMD_RPM
+.merged-khaje.config:11279:warning: override: reassigning to symbol PHY_QCOM_QMP
+.merged-khaje.config:11280:warning: override: reassigning to symbol PHY_QCOM_QMP_UFS
+.merged-khaje.config:11288:warning: override: reassigning to symbol SCSI_UFS_QCOM
+.merged-khaje.config:11291:warning: override: reassigning to symbol BLK_DEV_DM
+.merged-khaje.config:11292:warning: override: reassigning to symbol DM_VERITY
+.merged-khaje.config:11295:warning: override: reassigning to symbol F2FS_FS
+.merged-khaje.config:11296:warning: override: reassigning to symbol EROFS_FS
+.merged-khaje.config:11300:warning: override: reassigning to symbol USB_CONFIGFS
+.merged-khaje.config:11301:warning: override: reassigning to symbol USB_CONFIGFS_F_FS
+.merged-khaje.config:11306:warning: override: reassigning to symbol PSTORE_BLK
+#
+# configuration written to .config
+#
+== conference dos símbolos do port Khaje ==
+  ok      CONFIG_ARCH_QCOM=y
+  ok      CONFIG_QCOM_SMD_RPM=y
+  ok      CONFIG_COMMON_CLK_QCOM=y
+  ok      CONFIG_SM_GCC_6225=y
+  ok      CONFIG_SM_DISPCC_6225=y
+  ok      CONFIG_SM_GPUCC_6225=y
+  ok      CONFIG_SM_DEBUGCC_6225=y
+  ok      CONFIG_PINCTRL_MSM=y
+  ok      CONFIG_PINCTRL_KHAJE=y
+  ok      CONFIG_INTERCONNECT_QCOM=y
+  ok      CONFIG_INTERCONNECT_QCOM_BENGAL=y
+  ok      CONFIG_REGULATOR_QCOM_SMD_RPM=y
+  ok      CONFIG_SCSI_UFS_QCOM=y
+  ok      CONFIG_BLK_DEV_DM=y
+  ok      CONFIG_DM_VERITY=y
+  ok      CONFIG_F2FS_FS=y
+  ok      CONFIG_EROFS_FS=y
+  ok      CONFIG_USB_CONFIGFS=y
+  ok      CONFIG_USB_CONFIGFS_F_FS=y
+  ok      CONFIG_PSTORE_BLK=y
+  ok      CONFIG_PHY_QCOM_QMP_UFS=y
+configuração do port concluída

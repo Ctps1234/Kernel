@@ -1,0 +1,5 @@
+/tmp/initramfs.cpio: 2879092 bytes
+initramfs validada: 2879092 bytes, 37 entradas
+  /init: ELF AArch64 estatico (702760 bytes)
+  /bin/busybox: ELF AArch64 estatico (2171544 bytes)
+  /dev/console: char 5:1; /dev/null: char 1:3

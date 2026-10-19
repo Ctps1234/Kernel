@@ -1,0 +1,28 @@
+  CHKDT   Documentation/devicetree/bindings
+  LINT    Documentation/devicetree/bindings
+  DTEX    Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.example.dts
+  DTC [C] Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.example.dtb
+  DTEX    Documentation/devicetree/bindings/vendor-prefixes.example.dts
+  DTC [C] Documentation/devicetree/bindings/vendor-prefixes.example.dtb
+  DTEX    Documentation/devicetree/bindings/clock/qcom,rpmcc.example.dts
+  DTC [C] Documentation/devicetree/bindings/clock/qcom,rpmcc.example.dtb
+  DTEX    Documentation/devicetree/bindings/clock/qcom,gcc.example.dts
+  DTC [C] Documentation/devicetree/bindings/clock/qcom,gcc.example.dtb
+  DTEX    Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.example.dts
+  DTC [C] Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.example.dtb
+  DTEX    Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.example.dts
+  DTC [C] Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.example.dtb
+  DTEX    Documentation/devicetree/bindings/clock/qcom,khaje-gcc.example.dts
+  DTC [C] Documentation/devicetree/bindings/clock/qcom,khaje-gcc.example.dtb
+  DTEX    Documentation/devicetree/bindings/clock/qcom,khaje-debugcc.example.dts
+  DTC [C] Documentation/devicetree/bindings/clock/qcom,khaje-debugcc.example.dtb
+  DTEX    Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.example.dts
+  DTC [C] Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.example.dtb
+  DTEX    Documentation/devicetree/bindings/ufs/qcom,ufs.example.dts
+  DTC [C] Documentation/devicetree/bindings/ufs/qcom,ufs.example.dtb
+  DTEX    Documentation/devicetree/bindings/interconnect/qcom,bengal.example.dts
+  DTC [C] Documentation/devicetree/bindings/interconnect/qcom,bengal.example.dtb
+  DTEX    Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.example.dts
+  DTC [C] Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.example.dtb
+  DTEX    Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.example.dts
+  DTC [C] Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.example.dtb
