@@ -1408,7 +1408,6 @@
 		iommus = <&apps_smmu 0x0180 0>,
 			<&apps_smmu 0x0160 0>;
 
-		qcom,iommu-dma-addr-pool = <0x0 0xffc00000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;

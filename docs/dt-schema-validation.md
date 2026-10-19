@@ -173,7 +173,37 @@ erros/679 assinaturas/664 avisos**; a redução é de 54 erros e 16 assinaturas.
 O job separado de build do kernel também passou e compilou a imagem. Nenhum
 teste de boot ou hardware foi executado.
 
+### Confirmação oficial do QUP/GENI (run 39289149697)
+
+A run `39289149697` (commit `e71b4f5`) revalidou os três DTBs base/topaz/tapas,
+o gate de regressão, os schemas/exemplos da série e o build da imagem. A
+medição dessa run foi **2487 erros, 643 assinaturas e 640 avisos sem schema**;
+o baseline versionado permaneceu em **2632/679/664**. A diferença observada é
+-145 erros, -36 assinaturas e -24 avisos; `dt_validate_report.py` retornou
+`OK (sem regressao)`. Não houve diagnósticos `qcom,geni-se`, I2C/SPI/serial GENI
+ou UFS nos três DTBs. `dt_binding_check`, `dt-doc-validate`, build DTB/DTBO e
+build do kernel passaram.
+
+As correções alinharam o wrapper GENI para células 2/2; os filhos para nomes
+`i2c@`/`spi@`/`serial@`, `reg` de quatro cells, compatibles e `clock-names = "se"`; I2C4 preserva 400 kHz em `clock-frequency` e usa ICC/DMA por phandles
+simbólicos. SPI/serial usam os dois caminhos ICC que os drivers pedem; o I2C
+mantém os três caminhos e DMA. O UART mapeia os estados vendor `active`/`sleep`
+para `default`/`sleep` upstream e mantém a segunda IRQ de wake e RX em GPIO no
+estado de sleep. Propriedades vendor sem leitor no alvo foram removidas, sem
+remover o `iommus` padrão do wrapper.
+
+Para tornar o filho I2C legado validável, `bq2589x@6A` foi normalizado para
+`bq2589x@6a`; propriedades custom `ti,bq2589x,*`, `intr-gpio` e `usb-switch1`
+sem leitor no kernel 6.12 foram removidas. O compatible `ti,bq2589x-1` foi
+mantido por não haver evidência suficiente para escolher uma variante BQ
+upstream (`ti,bq25890`/`92`/`95`/`96`); esse nó não tem match no alvo e não
+representa suporte funcional do carregador. Não houve boot nem teste de
+carregamento/hardware. O baseline não foi atualizado: continua sendo apenas o
+limite de não regressão, não a medição atual.
+
 ### Backlog por schema (DTB base, CI anterior a 0015)
+
+A tabela abaixo é histórica, não o estado atual: o grupo GENI citado nela foi resolvido na run `39289149697`.
 
 | Schema | Erros | Causa |
 |---|---|---|
@@ -215,6 +245,23 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
   `aliases` foi removido (gerava um `phandle` rejeitado pelo schema de
   aliases); a tecla `vol_up` virou `key-vol-up` (padrão do schema
   `gpio-keys`); `ranges` vazio nos nós `cluster-device*`.
+- **GENI/QUP (DTS)**: bindings/drivers 6.12 alinham `clock-names = "se"`, compatibles, nomes dos nós e recursos; o I2C4 teve os ICC/DMA codificados com phandles. Os seletores vendor `qcom,wrapper-core`, `qcom,wakeup-byte`, `qcom,clk-freq-out` e os marcadores de touchscreen sem leitor foram retirados; 400 kHz foi preservado em `clock-frequency`. A UART conserva a IRQ de wake e estados pinctrl padrão compatíveis. A validação oficial não acusa GENI nos três DTBs.
+- **carregador BQ legado**: as propriedades custom sem leitor 6.12 foram removidas, mas `ti,bq2589x-1` continua sem match upstream; não se afirma suporte ao carregador.
+- **`qcom,iommu-dma-addr-pool` (auditoria do alvo 6.12)**: as 23
+  ocorrências em seis arquivos de `device-tree/source/` foram removidas;
+  `device-tree/reference/` foi preservado como evidência da DTS/FDT downstream.
+  A auditoria dos leitores e bindings do alvo não encontrou consumidor nem
+  definição para essa propriedade. `arm,smmu.yaml`/`qcom,iommu.yaml` não a
+  descrevem; o GPI usa `iommus`, `dma-channels`/`dma-channel-mask` e a API
+  DMA (`dma_alloc_coherent`), sem pool vendor. O binding FastRPC documenta
+  `iommus`/`qcom,nsessions`; o driver lê propriedades do contexto, sem pool.
+  A binding IPA usa `iommus`/`memory-region`, e o driver mapeia recursos
+  pela API IOMMU; CoreSight TMC usa `iommus`/DMA padrão; DWC3 usa a API DMA
+  padrão. Os context banks legacy `qcom,qcedev`, IPA e SDE não têm leitor
+  6.12 para esse campo. Mantivemos `iommus` e os recursos DMA padrão; a
+  remoção não valida funcionamento dos stacks vendor, pools downstream,
+  firmware ou hardware. A alteração aguarda CI; a medição 2487/643/640
+  continua sendo da run `39289149697`, anterior a esta remoção.
 - **prefixos vendor** (patch 0014): `bat`, `synaptics`, `fpc`, `fsm`,
   `mi`, `nopmi`, `pd`, `sc`, `si`, `sm`, `touch`, `vib`, `gpio-key`,
   `rt-tcpc`, `rt1711pd`, `tcpc-dual`, `typec`, `ln8000_charger`,
@@ -223,17 +270,21 @@ Não aparecem mais na lista o binding RPM-SMD, o schema dos nós CTI e o
 
 ## Próximos passos do backlog
 
-1. **Bindings vendor das propriedades `qcom,*`** (maior fatia restante):
-   escrever bindings para as propriedades que a DTS 5.15 usa e que a
-   árvore 6.12 não descreve, começando pelas que mais repetem
-   (`qcom,cpus`, `qcom,qmi-dev-name`, `qcom,instance-id`, `qcom,freq-domain`,
-   `qcom,lmh-dcvs`, `qcom,dump-size`, `qcom,cdev-alias`, `qcom,glink-label`).
+1. **Propriedades vendor `qcom,*`** (maior fatia restante): auditar cada
+   propriedade contra leitor e binding 6.12. Estender binding apenas quando
+   houver consumidor no alvo; remover a propriedade da DTS importada quando
+   não houver leitor, sem inventar schema para metadado inerte. A remoção de
+   `qcom,iommu-dma-addr-pool` está aplicada, mas aguarda CI; priorizar depois
+   propriedades recorrentes como `qcom,cpus`, `qcom,qmi-dev-name`,
+   `qcom,instance-id`, `qcom,freq-domain`, `qcom,lmh-dcvs`, `qcom,dump-size`,
+   `qcom,cdev-alias` e `qcom,glink-label`.
 2. **Filhos de `/soc` sem `reg`**: o `simple-bus` do upstream exige
    `ranges` (vazio) nesses nós; são ~40 marcadores de vendor que hoje
    geram 85 erros no DTB base.
-3. **GENI/SE/`sdhci-msm`**: o host UFS SM6225 passou no `dt-validate` da
-   run 39129187629, preservando `ufs_mem` para MCQ e usando `ice`/`ice_core_clk`
-   para ICE. Alinhar agora `clock-names`/`reg-names` dos demais hosts ao schema
-   ou justificar uma extensão específica do binding.
-4. Manter o gate: cada correção deve reduzir a linha de base, e nunca
-   aumentá-la.
+3. **Propriedades `qcom,*` ainda sem binding/leitor**: continuar pelo log da
+   próxima CI após a auditoria e remoção de `qcom,iommu-dma-addr-pool`; a medição
+   desta remoção ainda não é conhecida. Os diagnósticos GENI foram zerados na run
+   `39289149697`; não reabrir esse bloco sem nova evidência. `sdhci-msm` e
+   `simple-bus` continuam entre os demais grupos de erro.
+4. Manter o gate: cada correção deve reduzir ou manter o baseline, e nunca
+   introduzir assinatura/regressão.
