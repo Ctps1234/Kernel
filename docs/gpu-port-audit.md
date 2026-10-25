@@ -185,10 +185,24 @@ terá de ser reconciliado então.
   phandles e células conferidos explicitamente para clocks, IOMMU
   (`SID=0`, mask/flag `1`), ICC (4→512), OPPs/máscaras, GDSCs CX/GX
   (0/1) e `#power-domain-cells=1` no GPUCC.
-- Isso valida includes, sintaxe, labels e specifiers. Não substitui
-  `make dtbs`, `dtbs_check`, o build completo do kernel nem teste de probe.
+- Isso valida includes, sintaxe, labels e specifiers do protótipo, mas,
+  isoladamente, não substitui o build completo nem teste de probe.
   O `qcom,khaje-gpucc.yaml` já estava no `DT_SCHEMA_FILES` do CI; este passo
   acrescenta `arm,smmu.yaml` ao mesmo escopo.
+- A run de CI [`40194361059`](https://github.com/Ctps1234/Kernel/actions/runs/40194361059), sobre o commit `bbfcecf`, terminou
+  com os jobs *Kernel build (port dos drivers)* e *Device trees (dtbs +
+  dt-schema)* em sucesso. Os artefatos mostram `gpucc-khaje.o`,
+  `a6xx_catalog.o` e `arm-smmu-qcom.o` compilados, seguidos de `LD vmlinux`
+  e `OBJCOPY arch/arm64/boot/Image`; o `System.map` contém
+  `gpu_cc_khaje_gdscs`, `gpu_cc_khaje_desc` e `a6xx_gpus`, e a configuração
+  efetiva tem `CONFIG_DRM_MSM=y`, `CONFIG_SM_GPUCC_6225=y`,
+  `CONFIG_QCOM_GDSC=y`, `CONFIG_ARM_SMMU=y` e `CONFIG_ARM_SMMU_QCOM=y`.
+  As strings `a610_zap.mdt`, `gpu_cx_gdsc` e `gpu_gx_gdsc` estão no
+  `Image-khaje`.
+- O sucesso do CI continua sendo evidência de aplicação, compilação/link e
+  dos gates de DT do workflow. Não é evidência de probe da GPU/SMMU/GMU,
+  carregamento do zap, DVFS seguro, renderização ou compatibilidade com o
+  userspace Android.
 
 ## Bloqueios de ativação
 
