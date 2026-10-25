@@ -1,0 +1,202 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * DTS DE TESTE — GPU Adreno 610 upstream (DRM/MSM A6xx) para o
+ * Khaje/topaz, no molde dos nos GPU/GMU-wrapper/Adreno-SMMU do SM6115.
+ *
+ * NAO e incluido por nenhuma DTS de producao e nao e encenado por
+ * tools/integrate_dts.py (que so copia device-tree/source). Serve para
+ * validar estaticamente o contrato reg/IRQ/clocks/ICC/IOMMU/power dos
+ * patches 0023–0025 contra as labels reais da arvore encenada, sem
+ * ativar probe no Topaz. Todos os nos ficam "disabled".
+ *
+ * Uso manual: incluir depois de khaje-idp-nopmi.dtsi numa DTS de teste
+ * e compilar com dtc. Auditoria completa em docs/gpu-port-audit.md.
+ *
+ * Recursos reconciliados com o FDT ativo (qcom,kgsl-3d0):
+ *   - GPU em 0x5900000, IRQ GIC SPI 177 e cx_dbgc em
+ *     0x5961000/0x800. A divisao kgsl/cx_mem/cx_dbgc segue o SM6115;
+ *     o FDT vendor descreve uma janela unica de 0x90000 seguida do
+ *     cx_dbgc, portanto cx_mem (0x599e000) vem do molde, nao do FDT;
+ *   - clocks do FDT mapeados um a um para os nomes upstream:
+ *     core=gpucc GX_GFX3D(10), iface=gpucc AHB(0),
+ *     mem_iface=gcc BIMC_GPU_AXI(3), alt_mem_iface=gcc
+ *     GPU_MEMNOC_GFX(76), gmu=gpucc CX_GMU(4), xo=gpucc CXO(7,
+ *     o "rbbmtimer_clk" do vendor);
+ *   - Adreno SMMU em 0x59a0000, IRQs 163 (global) e 167-174
+ *     (contextos), clocks mem/hlos/iface = gcc MEMNOC(76), gpucc
+ *     HLOS1_VOTE(12) e gcc SNOC_DVM(77), como no kgsl-smmu do FDT;
+ *   - ICC: bimc MASTER_GRAPHICS_3D(4) -> SLAVE_EBI_CH0(512), o unico
+ *     caminho "gpu_icc_path" do FDT;
+ *   - OPPs derivados dos cinco bins qcom,gpu-pwrlevels-* do FDT
+ *     (fuses 0/235/216/157/127 nos indices 0..4 do patch 0024).
+ *     Os qcom,level do vendor (64/128/192/256/384/416) nao sao
+ *     traduzidos aqui, ver bloqueios;
+ *   - zap-shader usa &pil_gpu_mem; na arvore fonte ele esta em
+ *     0x55615000, mas no FDT do aparelho a regiao equivalente fica
+ *     em 0x55b15000 — divergencia a reconciliar na ativacao.
+ *
+ * Bloqueios conhecidos antes de qualquer ativacao:
+ *   - os nos vendor msm_gpu/qcom,kgsl-3d0, kgsl_smmu e os qcom,gdsc
+ *     de GPU continuam na DTS de producao; numa ativacao real eles
+ *     nao podem coexistir com esta hierarquia, e o no &gpucc precisa
+ *     do #power-domain-cells (adicionado na fonte junto deste passo);
+ *   - opp-table sem required-opps e GPU sem power-domains: o molde
+ *     SM6115 vota CX via RPMPD, mas esta arvore usa os votos RPM-SMD
+ *     do clk-vdd-class (patches 0009–0011). O contrato de corner
+ *     precisa ser fechado antes de qualquer DVFS real; os niveis
+ *     qcom,level do FDT estao documentados na auditoria;
+ *   - as mascaras opp-supported-hw pressupoeem a ordem dos bins do
+ *     FDT (0=mais rapido .. 4=mais lento) e o mapa de fuses Khaje do
+ *     patch 0024 (235->1, 216->2). O speed-bin do aparelho capturado
+ *     nao foi lido; sem o 0024 o driver cairia no BIT(0) para os
+ *     fuses 235/216;
+ *   - o FDT reporta chipid 0x06010001 ("Adreno610v2"); o driver
+ *     upstream deriva o chip-id do compatible qcom,adreno-610.0
+ *     (0x06010000). Se a revisao v2 precisa de quirks proprios, so
+ *     hardware diz;
+ *   - firmware a610_zap.mdt/a630_sqe.fw e o carregamento do zap via
+ *     PIL/TrustZone nao foram exercitados;
+ *   - o userspace Android atual fala KGSL (/dev/kgsl-3d0); este
+ *     caminho expoe DRM/MSM (/dev/dri) e exigiria Mesa/freedreno.
+ *     Nada aqui promete paridade com o HAL grafico vendor.
+ */
+
+#include <dt-bindings/clock/qcom,gcc-khaje.h>
+#include <dt-bindings/clock/qcom,gpucc-khaje.h>
+#include <dt-bindings/interconnect/qcom,bengal.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+&soc {
+	gpu: gpu@5900000 {
+		compatible = "qcom,adreno-610.0", "qcom,adreno";
+		reg = <0x05900000 0x40000>,
+		      <0x0599e000 0x1000>,
+		      <0x05961000 0x800>;
+		reg-names = "kgsl_3d0_reg_memory",
+			    "cx_mem",
+			    "cx_dbgc";
+
+		/* Sem GMU real (wrapper): os clocks ficam no no da GPU. */
+		clocks = <&gpucc GPU_CC_GX_GFX3D_CLK>,
+			 <&gpucc GPU_CC_AHB_CLK>,
+			 <&gcc GCC_BIMC_GPU_AXI_CLK>,
+			 <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
+			 <&gpucc GPU_CC_CX_GMU_CLK>,
+			 <&gpucc GPU_CC_CXO_CLK>;
+		clock-names = "core",
+			      "iface",
+			      "mem_iface",
+			      "alt_mem_iface",
+			      "gmu",
+			      "xo";
+
+		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+
+		iommus = <&adreno_smmu 0 1>;
+		interconnects = <&bimc MASTER_GRAPHICS_3D
+				 &bimc SLAVE_EBI_CH0>;
+		interconnect-names = "gfx-mem";
+		operating-points-v2 = <&gpu_opp_table>;
+		qcom,gmu = <&gmu_wrapper>;
+
+		nvmem-cells = <&gpu_speed_bin>;
+		nvmem-cell-names = "speed_bin";
+		#cooling-cells = <2>;
+
+		status = "disabled";
+
+		zap-shader {
+			memory-region = <&pil_gpu_mem>;
+		};
+
+		/*
+		 * Frequencias e bins do FDT (qcom,level entre
+		 * parenteses, nao traduzidos): 320M (64), 465M (128),
+		 * 600M (192) em todos os bins; 745M (256) so no bin 3;
+		 * 785M (256) e 1025M (384) nos bins 0-2; 1114.8M (416)
+		 * nos bins 0-1; 1260M (416) so no bin 0.
+		 */
+		gpu_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			opp-320000000 {
+				opp-hz = /bits/ 64 <320000000>;
+				opp-supported-hw = <0x1f>;
+			};
+
+			opp-465000000 {
+				opp-hz = /bits/ 64 <465000000>;
+				opp-supported-hw = <0x1f>;
+			};
+
+			opp-600000000 {
+				opp-hz = /bits/ 64 <600000000>;
+				opp-supported-hw = <0x1f>;
+			};
+
+			opp-745000000 {
+				opp-hz = /bits/ 64 <745000000>;
+				opp-supported-hw = <0x08>;
+			};
+
+			opp-785000000 {
+				opp-hz = /bits/ 64 <785000000>;
+				opp-supported-hw = <0x07>;
+			};
+
+			opp-1025000000 {
+				opp-hz = /bits/ 64 <1025000000>;
+				opp-supported-hw = <0x07>;
+			};
+
+			opp-1114800000 {
+				opp-hz = /bits/ 64 <1114800000>;
+				opp-supported-hw = <0x03>;
+			};
+
+			opp-1260000000 {
+				opp-hz = /bits/ 64 <1260000000>;
+				opp-supported-hw = <0x01>;
+			};
+		};
+	};
+
+	gmu_wrapper: gmu@596a000 {
+		compatible = "qcom,adreno-gmu-wrapper";
+		reg = <0x0596a000 0x30000>;
+		reg-names = "gmu";
+		power-domains = <&gpucc GPU_CX_GDSC>,
+				<&gpucc GPU_GX_GDSC>;
+		power-domain-names = "cx", "gx";
+
+		status = "disabled";
+	};
+
+	adreno_smmu: iommu@59a0000 {
+		compatible = "qcom,sm6225-smmu-500", "qcom,adreno-smmu",
+			     "qcom,smmu-500", "arm,mmu-500";
+		reg = <0x059a0000 0x10000>;
+		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+
+		clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
+			 <&gpucc GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK>,
+			 <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>;
+		clock-names = "mem",
+			      "hlos",
+			      "iface";
+		power-domains = <&gpucc GPU_CX_GDSC>;
+
+		#global-interrupts = <1>;
+		#iommu-cells = <2>;
+
+		status = "disabled";
+	};
+};

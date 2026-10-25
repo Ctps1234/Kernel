@@ -2944,6 +2944,7 @@
 				"gpll0_out_main",
 				"gpll0_out_main_div";
 		#clock-cells = <1>;
+		#power-domain-cells = <1>;
 		#reset-cells = <1>;
 	};
 
