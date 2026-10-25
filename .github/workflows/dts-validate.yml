@@ -6,10 +6,12 @@ on:
     branches:
       - arena/f49f65df-kernel
     paths:
+      - "config/**"
       - "device-tree/**"
       - "patches/**"
       - "tools/**"
       - "docs/**"
+      - ".github/workflows/**"
 
 env:
   BASE_REPO: https://github.com/EdMory/android_kernel_common_sm8850
