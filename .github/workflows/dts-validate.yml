@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - arena/f49f65df-kernel
+      - arena/60994951-kernel
     paths:
       - "config/**"
       - "device-tree/**"
