@@ -1,0 +1,101 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * DTS DE TESTE — touchscreen upstream (edt-ft5x06) para o painel M7 _0a
+ * do topaz, sobre o I2C GENI upstream.
+ *
+ * NAO e incluido por nenhuma DTS de producao e nao e encenado por
+ * tools/integrate_dts.py (que so copia device-tree/source). Serve para
+ * validar estaticamente o contrato do binding focaltech,ft3519
+ * (patch 0022) contra as labels reais da arvore encenada, sem ativar
+ * probe no Topaz. O barramento fica "disabled".
+ *
+ * Uso manual: incluir depois de khaje-idp-nopmi.dtsi numa DTS de teste
+ * e compilar com dtc. Auditoria completa em docs/touch-port-audit.md.
+ *
+ * Identificacao do IC (era o ponto em aberto):
+ *   - o firmware no vendor do aparelho e
+ *     focaltech_ts_fw_samsung_ft3519t.bin: o controlador do painel M7
+ *     _0a e um FocalTech FT3519T (captura de runtime: focaltech_ts_i2c
+ *     carregado; o Goodix GT9896 do painel _0b nao estava);
+ *   - o firmware FT3519 (serie 0x89 do driver vendor) reporta chip ID
+ *     0x54/0x52 nos registos 0xA3/0x9F, ou seja, ele se identifica como
+ *     "FT5452" no barramento — dai o nome usado pelos projetos
+ *     topaz-woa/HelioDarwin. Nao e o FT5452 do binding upstream
+ *     (5 pontos, coordenadas 12-bit): o FT3519 tem 10 pontos e
+ *     coordenadas de 15 bits com fracao empacotada (patch 0022).
+ *
+ * Recursos (de touchscreen_m7.dtsi / FDT ativo, no qupv3_se2_i2c):
+ *   - endereco I2C 0x38, IRQ TLMM 80 falling, reset TLMM 86;
+ *   - AVDD por GPIO TLMM 36 (load switch, sem regulador no FDT):
+ *     modelado aqui como regulator-fixed controlado por GPIO e
+ *     ligado em vcc-supply, como o edt-ft5x06 espera;
+ *   - IOVCC 1.8V: o vendor nao declara supply (trata como always-on);
+ *     L9A e o rail 1.8V de IO usado pelo painel nesta placa, mas o
+ *     rail exato do touch NAO esta confirmado — conferir no esquematico
+ *     ou por medicao antes de ativar;
+ *   - faixa de coordenadas do firmware: painel x10 (10800x24000),
+ *     identica ao focaltech,display-coords do vendor.
+ *
+ * Bloqueios conhecidos antes de qualquer ativacao:
+ *   - o no vendor &qupv3_se2_i2c (qcom,i2c-geni) carrega dmas (GPI),
+ *     interconnects e qcom,wrapper-core; a reconciliacao com o binding
+ *     qcom,geni-i2c (e com o wrapper qcom,geni-se-qup, cujo compatible
+ *     ja e o upstream) precisa ser fechada — aqui so o compatible e
+ *     sobreposto, sem tocar nas demais propriedades;
+ *   - identificar() do edt-ft5x06 le 0xBB/0xA6 e o resume escreve de
+ *     volta threshold/gain (0x80/0x92) lidos do chip: comportamento no
+ *     FT3519T nao verificado em hardware;
+ *   - sem firmware update (o .bin vendor), sem gestos, sem pressao
+ *     (so posicao) e sem as funcoes Xiaomi (xiaomi-touch, game mode,
+ *     panel_event_notifier): paridade com a HyperOS fica para depois;
+ *   - a variante Goodix GT9896 (painel _0b) nao esta modelada.
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	/* AVDD do touch: load switch no TLMM 36 (focaltech,avdd-gpio). */
+	touch_avdd: regulator-touch-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "touch_avdd";
+		gpio = <&tlmm 36 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&tlmm {
+	/* Equivalente upstream do estado vendor pmx_ts_active
+	 * (int gpio80 + reset gpio86 + avdd gpio36, DS8, pull-up). */
+	ts_active_upstream: ts-active-upstream-state {
+		pins = "gpio36", "gpio80", "gpio86";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+};
+
+&qupv3_se2_i2c {
+	compatible = "qcom,geni-i2c";
+	clock-frequency = <400000>;
+
+	status = "disabled";
+
+	touchscreen@38 {
+		compatible = "focaltech,ft3519";
+		reg = <0x38>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <80 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 86 GPIO_ACTIVE_LOW>;
+
+		vcc-supply = <&touch_avdd>;
+		iovcc-supply = <&L9A>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_active_upstream>;
+
+		touchscreen-size-x = <10800>;
+		touchscreen-size-y = <24000>;
+	};
+};

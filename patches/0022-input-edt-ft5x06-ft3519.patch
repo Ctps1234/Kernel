@@ -1,0 +1,141 @@
+From 955737b641c0549ee377ce19710fcf3bb7d88a97 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Sun, 25 Oct 2026 10:52:54 +0000
+Subject: [PATCH] Input: edt-ft5x06 - add support for FocalTech FT3519
+
+The FT3519 (found e.g. as the FT3519T on-cell controller of the
+Samsung AMOLED panel in the Redmi Note 12 4G) speaks the generic
+FocalTech report protocol already handled by this driver: same
+register 0x00-based 3-byte header and 6-byte point records, same
+event flags and tracking IDs, up to 10 points.
+
+The difference is the coordinate encoding: instead of plain 12-bit
+values the firmware packs 3 extra fraction bits per axis into the
+report (bits 5/4 of the X high byte and the top bits of the
+pressure byte), yielding 15-bit coordinates. The shipping
+firmware reports positions in tenths of a panel pixel, so the
+range is described with touchscreen-size-x/y as usual (e.g.
+10800x24000 for a 1080x2400 panel). Note the FT3519 firmware
+reports chip ID 0x54/0x52 in registers 0xA3/0x9F, i.e. it
+identifies as 'FT5452' at the register level; the parts differ in
+max points and in the coordinate format, so a distinct compatible
+is warranted.
+
+The 15-bit unpacking was cross-checked against the FocalTech
+vendor driver configured for FT3519T and against an independent
+implementation running on the actual device. Only position
+reporting is added, consistent with the other generic FocalTech
+parts supported here; pressure/area and firmware update remain
+unsupported.
+
+Compile-tested only; not verified on hardware.
+
+Signed-off-by: Port <port@local>
+---
+ .../input/touchscreen/edt-ft5x06.yaml         |  1 +
+ drivers/input/touchscreen/edt-ft5x06.c        | 35 ++++++++++++++++---
+ 2 files changed, 31 insertions(+), 5 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/input/touchscreen/edt-ft5x06.yaml b/Documentation/devicetree/bindings/input/touchscreen/edt-ft5x06.yaml
+index 70a922e21..c36ca9abd 100644
+--- a/Documentation/devicetree/bindings/input/touchscreen/edt-ft5x06.yaml
++++ b/Documentation/devicetree/bindings/input/touchscreen/edt-ft5x06.yaml
+@@ -39,6 +39,7 @@ properties:
+       - edt,edt-ft5406
+       - edt,edt-ft5506
+       - evervision,ev-ft5726
++      - focaltech,ft3519
+       - focaltech,ft5426
+       - focaltech,ft5452
+       - focaltech,ft6236
+diff --git a/drivers/input/touchscreen/edt-ft5x06.c b/drivers/input/touchscreen/edt-ft5x06.c
+index 85c6d8ce0..b79c58bb2 100644
+--- a/drivers/input/touchscreen/edt-ft5x06.c
++++ b/drivers/input/touchscreen/edt-ft5x06.c
+@@ -135,6 +135,7 @@ struct edt_ft5x06_ts_data {
+ 	int offset_y;
+ 	int report_rate;
+ 	int max_support_points;
++	bool hires_coords;
+ 	int point_len;
+ 	u8 tdata_cmd;
+ 	int tdata_len;
+@@ -151,6 +152,8 @@ struct edt_ft5x06_ts_data {
+ 
+ struct edt_i2c_chip_data {
+ 	int  max_support_points;
++	/* coordinates carry 3 extra fraction bits (15-bit total) */
++	bool hires_coords;
+ };
+ 
+ static const struct regmap_config edt_ft5x06_i2c_regmap_config = {
+@@ -325,11 +328,25 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
+ 		if (tsdata->version == EDT_M06 && type == TOUCH_EVENT_DOWN)
+ 			continue;
+ 
+-		x = get_unaligned_be16(buf) & 0x0fff;
+-		y = get_unaligned_be16(buf + 2) & 0x0fff;
+-		/* The FT5x26 send the y coordinate first */
+-		if (tsdata->version == EV_FT)
+-			swap(x, y);
++		if (tsdata->hires_coords) {
++			/*
++			 * The FT3519 reports 15-bit coordinates: the
++			 * usual 12-bit fields hold the top bits, the
++			 * remaining 3 fraction bits are packed into
++			 * bits 5/4 of the X high byte (LSB of X/Y) and
++			 * bits 7:6 (X) / 5:4 (Y) of the pressure byte.
++			 */
++			x = ((buf[0] & 0x0f) << 11) | (buf[1] << 3) |
++			    ((buf[4] & 0xc0) >> 5) | ((buf[0] & 0x20) >> 5);
++			y = ((buf[2] & 0x0f) << 11) | (buf[3] << 3) |
++			    ((buf[4] & 0x30) >> 3) | ((buf[0] & 0x10) >> 4);
++		} else {
++			x = get_unaligned_be16(buf) & 0x0fff;
++			y = get_unaligned_be16(buf + 2) & 0x0fff;
++			/* The FT5x26 send the y coordinate first */
++			if (tsdata->version == EV_FT)
++				swap(x, y);
++		}
+ 
+ 		id = (buf[2] >> 4) & 0x0f;
+ 
+@@ -1181,6 +1198,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
+ 	}
+ 
+ 	tsdata->max_support_points = chip_data->max_support_points;
++	tsdata->hires_coords = chip_data->hires_coords;
+ 
+ 	tsdata->vcc = devm_regulator_get(&client->dev, "vcc");
+ 	if (IS_ERR(tsdata->vcc))
+@@ -1479,6 +1497,11 @@ static const struct edt_i2c_chip_data edt_ft5x06_data = {
+ 	.max_support_points = 5,
+ };
+ 
++static const struct edt_i2c_chip_data edt_ft3519_data = {
++	.max_support_points = 10,
++	.hires_coords = true,
++};
++
+ static const struct edt_i2c_chip_data edt_ft5452_data = {
+ 	.max_support_points = 5,
+ };
+@@ -1503,6 +1526,7 @@ static const struct i2c_device_id edt_ft5x06_ts_id[] = {
+ 	{ .name = "edt-ft5x06", .driver_data = (long)&edt_ft5x06_data },
+ 	{ .name = "edt-ft5506", .driver_data = (long)&edt_ft5506_data },
+ 	{ .name = "ev-ft5726", .driver_data = (long)&edt_ft5506_data },
++	{ .name = "ft3519", .driver_data = (long)&edt_ft3519_data },
+ 	{ .name = "ft5452", .driver_data = (long)&edt_ft5452_data },
+ 	/* Note no edt- prefix for compatibility with the ft6236.c driver */
+ 	{ .name = "ft6236", .driver_data = (long)&edt_ft6236_data },
+@@ -1518,6 +1542,7 @@ static const struct of_device_id edt_ft5x06_of_match[] = {
+ 	{ .compatible = "edt,edt-ft5406", .data = &edt_ft5x06_data },
+ 	{ .compatible = "edt,edt-ft5506", .data = &edt_ft5506_data },
+ 	{ .compatible = "evervision,ev-ft5726", .data = &edt_ft5506_data },
++	{ .compatible = "focaltech,ft3519", .data = &edt_ft3519_data },
+ 	{ .compatible = "focaltech,ft5426", .data = &edt_ft5506_data },
+ 	{ .compatible = "focaltech,ft5452", .data = &edt_ft5452_data },
+ 	/* Note focaltech vendor prefix for compatibility with ft6236.c */
+-- 
+2.39.5
+

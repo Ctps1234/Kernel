@@ -151,7 +151,7 @@ jobs:
           # incluindo display Khaje; o check completo sobre as ~2000
           # schemas da base leva horas).
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux- \
-            DT_SCHEMA_FILES="qcom,khaje-pinctrl.yaml,qcom,rpmcc-khaje.yaml,qcom,rpmcc.yaml,qcom,khaje-gcc.yaml,qcom,khaje-dispcc.yaml,qcom,khaje-gpucc.yaml,qcom,khaje-debugcc.yaml,qcom,gcc.yaml,qcom,bengal.yaml,qcom,smd-rpm-regulator.yaml,qcom,smd-rpm.yaml,qcom,sc8280xp-qmp-ufs-phy.yaml,qcom,khaje-mdss.yaml,qcom,khaje-dpu.yaml,dsi-controller-main.yaml,dsi-phy-7nm.yaml,xiaomi,m7-38-0c-0a.yaml" \
+            DT_SCHEMA_FILES="qcom,khaje-pinctrl.yaml,qcom,rpmcc-khaje.yaml,qcom,rpmcc.yaml,qcom,khaje-gcc.yaml,qcom,khaje-dispcc.yaml,qcom,khaje-gpucc.yaml,qcom,khaje-debugcc.yaml,qcom,gcc.yaml,qcom,bengal.yaml,qcom,smd-rpm-regulator.yaml,qcom,smd-rpm.yaml,qcom,sc8280xp-qmp-ufs-phy.yaml,qcom,khaje-mdss.yaml,qcom,khaje-dpu.yaml,dsi-controller-main.yaml,dsi-phy-7nm.yaml,xiaomi,m7-38-0c-0a.yaml,edt-ft5x06.yaml" \
             dt_binding_check 2>&1 | tee dt_binding_check.log
 
       - name: Build in-tree dtc/fdtoverlay (for local iteration)
