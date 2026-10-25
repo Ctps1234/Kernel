@@ -1,0 +1,333 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Sat, 24 Oct 2026 12:00:00 -0300
+Subject: [PATCH] drm/msm/dpu: add Khaje 6.10 catalog
+
+Add an independent Khaje catalog from the Topaz FDT and Creek Khaje
+revision data. Keep a dedicated compatible; do not alias SM6375 or
+SM6115. The catalog exposes only upstream-representable features and
+uses Topaz-derived offsets, QoS, bandwidth, CDP, VBIF remap and memtypes.
+
+Add the Khaje VBIF shareability operation as a per-XIN read/modify/write.
+The Creek implementation computes a masked value but writes zero to the
+whole register; this port avoids reproducing that apparent vendor bug.
+
+This does not reparent or enable the Topaz DT nodes, add DT bindings, or
+claim Smart DMA v2.5, per-pipe priorities, advanced DSPP, QSYNC, secure-UI,
+or full SDE feature parity. Hardware IRQ and resource integration remain
+unvalidated.
+
+---
+diff --git a/drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_10_khaje.h b/drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_10_khaje.h
+new file mode 100644
+index 0000000..3050f20
+--- /dev/null
++++ b/drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_10_khaje.h
+@@ -0,0 +1,205 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/* Khaje SDE 6.10 data transcribed from the Topaz FDT and Creek overrides.
++ * Unrepresented Smart DMA v2.5, per-pipe priority, advanced DSPP, QSYNC and
++ * secure-UI features are intentionally not advertised by this catalog.
++ */
++
++#ifndef _DPU_6_10_KHAJE_H
++#define _DPU_6_10_KHAJE_H
++
++static const struct dpu_caps khaje_dpu_caps = {
++	.max_mixer_width = 2048,
++	.max_mixer_blendstages = 4,
++	.has_dim_layer = true,
++	.has_idle_pc = true,
++	.max_linewidth = 2160,
++	.pixel_ram_size = DEFAULT_PIXEL_RAM_SIZE,
++};
++
++static const struct dpu_mdp_cfg khaje_mdp = {
++	.name = "top_0",
++	.base = 0x0, .len = 0x494,
++	.clk_ctrls = {
++		[DPU_CLK_CTRL_VIG0] = { .reg_off = 0x2ac, .bit_off = 0 },
++		[DPU_CLK_CTRL_DMA0] = { .reg_off = 0x2ac, .bit_off = 8 },
++	},
++};
++
++static const struct dpu_ctl_cfg khaje_ctl[] = {
++	{
++		.name = "ctl_0", .id = CTL_0,
++		.base = 0x1000, .len = 0x1dc,
++		.features = BIT(DPU_CTL_ACTIVE_CFG),
++		.intr_start = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR2, 9),
++	},
++};
++
++/* Use only the SSPP features represented by the upstream DPU catalog. */
++static const struct dpu_sspp_cfg khaje_sspp[] = {
++	{
++		.name = "sspp_0", .id = SSPP_VIG0,
++		.base = 0x4000, .len = 0x1f8,
++		.features = VIG_SDM845_MASK,
++		.sblk = &dpu_vig_sblk_qseed3_3_0,
++		.xin_id = 0,
++		.type = SSPP_TYPE_VIG,
++		.clk_ctrl = DPU_CLK_CTRL_VIG0,
++	}, {
++		.name = "sspp_8", .id = SSPP_DMA0,
++		.base = 0x24000, .len = 0x1f8,
++		.features = DMA_SDM845_MASK,
++		.sblk = &dpu_dma_sblk,
++		.xin_id = 1,
++		.type = SSPP_TYPE_DMA,
++		.clk_ctrl = DPU_CLK_CTRL_DMA0,
++	},
++};
++
++static const struct dpu_lm_cfg khaje_lm[] = {
++	{
++		.name = "lm_0", .id = LM_0,
++		.base = 0x44000, .len = 0x320,
++		.features = BIT(DPU_DIM_LAYER) | BIT(DPU_MIXER_COMBINED_ALPHA),
++		.sblk = &qcm2290_lm_sblk,
++		.lm_pair = 0,
++		.pingpong = PINGPONG_0,
++		.dspp = DSPP_0,
++	},
++};
++
++/* The upstream DSPP catalog models PCC, not the other Topaz DSPP blocks. */
++static const struct dpu_dspp_cfg khaje_dspp[] = {
++	{
++		.name = "dspp_0", .id = DSPP_0,
++		.base = 0x54000, .len = 0x1800,
++		.features = BIT(DPU_DSPP_PCC),
++		.sblk = &sdm845_dspp_sblk,
++	},
++};
++
++static const struct dpu_pingpong_cfg khaje_pp[] = {
++	{
++		.name = "pingpong_0", .id = PINGPONG_0,
++		.base = 0x70000, .len = 0xd4,
++		.features = PINGPONG_SM8150_MASK,
++		.sblk = &sdm845_pp_sblk,
++		.merge_3d = 0,
++		.intr_done = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 8),
++	},
++};
++
++static const struct dpu_dsc_cfg khaje_dsc[] = {
++	{
++		.name = "dsc_0", .id = DSC_0,
++		.base = 0x80000, .len = 0x140,
++		.features = BIT(DPU_DSC_OUTPUT_CTRL),
++	},
++};
++
++static const struct dpu_intf_cfg khaje_intf[] = {
++	{
++		.name = "intf_1", .id = INTF_1,
++		.base = 0x6a800, .len = 0x2c0,
++		.features = INTF_SC7180_MASK,
++		.type = INTF_DSI,
++		.controller_id = MSM_DSI_CONTROLLER_0,
++		.prog_fetch_lines_worst_case = 24,
++		.intr_underrun = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 26),
++		.intr_vsync = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 27),
++		.intr_tear_rd_ptr = DPU_IRQ_IDX(MDP_INTF1_TEAR_INTR, 2),
++	},
++};
++
++static const u32 khaje_rt_pri_lvl[] = {3, 3, 4, 4, 5, 5, 6, 6};
++static const u32 khaje_nrt_pri_lvl[] = {3, 3, 3, 3, 3, 3, 3, 3};
++
++static const struct dpu_vbif_cfg khaje_vbif[] = {
++	{
++		.name = "vbif_rt", .id = VBIF_RT,
++		.base = 0, .len = 0x2008,
++		.default_ot_rd_limit = 32,
++		.default_ot_wr_limit = 32,
++		.features = BIT(DPU_VBIF_QOS_REMAP) |
++			BIT(DPU_VBIF_DISABLE_SHAREABLE),
++		.xin_halt_timeout = 0x4000,
++		.qos_rp_remap_size = 0x40,
++		.qos_rt_tbl = {
++			.npriority_lvl = ARRAY_SIZE(khaje_rt_pri_lvl),
++			.priority_lvl = khaje_rt_pri_lvl,
++		},
++		.qos_nrt_tbl = {
++			.npriority_lvl = ARRAY_SIZE(khaje_nrt_pri_lvl),
++			.priority_lvl = khaje_nrt_pri_lvl,
++		},
++		.memtype_count = 14,
++		.memtype = {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
++	},
++};
++
++/* No separate macrotile-QSEED usage exists in the upstream DPU QoS enum. */
++static const struct dpu_qos_lut_entry khaje_qos_linear[] = {
++	{.fl = 0, .lut = 0x0011222222335777},
++};
++
++static const struct dpu_qos_lut_entry khaje_qos_macrotile[] = {
++	{.fl = 0, .lut = 0x0011223344556677},
++};
++
++static const struct dpu_qos_lut_entry khaje_qos_nrt[] = {
++	{.fl = 0, .lut = 0x0},
++};
++
++static const struct dpu_perf_cfg khaje_perf_data = {
++	.max_bw_low = 3200000,
++	.max_bw_high = 4300000,
++	.min_core_ib = 2400000,
++	.min_llcc_ib = 0,
++	.min_dram_ib = 1600000,
++	.min_prefill_lines = 24,
++	.danger_lut_tbl = {0xff, 0xffff, 0x0},
++	.safe_lut_tbl = {0xfff0, 0xff00, 0xffff},
++	.qos_lut_tbl = {
++		{.nentry = ARRAY_SIZE(khaje_qos_linear),
++		 .entries = khaje_qos_linear},
++		{.nentry = ARRAY_SIZE(khaje_qos_macrotile),
++		 .entries = khaje_qos_macrotile},
++		{.nentry = ARRAY_SIZE(khaje_qos_nrt),
++		 .entries = khaje_qos_nrt},
++	},
++	.cdp_cfg = {
++		{.rd_enable = 1, .wr_enable = 1},
++		{.rd_enable = 1, .wr_enable = 0},
++	},
++	.clk_inefficiency_factor = 105,
++	.bw_inefficiency_factor = 120,
++};
++
++static const struct dpu_mdss_version khaje_mdss_ver = {
++	.core_major_ver = 6,
++	.core_minor_ver = 10,
++};
++
++const struct dpu_mdss_cfg dpu_khaje_cfg = {
++	.mdss_ver = &khaje_mdss_ver,
++	.caps = &khaje_dpu_caps,
++	.mdp = &khaje_mdp,
++	.ctl_count = ARRAY_SIZE(khaje_ctl),
++	.ctl = khaje_ctl,
++	.sspp_count = ARRAY_SIZE(khaje_sspp),
++	.sspp = khaje_sspp,
++	.mixer_count = ARRAY_SIZE(khaje_lm),
++	.mixer = khaje_lm,
++	.dspp_count = ARRAY_SIZE(khaje_dspp),
++	.dspp = khaje_dspp,
++	.dsc_count = ARRAY_SIZE(khaje_dsc),
++	.dsc = khaje_dsc,
++	.pingpong_count = ARRAY_SIZE(khaje_pp),
++	.pingpong = khaje_pp,
++	.intf_count = ARRAY_SIZE(khaje_intf),
++	.intf = khaje_intf,
++	.vbif_count = ARRAY_SIZE(khaje_vbif),
++	.vbif = khaje_vbif,
++	.perf = &khaje_perf_data,
++};
++
++#endif /* _DPU_6_10_KHAJE_H */
+diff --git a/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.c b/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.c
+index dcb4fd8..45fb7e4 100644
+--- a/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.c
++++ b/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.c
+@@ -693,6 +693,7 @@ static const struct dpu_qos_lut_entry sc7180_qos_nrt[] = {
+ #include "catalog/dpu_6_4_sm6350.h"
+ #include "catalog/dpu_6_5_qcm2290.h"
+ #include "catalog/dpu_6_9_sm6375.h"
++#include "catalog/dpu_6_10_khaje.h"
+ 
+ #include "catalog/dpu_7_0_sm8350.h"
+ #include "catalog/dpu_7_2_sc7280.h"
+diff --git a/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.h b/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.h
+index 37e18e8..ed50915 100644
+--- a/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.h
++++ b/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.h
+@@ -206,11 +206,13 @@ enum {
+  * VBIF sub-blocks and features
+  * @DPU_VBIF_QOS_OTLIM        VBIF supports OT Limit
+  * @DPU_VBIF_QOS_REMAP        VBIF supports QoS priority remap
++ * @DPU_VBIF_DISABLE_SHAREABLE VBIF needs per-XIN shareability disabled
+  * @DPU_VBIF_MAX              maximum value
+  */
+ enum {
+ 	DPU_VBIF_QOS_OTLIM = 0x1,
+ 	DPU_VBIF_QOS_REMAP,
++	DPU_VBIF_DISABLE_SHAREABLE,
+ 	DPU_VBIF_MAX
+ };
+ 
+@@ -846,6 +848,7 @@ extern const struct dpu_mdss_cfg dpu_sm6125_cfg;
+ extern const struct dpu_mdss_cfg dpu_sm6350_cfg;
+ extern const struct dpu_mdss_cfg dpu_qcm2290_cfg;
+ extern const struct dpu_mdss_cfg dpu_sm6375_cfg;
++extern const struct dpu_mdss_cfg dpu_khaje_cfg;
+ extern const struct dpu_mdss_cfg dpu_sm8350_cfg;
+ extern const struct dpu_mdss_cfg dpu_sc7280_cfg;
+ extern const struct dpu_mdss_cfg dpu_sc8280xp_cfg;
+diff --git a/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_vbif.c b/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_vbif.c
+index 98e34af..dccaecf 100644
+--- a/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_vbif.c
++++ b/drivers/gpu/drm/msm/disp/dpu1/dpu_hw_vbif.c
+@@ -26,6 +26,8 @@
+ #define VBIF_OUT_WR_LIM_CONF0		0x00D4
+ #define VBIF_OUT_AXI_AMEMTYPE_CONF0	0x0160
+ #define VBIF_OUT_AXI_AMEMTYPE_CONF1	0x0164
++#define VBIF_OUT_AXI_ASHARED		0x0170
++#define VBIF_OUT_AXI_AINNERSHARED	0x0174
+ #define VBIF_XIN_PND_ERR		0x0190
+ #define VBIF_XIN_SRC_ERR		0x0194
+ #define VBIF_XIN_CLR_ERR		0x019C
+@@ -84,6 +86,26 @@ static void dpu_hw_set_mem_type(struct dpu_hw_vbif *vbif,
+ 	DPU_REG_WRITE(c, reg_off, reg_val);
+ }
+ 
++static void dpu_hw_set_mem_type_v1(struct dpu_hw_vbif *vbif, u32 xin_id, u32 value)
++{
++	struct dpu_hw_blk_reg_map *c;
++	u32 reg_val;
++
++	if (!vbif || xin_id >= MAX_XIN_COUNT)
++		return;
++
++	dpu_hw_set_mem_type(vbif, xin_id, value);
++	c = &vbif->hw;
++
++	reg_val = DPU_REG_READ(c, VBIF_OUT_AXI_ASHARED);
++	reg_val &= ~BIT(xin_id);
++	DPU_REG_WRITE(c, VBIF_OUT_AXI_ASHARED, reg_val);
++
++	reg_val = DPU_REG_READ(c, VBIF_OUT_AXI_AINNERSHARED);
++	reg_val &= ~BIT(xin_id);
++	DPU_REG_WRITE(c, VBIF_OUT_AXI_AINNERSHARED, reg_val);
++}
++
+ static void dpu_hw_set_limit_conf(struct dpu_hw_vbif *vbif,
+ 		u32 xin_id, bool rd, u32 limit)
+ {
+@@ -208,7 +230,10 @@ static void _setup_vbif_ops(struct dpu_hw_vbif_ops *ops,
+ 	ops->get_halt_ctrl = dpu_hw_get_halt_ctrl;
+ 	if (test_bit(DPU_VBIF_QOS_REMAP, &cap))
+ 		ops->set_qos_remap = dpu_hw_set_qos_remap;
+-	ops->set_mem_type = dpu_hw_set_mem_type;
++	if (test_bit(DPU_VBIF_DISABLE_SHAREABLE, &cap))
++		ops->set_mem_type = dpu_hw_set_mem_type_v1;
++	else
++		ops->set_mem_type = dpu_hw_set_mem_type;
+ 	ops->clear_errors = dpu_hw_clear_errors;
+ 	ops->set_write_gather_en = dpu_hw_set_write_gather_en;
+ }
+diff --git a/drivers/gpu/drm/msm/disp/dpu1/dpu_kms.c b/drivers/gpu/drm/msm/disp/dpu1/dpu_kms.c
+index edc3563..e984850 100644
+--- a/drivers/gpu/drm/msm/disp/dpu1/dpu_kms.c
++++ b/drivers/gpu/drm/msm/disp/dpu1/dpu_kms.c
+@@ -1445,6 +1445,7 @@ static const struct dev_pm_ops dpu_pm_ops = {
+ static const struct of_device_id dpu_dt_match[] = {
+ 	{ .compatible = "qcom,msm8998-dpu", .data = &dpu_msm8998_cfg, },
+ 	{ .compatible = "qcom,qcm2290-dpu", .data = &dpu_qcm2290_cfg, },
++	{ .compatible = "qcom,khaje-dpu", .data = &dpu_khaje_cfg, },
+ 	{ .compatible = "qcom,sdm630-mdp5", .data = &dpu_sdm630_cfg, },
+ 	{ .compatible = "qcom,sdm660-mdp5", .data = &dpu_sdm660_cfg, },
+ 	{ .compatible = "qcom,sdm670-dpu", .data = &dpu_sdm670_cfg, },

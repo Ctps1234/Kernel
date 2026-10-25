@@ -63,7 +63,7 @@ imagem foi testada no aparelho.
 | **MODVERSIONS/KMI** | `MODVERSIONS` ❌ (KABI não versionado) | config do CI | não (port não modular) |
 | **GPU** | base tem Adreno 6.x (`drivers/gpu/drm/msm/adreno/a6xx_*`) ✅; KGSL do OEM ❌ | base pinada | ❌ não bloqueia kernel |
 | **Display** | `DRM_MSM=m` ✅ mas a base **não tem chips/painéis DSI** (só `dsi_host.c`/`dsi_manager.c`/`phy/`) ❌ → exige port do DSI vendor | base pinada | ❌ não bloqueia kernel (tela escura) |
-| **Câmera** | `QCOM_CAMSS` ausente no config; `drivers/media/platform/qcom/camss` existe na base mas sem chips do SM6225 | config + base | ❌ não bloqueia kernel |
+| **Câmera** | `VIDEO_QCOM_CAMSS` ausente no fragmento; CAMSS existe na base sem match SM6225. A fonte vendor `camera.ko` foi localizada separadamente, mas ainda não integrada/portada (ver [`camera-port-audit.md`](camera-port-audit.md)). | config + base | ❌ não bloqueia o boot mínimo do kernel |
 | **WLAN** | QCACLD (vendor) ❌; `CONFIG_WLAN_VENDOR_*` ausentes | config | ❌ não bloqueia kernel |
 | **Touch / Fingerprint** | `focaltech_ts_i2c`, `goodix_fp` (vendor 5.15) ❌ | `docs/module-inventory.md` | ❌ não bloqueia kernel |
 

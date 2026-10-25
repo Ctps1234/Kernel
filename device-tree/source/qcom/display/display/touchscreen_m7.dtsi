@@ -14,7 +14,7 @@
 		focaltech,reset-gpio = <&tlmm 86 1>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <80 2>;
-		panel = <&dsi_panel_m7_38_0c_0a_fhdp_video>;
+		panel = <&dsi_m7_38_0c_0a_video>;
 		pinctrl-2 = <&ts_release>;
 		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
 		pinctrl-0 = <&ts_int_active &ts_reset_active &ts_avdd>;
@@ -34,7 +34,7 @@
 	    goodix,reset-gpio = <&tlmm 86 1>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <80 2>;
-		panel = <&dsi_panel_m7_38_0c_0b_fhdp_video>;
+		panel = <&dsi_m7_38_0c_0b_video>;
 		pinctrl-2 = <&ts_release>;
 		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
 		pinctrl-0 = <&ts_int_active &ts_reset_active &ts_avdd>;

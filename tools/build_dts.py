@@ -110,10 +110,10 @@ def find_sources(kernel_tree):
         targets.append(("khaje-idp-nopmi.dtb", base, True))
 
     overlays = {
-        "topaz-khaje-idp-nopmi-overlay.dtso": "khaje-idp-nopmi-topaz.dtb",
-        "tapas-khaje-idp-nopmi-overlay.dtbo": "khaje-idp-nopmi-tapas.dtb",
-        "topaz-sm5602-khaje-idp-nopmi-overlay.dtbo": "khaje-idp-nopmi-topaz-sm5602.dtb",
-        "tapas-sm5602-khaje-idp-nopmi-overlay.dtbo": "khaje-idp-nopmi-tapas-sm5602.dtb",
+        "topaz-khaje-idp-nopmi-overlay.dtso": "topaz-khaje-idp-nopmi-overlay.dtbo",
+        "tapas-khaje-idp-nopmi-overlay.dtso": "tapas-khaje-idp-nopmi-overlay.dtbo",
+        "topaz-sm5602-khaje-idp-nopmi-overlay.dtso": "topaz-sm5602-khaje-idp-nopmi-overlay.dtbo",
+        "tapas-sm5602-khaje-idp-nopmi-overlay.dtso": "tapas-sm5602-khaje-idp-nopmi-overlay.dtbo",
     }
     for dirpath, _dirnames, filenames in os.walk(root):
         for name in sorted(filenames):

@@ -101,16 +101,27 @@ Nenhuma divergência restante nos compatibles de fundação de boot.
 
 ## Validação com dtc
 
-- A base `khaje-idp-nopmi.dts` compila com dtc 1.4.4 (70 avisos de
-  `reg_format`/`unit_address_format`/`avoid_default_addr_size`, todos
-  ruído de DT vendor suprimido pelas flags `-Wno-*` que o kernel usa).
-- Os overlays usam a sintaxe `&label { ... }` de topo, que só existe a
-  partir do dtc 1.5; por isso a validação autoritativa roda no CI com o
-  dtc 1.7.0 que a árvore base vendoriza em `scripts/dtc`.
-- CI (`.github/workflows/dts-validate.yml`): job `dts-validate` compila os
-  DTBs/DTBOs, roda `dt-validate` (DT-schema) e `dt_binding_check`; job
-  `kernel-build` compila a imagem do kernel para validar o port dos
-  drivers.
+- Validação local atual contra `EdMory/android_kernel_common_sm8850` no
+  commit fixado `0efd3abd3c356d644ea49f6ed37e9830b78d34e3`: os 17 patches
+  aplicaram em sequência (`git apply --check` por patch e `git diff --check`),
+  54 arquivos DTS e 103 includes staged foram resolvidos sem faltas.
+- `tools/build_dts.py`, usando `cpp` do host e DTC/fdtoverlay 1.7.0, compilou
+  13 artefatos: base, quatro overlays de placa, overlays de áudio/câmera/
+  display e compostos Topaz/Tapas. Não houve erro de compilação; o conjunto
+  emitiu 367 avisos DTC estruturais. Esses avisos não são resultado de
+  `dtbs_check` nem de DT-schema.
+- Como teste adicional do port de display, apliquei o overlay de display ao
+  composto Topaz com `fdtoverlay`. A primeira tentativa expôs referências a
+  labels M7 inexistentes (`dsi_panel_m7_...`); foram corrigidas para os labels
+  realmente declarados (`dsi_m7_...`). A aplicação então passou, e o default
+  resolvido no DTB composto é M7 `_0a`, com DSC 8/8 bpp/bpc e
+  `slice-per-pkt=2`.
+- Essa verificação direta reproduz o preprocessamento/compilação e o merge
+  de overlays, mas não executa o target Kbuild `make dtbs`. Nesta sessão não
+  foram executados `dt-validate`, `dt_binding_check` ou o build do kernel;
+  permanecem disponíveis no workflow `.github/workflows/dts-validate.yml`.
+  O resultado histórico com dtc 1.4.4 citado em revisões anteriores foi
+  substituído por esta compilação 1.7.0 do conjunto atual.
 
 ## Validação DT-schema (dt-validate)
 

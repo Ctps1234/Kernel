@@ -1,0 +1,312 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Sat, 24 Oct 2026 12:00:00 -0300
+Subject: [PATCH] soc: qcom: add panel event notifier support
+
+Port the panel-event service from Xiaomi topaz-t-oss (commit
+345999da0be9cd37afdf87b15449d30b585a7091) as a DRM-dependent helper.
+Preserve client slots, matching rules, callback ABI and exported symbols.
+Add null/error checks and pointer-safe diagnostics.
+
+This is support plumbing only: it does not add DSI host/PHY or SDE/DPU
+hardware support, or change Topaz panel/DSC data.
+
+---
+diff --git a/drivers/soc/qcom/Kconfig b/drivers/soc/qcom/Kconfig
+index 74b9121..e9ce6a8 100644
+--- a/drivers/soc/qcom/Kconfig
++++ b/drivers/soc/qcom/Kconfig
+@@ -72,6 +72,17 @@ config QCOM_OCMEM
+ 	  requirements. This is typically used by the GPU, camera/video, and
+ 	  audio components on some Snapdragon SoCs.
+ 
++config QCOM_PANEL_EVENT_NOTIFIER
++	tristate "Qualcomm panel event notifier"
++	depends on DRM
++	help
++	  Provide a panel-event notifier for DRM panel clients. Clients can
++	  subscribe to blanking, low-power blanking, unblanking, and refresh-rate
++	  change events for primary or secondary panels.
++
++	  Say Y or M here if you need Qualcomm panel event consumers.
++	  If unsure, say N.
++
+ config QCOM_PD_MAPPER
+ 	tristate "Qualcomm Protection Domain Mapper"
+ 	select QCOM_QMI_HELPERS
+diff --git a/drivers/soc/qcom/Makefile b/drivers/soc/qcom/Makefile
+index acbca2a..8a57272 100644
+--- a/drivers/soc/qcom/Makefile
++++ b/drivers/soc/qcom/Makefile
+@@ -7,6 +7,7 @@ obj-$(CONFIG_QCOM_COMMAND_DB) += cmd-db.o
+ obj-$(CONFIG_QCOM_GSBI)	+=	qcom_gsbi.o
+ obj-$(CONFIG_QCOM_MDT_LOADER)	+= mdt_loader.o
+ obj-$(CONFIG_QCOM_OCMEM)	+= ocmem.o
++obj-$(CONFIG_QCOM_PANEL_EVENT_NOTIFIER) += panel_event_notifier.o
+ obj-$(CONFIG_QCOM_PD_MAPPER)	+= qcom_pd_mapper.o
+ obj-$(CONFIG_QCOM_PDR_HELPERS)	+= pdr_interface.o
+ obj-$(CONFIG_QCOM_PDR_MSG)	+= qcom_pdr_msg.o
+diff --git a/drivers/soc/qcom/panel_event_notifier.c b/drivers/soc/qcom/panel_event_notifier.c
+new file mode 100644
+index 0000000..2444263
+--- /dev/null
++++ b/drivers/soc/qcom/panel_event_notifier.c
+@@ -0,0 +1,167 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Copyright (c) 2021, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
++ */
++
++#include <linux/err.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/printk.h>
++#include <linux/soc/qcom/panel_event_notifier.h>
++
++struct panel_event_notifier_entry {
++	panel_event_notifier_handler handler;
++	void *pvt_data;
++	struct drm_panel *panel;
++	enum panel_event_notifier_tag tag;
++};
++
++static DEFINE_MUTEX(panel_event_notifier_entries_lock);
++static struct panel_event_notifier_entry
++	panel_event_notifier_entries[PANEL_EVENT_NOTIFIER_CLIENT_MAX];
++
++static bool panel_event_notifier_tag_valid(enum panel_event_notifier_tag tag)
++{
++	return tag > PANEL_EVENT_NOTIFICATION_NONE &&
++		tag < PANEL_EVENT_NOTIFICATION_MAX;
++}
++
++/**
++ * panel_event_notifier_register() - register a panel event client
++ * @tag: Panel (primary or secondary) whose events the client wants.
++ * @client_handle: Client slot used to identify the registration.
++ * @panel: DRM panel associated with the registration.
++ * @handler: Callback invoked for events matching @tag and @panel.
++ * @pvt_data: Opaque data passed to @handler.
++ *
++ * There is one registration slot per client handle. On success, return a
++ * cookie to pass to panel_event_notifier_unregister(); otherwise return an
++ * ERR_PTR().
++ */
++void *panel_event_notifier_register(enum panel_event_notifier_tag tag,
++				    enum panel_event_notifier_client client_handle,
++				    struct drm_panel *panel,
++				    panel_event_notifier_handler handler,
++				    void *pvt_data)
++{
++	struct panel_event_notifier_entry *entry;
++
++	if (!panel_event_notifier_tag_valid(tag) || !handler) {
++		pr_err("panel event notifier: invalid tag or handler\n");
++		return ERR_PTR(-EINVAL);
++	}
++
++	if ((unsigned int)client_handle >=
++	    (unsigned int)PANEL_EVENT_NOTIFIER_CLIENT_MAX) {
++		pr_err("panel event notifier: invalid client handle\n");
++		return ERR_PTR(-EINVAL);
++	}
++
++	mutex_lock(&panel_event_notifier_entries_lock);
++	entry = &panel_event_notifier_entries[client_handle];
++	if (entry->handler) {
++		mutex_unlock(&panel_event_notifier_entries_lock);
++		return ERR_PTR(-EEXIST);
++	}
++
++	entry->panel = panel;
++	entry->handler = handler;
++	entry->pvt_data = pvt_data;
++	entry->tag = tag;
++	mutex_unlock(&panel_event_notifier_entries_lock);
++
++	pr_debug("panel event notifier: client %u registered\n",
++		 (unsigned int)client_handle);
++	return entry;
++}
++EXPORT_SYMBOL(panel_event_notifier_register);
++
++/**
++ * panel_event_notifier_unregister() - remove a panel event client
++ * @cookie: Cookie returned by panel_event_notifier_register().
++ */
++void panel_event_notifier_unregister(void *cookie)
++{
++	struct panel_event_notifier_entry *entry;
++
++	if (IS_ERR_OR_NULL(cookie))
++		return;
++
++	entry = cookie;
++	mutex_lock(&panel_event_notifier_entries_lock);
++	entry->panel = NULL;
++	entry->handler = NULL;
++	entry->pvt_data = NULL;
++	entry->tag = PANEL_EVENT_NOTIFICATION_NONE;
++	mutex_unlock(&panel_event_notifier_entries_lock);
++}
++EXPORT_SYMBOL(panel_event_notifier_unregister);
++
++/**
++ * panel_event_notification_trigger() - notify matching panel event clients
++ * @tag: Primary or secondary panel tag for this notification.
++ * @notification: Event type, event data, and DRM panel pointer.
++ */
++void panel_event_notification_trigger(enum panel_event_notifier_tag tag,
++				      struct panel_event_notification *notification)
++{
++	struct panel_event_notifier_entry *entry;
++	panel_event_notifier_handler handler;
++	void *pvt_data;
++	unsigned int i;
++
++	if (!panel_event_notifier_tag_valid(tag)) {
++		pr_err("panel event notifier: invalid tag\n");
++		return;
++	}
++
++	if (!notification) {
++		pr_err("panel event notifier: missing notification\n");
++		return;
++	}
++
++	for (i = 0; i < PANEL_EVENT_NOTIFIER_CLIENT_MAX; i++) {
++		mutex_lock(&panel_event_notifier_entries_lock);
++		entry = &panel_event_notifier_entries[i];
++		if (notification->panel != entry->panel) {
++			pr_debug("panel event notifier: panel mismatch %p != %p\n",
++				 notification->panel, entry->panel);
++			mutex_unlock(&panel_event_notifier_entries_lock);
++			continue;
++		}
++
++		if (entry->tag != tag) {
++			pr_debug("panel event notifier: tag mismatch %u != %u\n",
++				 (unsigned int)entry->tag, (unsigned int)tag);
++			mutex_unlock(&panel_event_notifier_entries_lock);
++			continue;
++		}
++
++		handler = entry->handler;
++		pvt_data = entry->pvt_data;
++		mutex_unlock(&panel_event_notifier_entries_lock);
++
++		pr_debug("panel event notifier: trigger tag %u, event %u\n",
++			 (unsigned int)tag, (unsigned int)notification->notif_type);
++		if (handler)
++			handler(tag, notification, pvt_data);
++	}
++}
++EXPORT_SYMBOL(panel_event_notification_trigger);
++
++static int __init panel_event_notifier_init(void)
++{
++	pr_debug("panel event notifier initialized\n");
++	return 0;
++}
++module_init(panel_event_notifier_init);
++
++static void __exit panel_event_notifier_exit(void)
++{
++	pr_debug("panel event notifier exited\n");
++}
++module_exit(panel_event_notifier_exit);
++
++MODULE_DESCRIPTION("Qualcomm panel event notifier");
++MODULE_LICENSE("GPL");
+diff --git a/include/linux/soc/qcom/panel_event_notifier.h b/include/linux/soc/qcom/panel_event_notifier.h
+new file mode 100644
+index 0000000..8195658
+--- /dev/null
++++ b/include/linux/soc/qcom/panel_event_notifier.h
+@@ -0,0 +1,85 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (c) 2021, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
++ */
++
++#ifndef __PANEL_EVENT_NOTIFIER_H
++#define __PANEL_EVENT_NOTIFIER_H
++
++#include <linux/err.h>
++#include <linux/errno.h>
++#include <linux/kconfig.h>
++#include <linux/types.h>
++#include <drm/drm_panel.h>
++
++enum panel_event_notifier_tag {
++	PANEL_EVENT_NOTIFICATION_NONE,
++	PANEL_EVENT_NOTIFICATION_PRIMARY,
++	PANEL_EVENT_NOTIFICATION_SECONDARY,
++	PANEL_EVENT_NOTIFICATION_MAX,
++};
++
++enum panel_event_notifier_client {
++	PANEL_EVENT_NOTIFIER_CLIENT_PRIMARY_TOUCH,
++	PANEL_EVENT_NOTIFIER_CLIENT_SECONDARY_TOUCH,
++	PANEL_EVENT_NOTIFIER_CLIENT_ECM,
++	PANEL_EVENT_NOTIFIER_CLIENT_THERMAL,
++	PANEL_EVENT_NOTIFIER_CLIENT_BATTERY_CHARGER,
++	PANEL_EVENT_NOTIFIER_CLIENT_MAX,
++};
++
++enum panel_event_notification_type {
++	DRM_PANEL_EVENT_NONE,
++	DRM_PANEL_EVENT_BLANK,
++	DRM_PANEL_EVENT_UNBLANK,
++	DRM_PANEL_EVENT_BLANK_LP,
++	DRM_PANEL_EVENT_FPS_CHANGE,
++	DRM_PANEL_EVENT_MAX,
++};
++
++struct panel_event_notification_data {
++	u32 old_fps;
++	u32 new_fps;
++	bool early_trigger;
++};
++
++struct panel_event_notification {
++	enum panel_event_notification_type notif_type;
++	struct panel_event_notification_data notif_data;
++	struct drm_panel *panel;
++};
++
++typedef void (*panel_event_notifier_handler)(enum panel_event_notifier_tag tag,
++					struct panel_event_notification *notification,
++					void *pvt_data);
++
++#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
++void *panel_event_notifier_register(enum panel_event_notifier_tag tag,
++				    enum panel_event_notifier_client client_handle,
++				    struct drm_panel *panel,
++				    panel_event_notifier_handler notif_handler, void *pvt_data);
++void panel_event_notifier_unregister(void *cookie);
++void panel_event_notification_trigger(enum panel_event_notifier_tag tag,
++				      struct panel_event_notification *notification);
++#else
++static inline void *panel_event_notifier_register(enum panel_event_notifier_tag tag,
++						  enum panel_event_notifier_client client_handle,
++						  struct drm_panel *panel,
++						  panel_event_notifier_handler notif_handler,
++						  void *pvt_data)
++{
++	return ERR_PTR(-EOPNOTSUPP);
++}
++
++static inline void panel_event_notifier_unregister(void *cookie)
++{
++}
++
++static inline void panel_event_notification_trigger(enum panel_event_notifier_tag tag,
++						    struct panel_event_notification *notification)
++{
++}
++#endif /* CONFIG_QCOM_PANEL_EVENT_NOTIFIER */
++
++#endif /* __PANEL_EVENT_NOTIFIER_H */

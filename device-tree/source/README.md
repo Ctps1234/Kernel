@@ -25,6 +25,6 @@ Apenas os arquivos necessários para a fundação de boot e periféricos de `top
 
 - Estas fontes vêm de uma árvore de device tree Qualcomm R67, não do commit Android Common 6.12 fixado (`0efd3abd...`). Bindings, headers e compatíveis devem ser reconciliados com a série local 0001–0011 e validados com `dtc`/`dtbs_check` antes de build/boot.
 - O overlay de display referencia painéis `m7_38_...` cujos arquivos existem, mas outros painéis alternativos (NT36672E etc.) podem não ser usados no aparelho; revisar.
-- Drivers proprietários (KGSL, câmera vendor, QCACLD, FocalTech/Goodix) não são resolvidos por esta DT.
+- As DTS de câmera descrevem periféricos/sensores, mas não resolvem o bloco SoC CPAS/CDM/CCI/CSIPHY/ISP/TFE/OPE/SMMU nem portam drivers. A fonte `camera.ko` foi localizada separadamente; ver [`camera-port-audit`](../../docs/camera-port-audit.md). KGSL, QCACLD e touchscreen FocalTech/Goodix também não são resolvidos por esta DT.
 - Não compilar, flashar ou testar boot a partir destas fontes sem concluir a integração e a configuração GKI/defconfig.
 - Manter os blobs privados em `google_drive/` fora do Git; estas fontes são públicas e podem ser versionadas.
