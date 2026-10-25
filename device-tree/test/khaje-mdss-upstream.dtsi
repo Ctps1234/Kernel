@@ -32,6 +32,7 @@
  */
 
 #include <dt-bindings/clock/qcom,gcc-khaje.h>
+#include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/clock/qcom,dispcc-khaje.h>
 #include <dt-bindings/interconnect/qcom,bengal.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -109,9 +110,97 @@
 				port@0 {
 					reg = <0>;
 					dpu_intf1_out: endpoint {
+						remote-endpoint = <&dsi0_in>;
 					};
 				};
 			};
+		};
+
+		/* DSI 6G v2.4: cfg upstream ja contem io_start 0x5e94000 */
+		dsi0: dsi@5e94000 {
+			compatible = "qcom,sm6225-dsi-ctrl",
+				     "qcom,mdss-dsi-ctrl";
+			reg = <0x05e94000 0x400>;
+			reg-names = "dsi_ctrl";
+
+			interrupt-parent = <&mdss>;
+			interrupts = <4>;
+
+			clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK>,
+				 <&dispcc DISP_CC_MDSS_BYTE0_INTF_CLK>,
+				 <&dispcc DISP_CC_MDSS_PCLK0_CLK>,
+				 <&dispcc DISP_CC_MDSS_ESC0_CLK>,
+				 <&dispcc DISP_CC_MDSS_AHB_CLK>,
+				 <&gcc GCC_DISP_HF_AXI_CLK>;
+			clock-names = "byte", "byte_intf", "pixel",
+				      "core", "iface", "bus";
+
+			assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK_SRC>,
+					  <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
+			assigned-clock-parents = <&dsi0_phy 0>, <&dsi0_phy 1>;
+
+			phys = <&dsi0_phy>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					dsi0_in: endpoint {
+						remote-endpoint = <&dpu_intf1_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					dsi0_out: endpoint {
+						remote-endpoint = <&panel_in_0>;
+					};
+				};
+			};
+
+			/* Painel ativo do aparelho: M7 _0a (patch 0021) */
+			panel@0 {
+				compatible = "xiaomi,m7-38-0c-0a";
+				reg = <0>;
+
+				reset-gpios = <&tlmm 82 GPIO_ACTIVE_LOW>;
+				enable-gpios = <&pm6125_gpios 9 GPIO_ACTIVE_HIGH>;
+				vddio-supply = <&L9A>;
+
+				status = "disabled";
+
+				port {
+					panel_in_0: endpoint {
+						remote-endpoint = <&dsi0_out>;
+					};
+				};
+			};
+		};
+
+		/* PHY 7nm geracao v4.1 (FDT: qcom,dsi-phy-v4.1) */
+		dsi0_phy: phy@5e94400 {
+			compatible = "qcom,sm6225-dsi-phy-7nm";
+			reg = <0x05e94400 0x200>,
+			      <0x05e94600 0x280>,
+			      <0x05e94900 0x264>;
+			reg-names = "dsi_phy", "dsi_phy_lane", "dsi_pll";
+
+			#clock-cells = <1>;
+			#phy-cells = <0>;
+
+			vdds-supply = <&L4A>;
+			clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
+				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
+			clock-names = "iface", "ref";
+
+			status = "disabled";
 		};
 	};
 };
