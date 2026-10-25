@@ -1,0 +1,193 @@
+From 2492331d74497d3264fb795c20ed9c01214186ad Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Sun, 25 Oct 2026 16:05:25 +0000
+Subject: [PATCH] remoteproc: qcom: q6v5-pas: add SM6225 ADSP support
+
+Add the SM6225 (Khaje) ADSP PAS entry using the resource values
+from the shipping downstream driver: crash reason SMEM 423, PAS
+ID 1, minidump ID 5, SSR name lpass, sysmon adsp with SSCTL
+0x14 and the default adsp.mdt firmware name.
+
+Keep auto_boot disabled. The shipping stack does not boot this
+remoteproc from the PAS probe; a separate vendor adsp-loader
+owns the boot/SSR sysfs contract and calls rproc_boot() after
+reading the ADSP variant. That loader is not ported here, so
+this only makes the upstream PAS driver bindable if a board
+explicitly describes and enables the node.
+
+Also accept an mx-supply as the fallback name for the second
+optional proxy regulator when px-supply is absent. Khaje names
+its LPI rails cx/mx. This reuses the existing enable/disable
+path; it does not reproduce the downstream generic reg-names
+and per-regulator voltage/current votes.
+
+Add the corresponding SM6225 ADSP PAS binding. The production
+vendor qcom,khaje-adsp-pas node is intentionally unchanged.
+
+Compile-tested only; not verified on hardware.
+
+Signed-off-by: Port <port@local>
+---
+ .../bindings/remoteproc/qcom,sm6225-pas.yaml  | 101 ++++++++++++++++++
+ drivers/remoteproc/qcom_q6v5_pas.c            |  23 ++++
+ 2 files changed, 124 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/remoteproc/qcom,sm6225-pas.yaml
+
+diff --git a/Documentation/devicetree/bindings/remoteproc/qcom,sm6225-pas.yaml b/Documentation/devicetree/bindings/remoteproc/qcom,sm6225-pas.yaml
+new file mode 100644
+index 000000000..240920864
+--- /dev/null
++++ b/Documentation/devicetree/bindings/remoteproc/qcom,sm6225-pas.yaml
+@@ -0,0 +1,101 @@
++# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/remoteproc/qcom,sm6225-pas.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Qualcomm SM6225 Peripheral Authentication Service
++
++maintainers:
++  - Bjorn Andersson <andersson@kernel.org>
++  - Mathieu Poirier <mathieu.poirier@linaro.org>
++
++description:
++  Qualcomm SM6225 (Khaje) Peripheral Authentication Service loads and
++  boots firmware on the Qualcomm DSP Hexagon core used for audio.
++
++properties:
++  compatible:
++    const: qcom,sm6225-adsp-pas
++
++  reg:
++    maxItems: 1
++
++  clocks:
++    items:
++      - description: XO clock
++
++  clock-names:
++    items:
++      - const: xo
++
++  cx-supply:
++    description: LPI CX regulator
++
++  mx-supply:
++    description: LPI MX regulator
++
++  interrupts:
++    maxItems: 5
++
++  interrupt-names:
++    maxItems: 5
++
++  memory-region:
++    maxItems: 1
++    description: Reference to the reserved-memory for the Hexagon core
++
++  smd-edge: false
++
++  firmware-name:
++    maxItems: 1
++    description: Firmware name for the Hexagon core
++
++required:
++  - compatible
++  - reg
++  - memory-region
++
++allOf:
++  - $ref: /schemas/remoteproc/qcom,pas-common.yaml#
++
++unevaluatedProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/clock/qcom,rpmcc.h>
++    #include <dt-bindings/interrupt-controller/arm-gic.h>
++    #include <dt-bindings/interrupt-controller/irq.h>
++
++    remoteproc@ab00000 {
++        compatible = "qcom,sm6225-adsp-pas";
++        reg = <0x0ab00000 0x100>;
++
++        clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>;
++        clock-names = "xo";
++
++        firmware-name = "qcom/sm6225/adsp.mdt";
++
++        interrupts-extended = <&intc GIC_SPI 282 IRQ_TYPE_EDGE_RISING>,
++                              <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
++                              <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
++                              <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
++                              <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
++        interrupt-names = "wdog", "fatal", "ready",
++                          "handover", "stop-ack";
++
++        cx-supply = <&vreg_lpi_cx>;
++        mx-supply = <&vreg_lpi_mx>;
++
++        memory-region = <&pil_adsp_mem>;
++
++        qcom,smem-states = <&adsp_smp2p_out 0>;
++        qcom,smem-state-names = "stop";
++
++        glink-edge {
++            interrupts = <GIC_SPI 277 IRQ_TYPE_EDGE_RISING>;
++            label = "lpass";
++            qcom,remote-pid = <2>;
++            mboxes = <&apcs_glb 8>;
++        };
++    };
+diff --git a/drivers/remoteproc/qcom_q6v5_pas.c b/drivers/remoteproc/qcom_q6v5_pas.c
+index ea4a91f37..c944b04b2 100644
+--- a/drivers/remoteproc/qcom_q6v5_pas.c
++++ b/drivers/remoteproc/qcom_q6v5_pas.c
+@@ -496,6 +496,17 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
+ 			return PTR_ERR(adsp->px_supply);
+ 	}
+ 
++	/* Some platforms name the second proxy supply "mx" instead of "px". */
++	if (!adsp->px_supply) {
++		adsp->px_supply = devm_regulator_get_optional(adsp->dev, "mx");
++		if (IS_ERR(adsp->px_supply)) {
++			if (PTR_ERR(adsp->px_supply) == -ENODEV)
++				adsp->px_supply = NULL;
++			else
++				return PTR_ERR(adsp->px_supply);
++		}
++	}
++
+ 	return 0;
+ }
+ 
+@@ -867,6 +878,17 @@ static const struct adsp_data sdm845_adsp_resource_init = {
+ 	.ssctl_id = 0x14,
+ };
+ 
++static const struct adsp_data sm6225_adsp_resource = {
++	.crash_reason_smem = 423,
++	.firmware_name = "adsp.mdt",
++	.pas_id = 1,
++	.minidump_id = 5,
++	.auto_boot = false,
++	.ssr_name = "lpass",
++	.sysmon_name = "adsp",
++	.ssctl_id = 0x14,
++};
++
+ static const struct adsp_data sm6350_adsp_resource = {
+ 	.crash_reason_smem = 423,
+ 	.firmware_name = "adsp.mdt",
+@@ -1456,6 +1478,7 @@ static const struct of_device_id adsp_of_match[] = {
+ 	{ .compatible = "qcom,sm6115-adsp-pas", .data = &adsp_resource_init},
+ 	{ .compatible = "qcom,sm6115-cdsp-pas", .data = &cdsp_resource_init},
+ 	{ .compatible = "qcom,sm6115-mpss-pas", .data = &sc8180x_mpss_resource},
++	{ .compatible = "qcom,sm6225-adsp-pas", .data = &sm6225_adsp_resource},
+ 	{ .compatible = "qcom,sm6350-adsp-pas", .data = &sm6350_adsp_resource},
+ 	{ .compatible = "qcom,sm6350-cdsp-pas", .data = &sm6350_cdsp_resource},
+ 	{ .compatible = "qcom,sm6350-mpss-pas", .data = &mpss_resource_init},
+-- 
+2.39.5
+

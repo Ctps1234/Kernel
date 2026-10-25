@@ -1,0 +1,79 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * DTS DE TESTE — ADSP PAS upstream (qcom_q6v5_pas) para o Khaje/topaz.
+ *
+ * NAO e incluido por nenhuma DTS de producao e nao e encenado por
+ * tools/integrate_dts.py (que so copia device-tree/source). Serve para
+ * validar estaticamente o novo compatible qcom,sm6225-adsp-pas
+ * (patch 0026) contra as labels reais da arvore encenada, sem ativar
+ * probe nem boot do ADSP no Topaz. O no fica "disabled".
+ *
+ * Uso manual: incluir depois de khaje.dtsi/khaje-idp-nopmi.dtsi numa
+ * DTS de teste e compilar com dtc. Auditoria em
+ * docs/audio-port-audit.md.
+ *
+ * O que este fragmento faz sobre o no vendor adsp_pas da fonte:
+ *   - troca qcom,khaje-adsp-pas por qcom,sm6225-adsp-pas;
+ *   - remove somente neste prototipo as propriedades downstream de
+ *     lista generica de reguladores (reg-names usado como nome de
+ *     regulator e os pares *-uV-uA). Os supplies reais cx=L3A_LEVEL
+ *     (VDD_LPI_CX) e mx=L2A_LEVEL (VDD_LPI_MX) sao preservados;
+ *   - reordena os SMP2P para a ordem de nomes do binding upstream
+ *     (fatal=bit0, ready=bit1, handover=bit2, stop-ack=bit3; o
+ *     mapeamento nome<->bit e o mesmo do no vendor, so a lista muda);
+ *   - ajusta o label do glink-edge para "lpass" e remove as
+ *     propriedades de transporte especificas do vendor.
+ *
+ * Recursos herdados do no real/FDT:
+ *   - reg 0xab00000/0x100, clock XO do RPMCC;
+ *   - memory-region &pil_adsp_mem (fonte: 0x53800000/0x1e00000;
+ *     FDT ativo: mesmo endereco com 0x2300000 — reconciliar);
+ *   - watchdog GIC SPI 282, GLINK GIC SPI 277, mailbox apcs_glb 8 e
+ *     qcom,remote-pid = <2>.
+ *
+ * Bloqueios conhecidos antes de qualquer ativacao:
+ *   - o recurso do patch 0026 usa auto_boot=false, como o downstream:
+ *     o boot vendor passa pelo qcom,adsp-loader (NVMEM adsp_variant,
+ *     selecao adsp2 e sysfs boot/ssr), que nao foi portado. O sysfs
+ *     generico de remoteproc nao foi validado como substituto;
+ *   - o nome default de firmware do recurso e adsp.mdt, mas caminho
+ *     de busca, variante adsp2 e disponibilidade dos segmentos no
+ *     vendor nao foram verificados em hardware;
+ *   - o PAS upstream consome cx e o segundo supply (px, ou mx pelo
+ *     fallback do patch 0026), mas nao reproduz os votos explicitos
+ *     de nivel TURBO que o driver downstream aplica via
+ *     reg-names/*-uV-uA. O contrato final de corner segue aberto;
+ *   - os filhos GLINK/vendor de servico (QRTR, FastRPC, APR/GPR e,
+ *     no overlay de audio, SPF/AudioPacket/AudioPrm) nao sao
+ *     modelados aqui. Sem eles nao ha QDSP6/ASoC funcional;
+ *   - CDSP e MPSS ficam fora: este fragmento cobre so o ADSP.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&adsp_pas {
+	compatible = "qcom,sm6225-adsp-pas";
+
+	/delete-property/ reg-names;
+	/delete-property/ qcom,vdd_lpi_cx-uV-uA;
+	/delete-property/ mx-uV-uA;
+
+	interrupts-extended = <&intc GIC_SPI 282 IRQ_TYPE_EDGE_RISING>,
+			      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+			      <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+			      <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+			      <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+	interrupt-names = "wdog", "fatal", "ready",
+			  "handover", "stop-ack";
+
+	status = "disabled";
+};
+
+&glink_edge {
+	/delete-property/ transport;
+	/delete-property/ mbox-names;
+	/delete-property/ qcom,glink-label;
+
+	label = "lpass";
+};
