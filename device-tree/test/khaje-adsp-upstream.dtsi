@@ -22,7 +22,13 @@
  *     (fatal=bit0, ready=bit1, handover=bit2, stop-ack=bit3; o
  *     mapeamento nome<->bit e o mesmo do no vendor, so a lista muda);
  *   - ajusta o label do glink-edge para "lpass" e remove as
- *     propriedades de transporte especificas do vendor.
+ *     propriedades de transporte especificas do vendor;
+ *   - adiciona somente neste prototipo a cadeia GPR upstream
+ *     (qcom,gpr -> qcom,q6apm/qcom,q6prm) sobre o canal
+ *     "adsp_apps" e intents 512/20 do FDT. O no vendor guardava o
+ *     dominio no reg do proprio qcom,gpr (lido assim pelo
+ *     gpr-lite); aqui ele vira o qcom,domain explicito exigido
+ *     pelo driver/binding upstream (ADSP=2).
  *
  * Recursos herdados do no real/FDT:
  *   - reg 0xab00000/0x100, clock XO do RPMCC;
@@ -43,14 +49,24 @@
  *     fallback do patch 0026), mas nao reproduz os votos explicitos
  *     de nivel TURBO que o driver downstream aplica via
  *     reg-names/*-uV-uA. O contrato final de corner segue aberto;
- *   - os filhos GLINK/vendor de servico (QRTR, FastRPC, APR/GPR e,
- *     no overlay de audio, SPF/AudioPacket/AudioPrm) nao sao
- *     modelados aqui. Sem eles nao ha QDSP6/ASoC funcional;
+ *   - a cadeia GPR abaixo e um modelo upstream de substituicao,
+ *     nao uma transcricao dos filhos vendor: o FDT usa portas de
+ *     cliente spf_core=3, audio-pkt=0x17 e audio_prm=7, enquanto
+ *     q6apm/q6prm upstream usam os IIDs estaticos 1/2. O par
+ *     qcom,protection-domain "avs/audio"/"msm/adsp/audio_pd" vem
+ *     do audio_pdr vendor, mas quem responde o service locator
+ *     (daemon Android ou PD-mapper em kernel, ainda sem match de
+ *     raiz Khaje/SM6225) nao foi fechado;
+ *   - o SID 0x1c1 do q6apm-dais vem do no qcom,msm-audio-ion do
+ *     FDT (mask vendor 0xf); confirmar em hardware antes de usar
+ *     para DMA de verdade. LPASS/macros/SoundWire, WCD937x e o
+ *     card Bengal continuam fora, logo nao ha ASoC funcional;
  *   - CDSP e MPSS ficam fora: este fragmento cobre so o ADSP.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/soc/qcom,gpr.h>
 
 &adsp_pas {
 	compatible = "qcom,sm6225-adsp-pas";
@@ -75,5 +91,47 @@
 	/delete-property/ mbox-names;
 	/delete-property/ qcom,glink-label;
 
+	/* O canal APR legado vendor nao faz parte da cadeia GPR. */
+	/delete-node/ qcom,apr_tal_rpmsg;
+
 	label = "lpass";
+
+	audio_gpr: gpr {
+		compatible = "qcom,gpr";
+		qcom,glink-channels = "adsp_apps";
+		qcom,domain = <GPR_DOMAIN_ID_ADSP>;
+		qcom,intents = <512 20>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		q6apm: service@1 {
+			compatible = "qcom,q6apm";
+			reg = <GPR_APM_MODULE_IID>;
+			#sound-dai-cells = <0>;
+			qcom,protection-domain = "avs/audio",
+						 "msm/adsp/audio_pd";
+
+			q6apmdai: dais {
+				compatible = "qcom,q6apm-dais";
+				iommus = <&apps_smmu 0x1c1 0x0>;
+			};
+
+			q6apmbedai: bedais {
+				compatible = "qcom,q6apm-lpass-dais";
+				#sound-dai-cells = <1>;
+			};
+		};
+
+		q6prm: service@2 {
+			compatible = "qcom,q6prm";
+			reg = <GPR_PRM_MODULE_IID>;
+			qcom,protection-domain = "avs/audio",
+						 "msm/adsp/audio_pd";
+
+			q6prmcc: clock-controller {
+				compatible = "qcom,q6prm-lpass-clocks";
+				#clock-cells = <2>;
+			};
+		};
+	};
 };
