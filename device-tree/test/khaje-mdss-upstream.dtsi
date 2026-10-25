@@ -22,9 +22,10 @@
  *     taxas de core 383/560 MHz de khaje-sde.dtsi.
  *
  * Bloqueios conhecidos antes de qualquer ativacao:
- *   - power-domains usa indice 0 do dispcc como placeholder: o driver
- *     dispcc-khaje (0011) ainda nao registra o GDSC do MDSS (no vendor
- *     ele e o no regulator-style qcom,gdsc@5f03000, mdss_core_gdsc);
+ *   - o GDSC do MDSS passou a ser registrado pelo dispcc-khaje (patch
+ *     0019, gdscr 0x1004), mas ainda sem validacao em hardware e sem
+ *     remover o no vendor mdss_core_gdsc, que nao pode coexistir com
+ *     esta hierarquia numa ativacao real;
  *   - filho DSI/PHY e painel M7 ainda nao modelados neste fragmento;
  *   - opp-table sem required-opps ate o contrato de corner (RPMPD vs.
  *     votos RPM-SMD do clk-vdd-class) ser fechado.
@@ -41,8 +42,7 @@
 		reg = <0x05e00000 0x1000>;
 		reg-names = "mdss";
 
-		/* placeholder: ver bloqueio do GDSC no cabecalho */
-		power-domains = <&dispcc 0>;
+		power-domains = <&dispcc MDSS_GDSC>;
 
 		clocks = <&gcc GCC_DISP_AHB_CLK>,
 			 <&gcc GCC_DISP_HF_AXI_CLK>,
@@ -83,7 +83,7 @@
 				      "lut", "rot", "vsync";
 
 			operating-points-v2 = <&mdp_opp_table>;
-			power-domains = <&dispcc 0>;
+			power-domains = <&dispcc MDSS_GDSC>;
 
 			interrupt-parent = <&mdss>;
 			interrupts = <0>;
