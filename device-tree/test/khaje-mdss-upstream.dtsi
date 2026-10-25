@@ -1,0 +1,117 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * DTS DE TESTE — hierarquia upstream MDSS pai + DPU filho para Khaje.
+ *
+ * NAO e incluido por nenhuma DTS de producao e nao e encenado por
+ * tools/integrate_dts.py (que so copia device-tree/source). Serve para
+ * validar estaticamente o contrato de reg/IRQ/clocks/ICC/IOMMU dos
+ * bindings qcom,khaje-mdss / qcom,khaje-dpu (patch 0018) contra as
+ * labels reais da arvore encenada, sem ativar probe no Topaz.
+ *
+ * Uso manual: incluir depois de khaje-idp-nopmi.dtsi numa DTS de teste
+ * e compilar com tools/build_dts.py / dtc. Os nos ficam "disabled".
+ *
+ * Recursos reconciliados com o FDT ativo (qcom,mdss_mdp/qcom,sde-kms):
+ *   - reg MDSS 0x5e00000, MDP 0x5e01000 (sde-off 0x1000), VBIF
+ *     0x5eb0000 tamanho 0x2008;
+ *   - IRQ do MDSS: GIC SPI 186;
+ *   - iommus apps_smmu 0x420/0x421;
+ *   - ICC: mmrt_virt MASTER_MDP_PORT0 -> bimc SLAVE_EBI_CH0 (dados) e
+ *     bimc MASTER_AMPSS_M0 -> config_noc SLAVE_DISPLAY_CFG (reg);
+ *   - clocks GCC DISP AHB/HF_AXI e DISPCC MDP/AHB/LUT/ROT/VSYNC,
+ *     taxas de core 383/560 MHz de khaje-sde.dtsi.
+ *
+ * Bloqueios conhecidos antes de qualquer ativacao:
+ *   - power-domains usa indice 0 do dispcc como placeholder: o driver
+ *     dispcc-khaje (0011) ainda nao registra o GDSC do MDSS (no vendor
+ *     ele e o no regulator-style qcom,gdsc@5f03000, mdss_core_gdsc);
+ *   - filho DSI/PHY e painel M7 ainda nao modelados neste fragmento;
+ *   - opp-table sem required-opps ate o contrato de corner (RPMPD vs.
+ *     votos RPM-SMD do clk-vdd-class) ser fechado.
+ */
+
+#include <dt-bindings/clock/qcom,gcc-khaje.h>
+#include <dt-bindings/clock/qcom,dispcc-khaje.h>
+#include <dt-bindings/interconnect/qcom,bengal.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+&soc {
+	mdss: display-subsystem@5e00000 {
+		compatible = "qcom,khaje-mdss";
+		reg = <0x05e00000 0x1000>;
+		reg-names = "mdss";
+
+		/* placeholder: ver bloqueio do GDSC no cabecalho */
+		power-domains = <&dispcc 0>;
+
+		clocks = <&gcc GCC_DISP_AHB_CLK>,
+			 <&gcc GCC_DISP_HF_AXI_CLK>,
+			 <&dispcc DISP_CC_MDSS_MDP_CLK>;
+
+		interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		iommus = <&apps_smmu 0x420 0x2>,
+			 <&apps_smmu 0x421 0x0>;
+
+		interconnects = <&mmrt_virt MASTER_MDP_PORT0
+				 &bimc SLAVE_EBI_CH0>,
+				<&bimc MASTER_AMPSS_M0
+				 &config_noc SLAVE_DISPLAY_CFG>;
+		interconnect-names = "mdp0-mem", "cpu-cfg";
+
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		status = "disabled";
+
+		mdp: display-controller@5e01000 {
+			compatible = "qcom,khaje-dpu";
+			reg = <0x05e01000 0x8f000>,
+			      <0x05eb0000 0x2008>;
+			reg-names = "mdp", "vbif";
+
+			clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
+				 <&dispcc DISP_CC_MDSS_AHB_CLK>,
+				 <&dispcc DISP_CC_MDSS_MDP_CLK>,
+				 <&dispcc DISP_CC_MDSS_MDP_LUT_CLK>,
+				 <&dispcc DISP_CC_MDSS_ROT_CLK>,
+				 <&dispcc DISP_CC_MDSS_VSYNC_CLK>;
+			clock-names = "bus", "iface", "core",
+				      "lut", "rot", "vsync";
+
+			operating-points-v2 = <&mdp_opp_table>;
+			power-domains = <&dispcc 0>;
+
+			interrupt-parent = <&mdss>;
+			interrupts = <0>;
+
+			status = "disabled";
+
+			mdp_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-383000000 {
+					opp-hz = /bits/ 64 <383000000>;
+				};
+
+				opp-560000000 {
+					opp-hz = /bits/ 64 <560000000>;
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					dpu_intf1_out: endpoint {
+					};
+				};
+			};
+		};
+	};
+};

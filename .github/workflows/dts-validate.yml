@@ -147,10 +147,11 @@ jobs:
         run: |
           set -o pipefail
           cd basekernel
-          # Escopo: apenas os bindings tocados pela serie 0001-0013 (o
-          # check completo sobre as ~2000 schemas da base leva horas).
+          # Escopo: apenas os bindings tocados pela serie local (0001-0018,
+          # incluindo display Khaje; o check completo sobre as ~2000
+          # schemas da base leva horas).
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux- \
-            DT_SCHEMA_FILES="qcom,khaje-pinctrl.yaml,qcom,rpmcc-khaje.yaml,qcom,rpmcc.yaml,qcom,khaje-gcc.yaml,qcom,khaje-dispcc.yaml,qcom,khaje-gpucc.yaml,qcom,khaje-debugcc.yaml,qcom,gcc.yaml,qcom,bengal.yaml,qcom,smd-rpm-regulator.yaml,qcom,smd-rpm.yaml,qcom,sc8280xp-qmp-ufs-phy.yaml" \
+            DT_SCHEMA_FILES="qcom,khaje-pinctrl.yaml,qcom,rpmcc-khaje.yaml,qcom,rpmcc.yaml,qcom,khaje-gcc.yaml,qcom,khaje-dispcc.yaml,qcom,khaje-gpucc.yaml,qcom,khaje-debugcc.yaml,qcom,gcc.yaml,qcom,bengal.yaml,qcom,smd-rpm-regulator.yaml,qcom,smd-rpm.yaml,qcom,sc8280xp-qmp-ufs-phy.yaml,qcom,khaje-mdss.yaml,qcom,khaje-dpu.yaml" \
             dt_binding_check 2>&1 | tee dt_binding_check.log
 
       - name: Build in-tree dtc/fdtoverlay (for local iteration)
