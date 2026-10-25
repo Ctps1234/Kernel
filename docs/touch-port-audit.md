@@ -15,7 +15,13 @@ binding. O nó de teste vive desabilitado em
 **Estado: compilação apenas.** O patch foi gerado contra a base fixada
 (`0efd3abd3`) e o fragmento DTS passou por pré-processamento (cpp com os
 includes do kernel) + parse sintático/resolução de labels sobre a base Khaje
-encenada. Nada foi ativado, probado ou testado em hardware.
+encenada (1364 nós; `touchscreen@38` sob `i2c@4a88000` desabilitado). A série
+0001–0022 compilou no CI na run
+[`40187196918`](https://github.com/Ctps1234/Kernel/actions/runs/40187196918)
+(ambos os jobs verdes): `TOUCHSCREEN_EDT_FT5X06=y`/`I2C_QCOM_GENI=y` na
+`.config`, símbolos `edt_ft5x06_*` no `System.map` e a string
+`focaltech,ft3519` no `Image` resultante. Nada foi ativado, probado ou
+testado em hardware.
 
 ## Como o IC foi identificado (era o ponto em aberto)
 
