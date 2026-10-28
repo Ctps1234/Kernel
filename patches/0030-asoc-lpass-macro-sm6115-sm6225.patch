@@ -1,0 +1,185 @@
+From 59582c03a7584bb722152e61db8c924d83dc29dc Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Wed, 28 Oct 2026 10:33:25 +0000
+Subject: [PATCH] ASoC: codecs: lpass-macro: add SM6115/SM6225 RX, TX and VA
+
+Backport the SM6115 LPASS macro compatibles from torvalds/linux
+65d03e84d8b8e42cf4636fcabb81c9b130cec710 ("ASoC: dt-bindings:
+qcom,lpass-rx-macro: Add sm6115 LPASS RX"),
+675f41b8d1675d9a51a6dcb978ff76b95cbb4b92 ("ASoC: dt-bindings:
+qcom,lpass-va-macro: Add sm6115 LPASS VA"),
+8ff3dcb0e8a8bf6c41f23ed4aa62d066d3948a10 ("ASoC: codecs:
+lpass-rx-macro: add SM6115 compatible") and
+893e2fd509e968cc1d76caadee0f5d2f2c72f137 ("ASoC: codecs:
+lpass-va-macro: add SM6115 compatible").
+
+SM6115 has no separate "macro" vote clock in the RX and VA macro
+bindings. Its clock sets are mclk/npl/dcodec/fsgen for RX and TX,
+and mclk/dcodec/npl for VA. TX support and its
+LPASS_MACRO_FLAG_RESET_SWR data are already present in this
+Android Common 6.12 base, so only the RX and VA match-table
+entries are missing.
+
+Describe SM6225 as a SoC-specific compatible with the SM6115
+fallback for all three macros. The Khaje vendor tree exposes the
+same RX/TX/VA MMIO blocks and the same core/NPL clock structure,
+but this is not yet a hardware-validated equivalence, so the
+device tree using these fallbacks must remain disabled.
+
+No board device tree or machine driver is added. Compile-tested
+only; no macro or SoundWire probe has been verified on hardware.
+
+Signed-off-by: Port <port@local>
+---
+ .../bindings/sound/qcom,lpass-rx-macro.yaml   | 23 +++++++++++++++++++
+ .../bindings/sound/qcom,lpass-tx-macro.yaml   |  9 ++++++--
+ .../bindings/sound/qcom,lpass-va-macro.yaml   | 22 ++++++++++++++++++
+ sound/soc/codecs/lpass-rx-macro.c             |  3 +++
+ sound/soc/codecs/lpass-va-macro.c             |  1 +
+ 5 files changed, 56 insertions(+), 2 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/sound/qcom,lpass-rx-macro.yaml b/Documentation/devicetree/bindings/sound/qcom,lpass-rx-macro.yaml
+index b8540b3..3ba8bf1 100644
+--- a/Documentation/devicetree/bindings/sound/qcom,lpass-rx-macro.yaml
++++ b/Documentation/devicetree/bindings/sound/qcom,lpass-rx-macro.yaml
+@@ -14,10 +14,14 @@ properties:
+     oneOf:
+       - enum:
+           - qcom,sc7280-lpass-rx-macro
++          - qcom,sm6115-lpass-rx-macro
+           - qcom,sm8250-lpass-rx-macro
+           - qcom,sm8450-lpass-rx-macro
+           - qcom,sm8550-lpass-rx-macro
+           - qcom,sc8280xp-lpass-rx-macro
++      - items:
++          - const: qcom,sm6225-lpass-rx-macro
++          - const: qcom,sm6115-lpass-rx-macro
+       - items:
+           - enum:
+               - qcom,sm8650-lpass-rx-macro
+@@ -79,6 +83,25 @@ allOf:
+                 - const: npl
+                 - const: fsgen
+ 
++  - if:
++      properties:
++        compatible:
++          contains:
++            enum:
++              - qcom,sm6115-lpass-rx-macro
++              - qcom,sm6225-lpass-rx-macro
++    then:
++      properties:
++        clocks:
++          minItems: 4
++          maxItems: 4
++        clock-names:
++          items:
++            - const: mclk
++            - const: npl
++            - const: dcodec
++            - const: fsgen
++
+   - if:
+       properties:
+         compatible:
+diff --git a/Documentation/devicetree/bindings/sound/qcom,lpass-tx-macro.yaml b/Documentation/devicetree/bindings/sound/qcom,lpass-tx-macro.yaml
+index 3e2ae16..7a69fdb 100644
+--- a/Documentation/devicetree/bindings/sound/qcom,lpass-tx-macro.yaml
++++ b/Documentation/devicetree/bindings/sound/qcom,lpass-tx-macro.yaml
+@@ -19,6 +19,9 @@ properties:
+           - qcom,sm8450-lpass-tx-macro
+           - qcom,sm8550-lpass-tx-macro
+           - qcom,sc8280xp-lpass-tx-macro
++      - items:
++          - const: qcom,sm6225-lpass-tx-macro
++          - const: qcom,sm6115-lpass-tx-macro
+       - items:
+           - enum:
+               - qcom,sm8650-lpass-tx-macro
+@@ -107,8 +110,10 @@ allOf:
+   - if:
+       properties:
+         compatible:
+-          enum:
+-            - qcom,sm6115-lpass-tx-macro
++          contains:
++            enum:
++              - qcom,sm6115-lpass-tx-macro
++              - qcom,sm6225-lpass-tx-macro
+     then:
+       properties:
+         clocks:
+diff --git a/Documentation/devicetree/bindings/sound/qcom,lpass-va-macro.yaml b/Documentation/devicetree/bindings/sound/qcom,lpass-va-macro.yaml
+index 6b483fa..f384b4c 100644
+--- a/Documentation/devicetree/bindings/sound/qcom,lpass-va-macro.yaml
++++ b/Documentation/devicetree/bindings/sound/qcom,lpass-va-macro.yaml
+@@ -14,10 +14,14 @@ properties:
+     oneOf:
+       - enum:
+           - qcom,sc7280-lpass-va-macro
++          - qcom,sm6115-lpass-va-macro
+           - qcom,sm8250-lpass-va-macro
+           - qcom,sm8450-lpass-va-macro
+           - qcom,sm8550-lpass-va-macro
+           - qcom,sc8280xp-lpass-va-macro
++      - items:
++          - const: qcom,sm6225-lpass-va-macro
++          - const: qcom,sm6115-lpass-va-macro
+       - items:
+           - enum:
+               - qcom,sm8650-lpass-va-macro
+@@ -117,6 +121,24 @@ allOf:
+             - const: dcodec
+             - const: npl
+ 
++  - if:
++      properties:
++        compatible:
++          contains:
++            enum:
++              - qcom,sm6115-lpass-va-macro
++              - qcom,sm6225-lpass-va-macro
++    then:
++      properties:
++        clocks:
++          minItems: 3
++          maxItems: 3
++        clock-names:
++          items:
++            - const: mclk
++            - const: dcodec
++            - const: npl
++
+   - if:
+       properties:
+         compatible:
+diff --git a/sound/soc/codecs/lpass-rx-macro.c b/sound/soc/codecs/lpass-rx-macro.c
+index febbbe0..10e504a 100644
+--- a/sound/soc/codecs/lpass-rx-macro.c
++++ b/sound/soc/codecs/lpass-rx-macro.c
+@@ -3947,6 +3947,9 @@ static const struct of_device_id rx_macro_dt_match[] = {
+ 		.compatible = "qcom,sc7280-lpass-rx-macro",
+ 		.data = (void *)LPASS_MACRO_FLAG_HAS_NPL_CLOCK,
+ 
++	}, {
++		.compatible = "qcom,sm6115-lpass-rx-macro",
++		.data = (void *)LPASS_MACRO_FLAG_HAS_NPL_CLOCK,
+ 	}, {
+ 		.compatible = "qcom,sm8250-lpass-rx-macro",
+ 		.data = (void *)LPASS_MACRO_FLAG_HAS_NPL_CLOCK,
+diff --git a/sound/soc/codecs/lpass-va-macro.c b/sound/soc/codecs/lpass-va-macro.c
+index d44b5b0..29260cb 100644
+--- a/sound/soc/codecs/lpass-va-macro.c
++++ b/sound/soc/codecs/lpass-va-macro.c
+@@ -1722,6 +1722,7 @@ static const struct dev_pm_ops va_macro_pm_ops = {
+ 
+ static const struct of_device_id va_macro_dt_match[] = {
+ 	{ .compatible = "qcom,sc7280-lpass-va-macro", .data = &sm8250_va_data },
++	{ .compatible = "qcom,sm6115-lpass-va-macro", .data = &sm8450_va_data },
+ 	{ .compatible = "qcom,sm8250-lpass-va-macro", .data = &sm8250_va_data },
+ 	{ .compatible = "qcom,sm8450-lpass-va-macro", .data = &sm8450_va_data },
+ 	{ .compatible = "qcom,sm8550-lpass-va-macro", .data = &sm8550_va_data },
+-- 
+2.39.5
+

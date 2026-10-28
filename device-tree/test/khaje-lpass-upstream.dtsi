@@ -1,0 +1,231 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * DTS DE TESTE — LPASS upstream (macros RX/TX/VA + SoundWire) para o
+ * Khaje/topaz.
+ *
+ * NAO e incluido por nenhuma DTS de producao e nao e encenado por
+ * tools/integrate_dts.py (que so copia device-tree/source). Serve para
+ * validar estaticamente os providers de reset do patch 0029 e os
+ * compatibles/matches de macro do patch 0030 contra as labels reais da
+ * arvore encenada, sem ativar probe de macro, SoundWire ou codec.
+ * Todos os nos ficam "disabled".
+ *
+ * Uso manual: incluir depois de khaje.dtsi/khaje-idp-nopmi.dtsi e de
+ * khaje-adsp-upstream.dtsi (que define &q6prmcc) numa DTS de teste e
+ * compilar com dtc. Nao usar junto do overlay de audio vendor Bengal
+ * como modelo de ativacao: os dois descrevem o mesmo hardware LPASS.
+ * Auditoria em docs/audio-port-audit.md.
+ *
+ * Traducao feita neste fragmento:
+ *   - MMIO das macros e versao/IRQs/portas logicas SoundWire vem do
+ *     overlay vendor Bengal: RX 0xa600000, TX 0xa620000,
+ *     VA 0xa730000; SWR RX 0xa610000/SPI 297 e SWR VA_TX
+ *     0xa740000/SPI 296+79, ambos qcom,soundwire-v1.6.0;
+ *   - a topologia de clocks e os arrays qcom,ports-* seguem o DTS
+ *     upstream Agatti/SM6115, trocando apenas o provider legado
+ *     &q6afecc pelo &q6prmcc ja modelado no prototipo AudioReach.
+ *     Os IDs simbolicos LPASS_CLK_ID_* sao os mesmos e mapeiam no
+ *     Q6PRM para RX 0x30e/0x30f e TX 0x30c/0x30d;
+ *   - os resets usam os CGCRs do patch 0029. Os offsets 0x98/0x100
+ *     conferem com qcom,swrm-hctl-reg = 0xa6a9098/0xa7ec100 do
+ *     overlay vendor sobre as bases 0xa6a9000/0xa7ec000;
+ *   - VA recebe qcom,dmic-sample-rate = 600000, valor vendor e unico
+ *     dos tres drivers que o driver upstream realmente le.
+ *
+ * Bloqueios conhecidos antes de qualquer ativacao:
+ *   - o overlay vendor tambem declara clocks VA dedicados 0x307/0x308,
+ *     mas o no VA usa qcom,default-clk-id = <TX_CORE_CLK> e o modelo
+ *     upstream SM6115 alimenta VA com TX core/NPL. Essa e uma hipotese
+ *     forte de topologia, nao uma prova de runtime no SM6225;
+ *   - nao ha pinctrl LPI (swr_rx/swr_tx/dmic) neste fragmento. Sem os
+ *     estados de pino da placa, habilitar SoundWire nao e seguro;
+ *   - nao ha slaves/pai WCD937x, supply de micbias da VA, maquina
+ *     ASoC, roteamento nem amplificadores. Logo nao ha card de som;
+ *   - o ADSP/GPR/Q6PRM do fragmento vizinho continua desabilitado e
+ *     sem boot/probe em hardware. Compilar este DTS nao valida os
+ *     votos de clock no firmware nem a enumeracao SoundWire.
+ */
+
+#include <dt-bindings/clock/qcom,sm6115-lpasscc.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/sound/qcom,q6afe.h>
+
+&soc {
+	rxmacro: codec@a600000 {
+		compatible = "qcom,sm6225-lpass-rx-macro",
+			     "qcom,sm6115-lpass-rx-macro";
+		reg = <0xa600000 0x1000>;
+
+		clocks = <&q6prmcc LPASS_CLK_ID_RX_CORE_MCLK
+				LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			 <&q6prmcc LPASS_CLK_ID_RX_CORE_NPL_MCLK
+				LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			 <&q6prmcc LPASS_HW_DCODEC_VOTE
+				LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			 <&vamacro>;
+		clock-names = "mclk", "npl", "dcodec", "fsgen";
+		assigned-clocks = <&q6prmcc LPASS_CLK_ID_RX_CORE_MCLK
+					LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+				  <&q6prmcc LPASS_CLK_ID_RX_CORE_NPL_MCLK
+					LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		assigned-clock-rates = <22579200>, <22579200>;
+
+		#clock-cells = <0>;
+		clock-output-names = "mclk";
+		#sound-dai-cells = <1>;
+
+		status = "disabled";
+	};
+
+	lpass_swr_rx: soundwire@a610000 {
+		compatible = "qcom,soundwire-v1.6.0";
+		reg = <0xa610000 0x2000>;
+		interrupts = <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>;
+
+		clocks = <&rxmacro>;
+		clock-names = "iface";
+		resets = <&lpass_audiocc LPASS_AUDIO_SWR_RX_CGCR>;
+		reset-names = "swr_audio_cgcr";
+
+		label = "RX";
+		qcom,din-ports = <0>;
+		qcom,dout-ports = <5>;
+
+		qcom,ports-sinterval-low =
+			/bits/ 8 <0x03 0x1f 0x1f 0x07 0x00>;
+		qcom,ports-offset1 =
+			/bits/ 8 <0x00 0x00 0x0b 0x01 0x00>;
+		qcom,ports-offset2 =
+			/bits/ 8 <0x00 0x00 0x0b 0x00 0x00>;
+		qcom,ports-hstart =
+			/bits/ 8 <0xff 0x03 0xff 0xff 0xff>;
+		qcom,ports-hstop =
+			/bits/ 8 <0xff 0x06 0xff 0xff 0xff>;
+		qcom,ports-word-length =
+			/bits/ 8 <0x01 0x07 0x04 0xff 0xff>;
+		qcom,ports-block-pack-mode =
+			/bits/ 8 <0xff 0x00 0x01 0xff 0xff>;
+		qcom,ports-block-group-count =
+			/bits/ 8 <0xff 0xff 0xff 0xff 0x00>;
+		qcom,ports-lane-control =
+			/bits/ 8 <0x01 0x00 0x00 0x00 0x00>;
+
+		#sound-dai-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		status = "disabled";
+	};
+
+	txmacro: codec@a620000 {
+		compatible = "qcom,sm6225-lpass-tx-macro",
+			     "qcom,sm6115-lpass-tx-macro";
+		reg = <0xa620000 0x1000>;
+
+		clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK
+				LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			 <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK
+				LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			 <&q6prmcc LPASS_HW_DCODEC_VOTE
+				LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			 <&vamacro>;
+		clock-names = "mclk", "npl", "dcodec", "fsgen";
+		assigned-clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK
+					LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+				  <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK
+					LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		assigned-clock-rates = <19200000>, <19200000>;
+
+		#clock-cells = <0>;
+		clock-output-names = "mclk";
+		#sound-dai-cells = <1>;
+
+		status = "disabled";
+	};
+
+	lpass_audiocc: clock-controller@a6a9000 {
+		compatible = "qcom,sm6115-lpassaudiocc";
+		reg = <0xa6a9000 0x1000>;
+		#reset-cells = <1>;
+
+		status = "disabled";
+	};
+
+	vamacro: codec@a730000 {
+		compatible = "qcom,sm6225-lpass-va-macro",
+			     "qcom,sm6115-lpass-va-macro";
+		reg = <0xa730000 0x1000>;
+
+		clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK
+				LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			 <&q6prmcc LPASS_HW_DCODEC_VOTE
+				LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+			 <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK
+				LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clock-names = "mclk", "dcodec", "npl";
+		assigned-clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK
+					LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
+				  <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK
+					LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		assigned-clock-rates = <19200000>, <19200000>;
+
+		#clock-cells = <0>;
+		clock-output-names = "fsgen";
+		#sound-dai-cells = <1>;
+		qcom,dmic-sample-rate = <600000>;
+
+		status = "disabled";
+	};
+
+	lpass_swr_va_tx: soundwire@a740000 {
+		compatible = "qcom,soundwire-v1.6.0";
+		reg = <0xa740000 0x2000>;
+		interrupts = <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "core", "wakeup";
+		wakeup-source;
+
+		clocks = <&txmacro>;
+		clock-names = "iface";
+		resets = <&lpasscc LPASS_SWR_TX_CONFIG_CGCR>;
+		reset-names = "swr_audio_cgcr";
+
+		label = "VA_TX";
+		qcom,din-ports = <3>;
+		qcom,dout-ports = <0>;
+
+		qcom,ports-sinterval-low =
+			/bits/ 8 <0x03 0x03 0x03>;
+		qcom,ports-offset1 =
+			/bits/ 8 <0x01 0x02 0x01>;
+		qcom,ports-offset2 =
+			/bits/ 8 <0x00 0x00 0x00>;
+		qcom,ports-hstart =
+			/bits/ 8 <0xff 0xff 0xff>;
+		qcom,ports-hstop =
+			/bits/ 8 <0xff 0xff 0xff>;
+		qcom,ports-word-length =
+			/bits/ 8 <0xff 0xff 0xff>;
+		qcom,ports-block-pack-mode =
+			/bits/ 8 <0xff 0xff 0xff>;
+		qcom,ports-block-group-count =
+			/bits/ 8 <0xff 0xff 0xff>;
+		qcom,ports-lane-control =
+			/bits/ 8 <0x00 0x00 0x00>;
+
+		#sound-dai-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		status = "disabled";
+	};
+
+	lpasscc: clock-controller@a7ec000 {
+		compatible = "qcom,sm6115-lpasscc";
+		reg = <0xa7ec000 0x1000>;
+		#reset-cells = <1>;
+
+		status = "disabled";
+	};
+};

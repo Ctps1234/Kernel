@@ -53,9 +53,10 @@
  *     efetivo do loader 5.15 (que nao aplicava o nome ao rproc).
  *     Caminho de busca e segmentos reais seguem sem hardware;
  *   - o PAS upstream consome cx e o segundo supply (px, ou mx pelo
- *     fallback do patch 0026), mas nao reproduz os votos explicitos
- *     de nivel TURBO que o driver downstream aplica via
- *     reg-names/*-uV-uA. O contrato final de corner segue aberto;
+ *     fallback do patch 0026); o patch 0028 agenda o nivel TURBO
+ *     nesses rails para o recurso SM6225, traduzindo os
+ *     reg-names/*-uV-uA downstream. O efeito desse corner no boot
+ *     real segue sem validacao de hardware;
  *   - a cadeia GPR abaixo e um modelo upstream de substituicao,
  *     nao uma transcricao dos filhos vendor: o FDT usa portas de
  *     cliente spf_core=3, audio-pkt=0x17 e audio_prm=7, enquanto
@@ -68,8 +69,10 @@
  *     runtime continua sem validacao de hardware;
  *   - o SID 0x1c1 do q6apm-dais vem do no qcom,msm-audio-ion do
  *     FDT (mask vendor 0xf); confirmar em hardware antes de usar
- *     para DMA de verdade. LPASS/macros/SoundWire, WCD937x e o
- *     card Bengal continuam fora, logo nao ha ASoC funcional;
+ *     para DMA de verdade. LPASS/macros/SoundWire vivem no
+ *     fragmento separado e desabilitado khaje-lpass-upstream.dtsi;
+ *     pinctrl LPI, WCD937x e o card Bengal continuam fora, logo
+ *     nao ha ASoC funcional;
  *   - CDSP e MPSS ficam fora: este fragmento cobre so o ADSP.
  */
 
@@ -100,10 +103,10 @@
 	/delete-property/ mbox-names;
 	/delete-property/ qcom,glink-label;
 
+	label = "lpass";
+
 	/* O canal APR legado vendor nao faz parte da cadeia GPR. */
 	/delete-node/ qcom,apr_tal_rpmsg;
-
-	label = "lpass";
 
 	audio_gpr: gpr {
 		compatible = "qcom,gpr";
