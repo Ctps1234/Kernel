@@ -30,15 +30,22 @@
  *     conferem com qcom,swrm-hctl-reg = 0xa6a9098/0xa7ec100 do
  *     overlay vendor sobre as bases 0xa6a9000/0xa7ec000;
  *   - VA recebe qcom,dmic-sample-rate = 600000, valor vendor e unico
- *     dos tres drivers que o driver upstream realmente le.
+ *     dos tres drivers que o driver upstream realmente le;
+ *   - o patch 0031 modela o LPI TLMM em 0xa7c0000/0xa950000 com os
+ *     estados SoundWire ativos/sleep traduzidos do FDT Topaz:
+ *     TX em gpio0-2 e RX em gpio3-5, func1 virando
+ *     swr_tx e swr_rx, slew-rate 3 e drive-strength 10 ativos.
+ *     O clock "audio" usa o voto DCODEC do &q6prmcc, como no
+ *     binding SM6115 sobre o provider AudioReach local.
  *
  * Bloqueios conhecidos antes de qualquer ativacao:
  *   - o overlay vendor tambem declara clocks VA dedicados 0x307/0x308,
  *     mas o no VA usa qcom,default-clk-id = <TX_CORE_CLK> e o modelo
  *     upstream SM6115 alimenta VA com TX core/NPL. Essa e uma hipotese
  *     forte de topologia, nao uma prova de runtime no SM6225;
- *   - nao ha pinctrl LPI (swr_rx/swr_tx/dmic) neste fragmento. Sem os
- *     estados de pino da placa, habilitar SoundWire nao e seguro;
+ *   - os estados LPI de DMIC (gpio6-9) ainda nao sao modelados nem
+ *     ligados a VA: as rotas de microfone/micbias Topaz entre VA e
+ *     WCD seguem abertas, entao esta fatia cobre so os pinos SWR;
  *   - nao ha slaves/pai WCD937x, supply de micbias da VA, maquina
  *     ASoC, roteamento nem amplificadores. Logo nao ha card de som;
  *   - o ADSP/GPR/Q6PRM do fragmento vizinho continua desabilitado e
@@ -87,6 +94,10 @@
 		clock-names = "iface";
 		resets = <&lpass_audiocc LPASS_AUDIO_SWR_RX_CGCR>;
 		reset-names = "swr_audio_cgcr";
+
+		pinctrl-0 = <&lpi_swr_rx_active>;
+		pinctrl-1 = <&lpi_swr_rx_sleep>;
+		pinctrl-names = "default", "sleep";
 
 		label = "RX";
 		qcom,din-ports = <0>;
@@ -191,6 +202,10 @@
 		resets = <&lpasscc LPASS_SWR_TX_CONFIG_CGCR>;
 		reset-names = "swr_audio_cgcr";
 
+		pinctrl-0 = <&lpi_swr_tx_active>;
+		pinctrl-1 = <&lpi_swr_tx_sleep>;
+		pinctrl-names = "default", "sleep";
+
 		label = "VA_TX";
 		qcom,din-ports = <3>;
 		qcom,dout-ports = <0>;
@@ -219,6 +234,103 @@
 		#size-cells = <0>;
 
 		status = "disabled";
+	};
+
+	lpass_tlmm: pinctrl@a7c0000 {
+		compatible = "qcom,sm6225-lpass-lpi-pinctrl",
+			     "qcom,sm6115-lpass-lpi-pinctrl";
+		reg = <0xa7c0000 0x20000>,
+		      <0xa950000 0x10000>;
+
+		clocks = <&q6prmcc LPASS_HW_DCODEC_VOTE
+					LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clock-names = "audio";
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&lpass_tlmm 0 0 19>;
+
+		status = "disabled";
+
+		lpi_swr_tx_active: lpi-swr-tx-active-state {
+			clk-pins {
+				pins = "gpio0";
+				function = "swr_tx_clk";
+				drive-strength = <10>;
+				slew-rate = <3>;
+				bias-disable;
+			};
+
+			data-pins {
+				pins = "gpio1", "gpio2";
+				function = "swr_tx_data";
+				drive-strength = <10>;
+				slew-rate = <3>;
+				bias-bus-hold;
+			};
+		};
+
+		lpi_swr_tx_sleep: lpi-swr-tx-sleep-state {
+			clk-pins {
+				pins = "gpio0";
+				function = "swr_tx_clk";
+				drive-strength = <10>;
+				bias-pull-down;
+				input-enable;
+			};
+
+			data1-pins {
+				pins = "gpio1";
+				function = "swr_tx_data";
+				drive-strength = <10>;
+				bias-bus-hold;
+				input-enable;
+			};
+
+			data2-pins {
+				pins = "gpio2";
+				function = "swr_tx_data";
+				drive-strength = <10>;
+				bias-pull-down;
+				input-enable;
+			};
+		};
+
+		lpi_swr_rx_active: lpi-swr-rx-active-state {
+			clk-pins {
+				pins = "gpio3";
+				function = "swr_rx_clk";
+				drive-strength = <10>;
+				slew-rate = <3>;
+				bias-disable;
+			};
+
+			data-pins {
+				pins = "gpio4", "gpio5";
+				function = "swr_rx_data";
+				drive-strength = <10>;
+				slew-rate = <3>;
+				bias-bus-hold;
+			};
+		};
+
+		lpi_swr_rx_sleep: lpi-swr-rx-sleep-state {
+			clk-pins {
+				pins = "gpio3";
+				function = "swr_rx_clk";
+				drive-strength = <10>;
+				bias-pull-down;
+				input-enable;
+			};
+
+			data-pins {
+				pins = "gpio4", "gpio5";
+				function = "swr_rx_data";
+				drive-strength = <10>;
+				bias-pull-down;
+				input-enable;
+			};
+		};
 	};
 
 	lpasscc: clock-controller@a7ec000 {

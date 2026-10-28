@@ -1,0 +1,43 @@
+From 45443d592c16a2b679b7614e6b859652320cd89d Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Wed, 28 Oct 2026 10:43:55 +0000
+Subject: [PATCH] dt-bindings: pinctrl: qcom,sm6115-lpass-lpi: add SM6225
+
+The LPASS LPI TLMM in SM6225/Khaje matches the SM6115 variant
+already supported by pinctrl-sm6115-lpass-lpi: 19 GPIOs, the same
+pin/function table (SoundWire TX on gpio0-2, SoundWire RX on
+gpio3-5, DMIC01/23 on gpio6-9) and a separate slew-rate register
+block. The vendor FDT exposes the same slew offsets for the
+SoundWire pins gpio0-5 that the SM6115 driver encodes.
+
+Allow boards to describe the controller as
+"qcom,sm6225-lpass-lpi-pinctrl" with the SM6115 fallback, so no
+driver change is needed. This is a binding-only change; the
+device tree using it remains disabled and no LPI or SoundWire
+probe has been verified on hardware.
+
+Signed-off-by: Port <port@local>
+---
+ .../bindings/pinctrl/qcom,sm6115-lpass-lpi-pinctrl.yaml     | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/devicetree/bindings/pinctrl/qcom,sm6115-lpass-lpi-pinctrl.yaml b/Documentation/devicetree/bindings/pinctrl/qcom,sm6115-lpass-lpi-pinctrl.yaml
+index f4cf2ce..df5fcfb 100644
+--- a/Documentation/devicetree/bindings/pinctrl/qcom,sm6115-lpass-lpi-pinctrl.yaml
++++ b/Documentation/devicetree/bindings/pinctrl/qcom,sm6115-lpass-lpi-pinctrl.yaml
+@@ -16,7 +16,11 @@ description:
+ 
+ properties:
+   compatible:
+-    const: qcom,sm6115-lpass-lpi-pinctrl
++    oneOf:
++      - const: qcom,sm6115-lpass-lpi-pinctrl
++      - items:
++          - const: qcom,sm6225-lpass-lpi-pinctrl
++          - const: qcom,sm6115-lpass-lpi-pinctrl
+ 
+   reg:
+     items:
+-- 
+2.39.5
+
