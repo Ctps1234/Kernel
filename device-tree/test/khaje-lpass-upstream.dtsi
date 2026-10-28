@@ -36,7 +36,9 @@
  *     TX em gpio0-2 e RX em gpio3-5, func1 virando
  *     swr_tx e swr_rx, slew-rate 3 e drive-strength 10 ativos.
  *     O clock "audio" usa o voto DCODEC do &q6prmcc, como no
- *     binding SM6115 sobre o provider AudioReach local;
+ *     binding SM6115 sobre o provider AudioReach local. Os
+ *     estados DMIC gpio6-9 (dmic01/dmic23 clk e data) seguem os
+ *     valores active/sleep do FDT e ficam ligados a VA;
  *   - os slaves WCD937x usam os IDs decodificados dos reg vendor
  *     <0x0a 0x01170224> (RX) e <0x0a 0x01170223> (TX): fabricante
  *     0x0217, parte 0x010a, versao 2 e unique-id 4/3, ou seja
@@ -53,9 +55,10 @@
  *     mas o no VA usa qcom,default-clk-id = <TX_CORE_CLK> e o modelo
  *     upstream SM6115 alimenta VA com TX core/NPL. Essa e uma hipotese
  *     forte de topologia, nao uma prova de runtime no SM6225;
- *   - os estados LPI de DMIC (gpio6-9) ainda nao sao modelados nem
- *     ligados a VA: as rotas de microfone/micbias Topaz entre VA e
- *     WCD seguem abertas, entao esta fatia cobre so os pinos SWR;
+ *   - os estados LPI de DMIC (gpio6-9) sao modelados e ligados a
+ *     VA, mas as rotas de microfone/micbias entre VA, TX e WCD e o
+ *     ID de backend do link VA seguem abertos; sem isso a VA nao
+ *     entra no no sound;
  *   - o pai WCD e modelado como wcd9375 com fallback wcd9370 por
  *     inferencia dos overlays Khaje "nowcd9375"; o FDT Topaz so diz
  *     wcd937x e o driver distingue o chip por registrador, mas a
@@ -212,6 +215,10 @@
 		#sound-dai-cells = <1>;
 		qcom,dmic-sample-rate = <600000>;
 
+		pinctrl-0 = <&lpi_dmic01_active>, <&lpi_dmic23_active>;
+		pinctrl-1 = <&lpi_dmic01_sleep>, <&lpi_dmic23_sleep>;
+		pinctrl-names = "default", "sleep";
+
 		status = "disabled";
 	};
 
@@ -359,6 +366,73 @@
 				pins = "gpio4", "gpio5";
 				function = "swr_rx_data";
 				drive-strength = <10>;
+				bias-pull-down;
+				input-enable;
+			};
+		};
+		lpi_dmic01_active: lpi-dmic01-active-state {
+			clk-pins {
+				pins = "gpio6";
+				function = "dmic01_clk";
+				drive-strength = <8>;
+				output-high;
+			};
+
+			data-pins {
+				pins = "gpio7";
+				function = "dmic01_data";
+				drive-strength = <8>;
+				input-enable;
+			};
+		};
+
+		lpi_dmic01_sleep: lpi-dmic01-sleep-state {
+			clk-pins {
+				pins = "gpio6";
+				function = "dmic01_clk";
+				drive-strength = <2>;
+				bias-disable;
+				output-low;
+			};
+
+			data-pins {
+				pins = "gpio7";
+				function = "dmic01_data";
+				drive-strength = <2>;
+				bias-pull-down;
+				input-enable;
+			};
+		};
+
+		lpi_dmic23_active: lpi-dmic23-active-state {
+			clk-pins {
+				pins = "gpio8";
+				function = "dmic23_clk";
+				drive-strength = <8>;
+				output-high;
+			};
+
+			data-pins {
+				pins = "gpio9";
+				function = "dmic23_data";
+				drive-strength = <8>;
+				input-enable;
+			};
+		};
+
+		lpi_dmic23_sleep: lpi-dmic23-sleep-state {
+			clk-pins {
+				pins = "gpio8";
+				function = "dmic23_clk";
+				drive-strength = <2>;
+				bias-disable;
+				output-low;
+			};
+
+			data-pins {
+				pins = "gpio9";
+				function = "dmic23_data";
+				drive-strength = <2>;
 				bias-pull-down;
 				input-enable;
 			};
