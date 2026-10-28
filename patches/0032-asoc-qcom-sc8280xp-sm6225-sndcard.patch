@@ -1,0 +1,55 @@
+From a5ab592bcb402e34de220b3724ed844637f298c1 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Wed, 28 Oct 2026 13:17:25 +0000
+Subject: [PATCH] ASoC: qcom: sc8280xp: add SM6225 sound card
+
+The sc8280xp machine driver in this tree is the generic
+AudioReach/Q6APM machine driver used by QCM6490 and SM8450-family
+boards. It does not hard-code a codec topology: it parses the
+DT-described frontend/backend DAI links, registers the card with
+the match-data string as the ALSA driver name and applies the
+common SoundWire backend ops and WCD jack setup.
+
+SM6225/Khaje is being modelled with the same AudioReach service
+set (Q6APM/Q6PRM over GPR), LPASS RX/TX/VA macros, SoundWire and
+a WCD937x codec, so allow the machine driver to bind to a
+"qcom,sm6225-sndcard" node.
+
+This only adds the compatible. The board description using it is
+kept disabled: audio routing, speaker amplifiers, the exact
+AudioReach topology and all runtime behaviour remain unverified
+on hardware.
+
+Signed-off-by: Port <port@local>
+---
+ Documentation/devicetree/bindings/sound/qcom,sm8250.yaml | 1 +
+ sound/soc/qcom/sc8280xp.c                                | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/sound/qcom,sm8250.yaml b/Documentation/devicetree/bindings/sound/qcom,sm8250.yaml
+index 2e2e014..b430515 100644
+--- a/Documentation/devicetree/bindings/sound/qcom,sm8250.yaml
++++ b/Documentation/devicetree/bindings/sound/qcom,sm8250.yaml
+@@ -35,6 +35,7 @@ properties:
+           - qcom,sc7180-qdsp6-sndcard
+           - qcom,sc8280xp-sndcard
+           - qcom,sdm845-sndcard
++          - qcom,sm6225-sndcard
+           - qcom,sm8250-sndcard
+           - qcom,sm8450-sndcard
+           - qcom,x1e80100-sndcard
+diff --git a/sound/soc/qcom/sc8280xp.c b/sound/soc/qcom/sc8280xp.c
+index 1c482a0..864ed77 100644
+--- a/sound/soc/qcom/sc8280xp.c
++++ b/sound/soc/qcom/sc8280xp.c
+@@ -190,6 +190,7 @@ static const struct of_device_id snd_sc8280xp_dt_match[] = {
+ 	{.compatible = "qcom,qcm6490-idp-sndcard", "qcm6490"},
+ 	{.compatible = "qcom,qcs6490-rb3gen2-sndcard", "qcs6490"},
+ 	{.compatible = "qcom,sc8280xp-sndcard", "sc8280xp"},
++	{.compatible = "qcom,sm6225-sndcard", "sm6225"},
+ 	{.compatible = "qcom,sm8450-sndcard", "sm8450"},
+ 	{.compatible = "qcom,sm8550-sndcard", "sm8550"},
+ 	{.compatible = "qcom,sm8650-sndcard", "sm8650"},
+-- 
+2.39.5
+

@@ -42,7 +42,11 @@
  *     0x0217, parte 0x010a, versao 2 e unique-id 4/3, ou seja
  *     codec@0,4 e codec@0,3 com compatible sdw20217010a00. O pai
  *     usa reset no TLMM GPIO 92, supplies L9A (rxtx/px) e L14A
- *     (buck) e micbias 1-3 em 2700 mV do overlay Xiaomi.
+ *     (buck) e micbias 1-3 em 2700 mV do overlay Xiaomi;
+ *   - o patch 0032 liga a maquina generica AudioReach sc8280xp ao
+ *     compatible qcom,sm6225-sndcard. O no sound abaixo descreve
+ *     somente os backends WCD Playback e WCD Capture sobre o
+ *     &q6apmbedai, no mesmo formato das placas QCM6490 com WCD9370.
  *
  * Bloqueios conhecidos antes de qualquer ativacao:
  *   - o overlay vendor tambem declara clocks VA dedicados 0x307/0x308,
@@ -58,8 +62,10 @@
  *     identidade do silicio nao esta confirmada. O rail upstream
  *     vdd-mic-bias nao foi identificado no Topaz (o vendor lista so
  *     rxtx/px/buck), micbias4 nao e inventado e o map estatico TX
- *     <1 2 2 3> nao reproduz o mapa por canal vendor. Sem fechar
- *     isso, maquina, rotas e amplificadores, nao ha card de som;
+ *     <1 2 2 3> nao reproduz o mapa por canal vendor. Mesmo com a
+ *     maquina modelada, sem fechar isso, rotas, amplificadores, o
+ *     link VA e a topologia AudioReach do firmware, nao ha card
+ *     de som utilizavel;
  *   - o ADSP/GPR/Q6PRM do fragmento vizinho continua desabilitado e
  *     sem boot/probe em hardware. Compilar este DTS nao valida os
  *     votos de clock no firmware nem a enumeracao SoundWire.
@@ -70,6 +76,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/sound/qcom,q6afe.h>
+#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
 
 &soc {
 	rxmacro: codec@a600000 {
@@ -390,6 +397,46 @@
 
 		#sound-dai-cells = <1>;
 		status = "disabled";
+	};
+
+	sound: sound {
+		compatible = "qcom,sm6225-sndcard";
+		model = "SM6225-Topaz-WCD937x";
+		status = "disabled";
+
+		wcd-playback-dai-link {
+			link-name = "WCD Playback";
+
+			cpu {
+				sound-dai = <&q6apmbedai RX_CODEC_DMA_RX_0>;
+			};
+
+			codec {
+				sound-dai = <&wcd937x 0>, <&lpass_swr_rx 0>,
+					    <&rxmacro 0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+
+		wcd-capture-dai-link {
+			link-name = "WCD Capture";
+
+			cpu {
+				sound-dai = <&q6apmbedai TX_CODEC_DMA_TX_3>;
+			};
+
+			codec {
+				sound-dai = <&wcd937x 1>, <&lpass_swr_va_tx 0>,
+					    <&txmacro 0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
 	};
 };
 
