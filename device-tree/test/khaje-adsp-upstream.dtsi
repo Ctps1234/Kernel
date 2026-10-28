@@ -28,7 +28,10 @@
  *     "adsp_apps" e intents 512/20 do FDT. O no vendor guardava o
  *     dominio no reg do proprio qcom,gpr (lido assim pelo
  *     gpr-lite); aqui ele vira o qcom,domain explicito exigido
- *     pelo driver/binding upstream (ADSP=2).
+ *     pelo driver/binding upstream (ADSP=2);
+ *   - modela o no qcom,adsp-loader do FDT, tambem desabilitado,
+ *     para o driver do patch 0027: rproc-handle para &adsp_pas,
+ *     celula adsp_variant e o par adsp2/bit 1 do overlay Bengal.
  *
  * Recursos herdados do no real/FDT:
  *   - reg 0xab00000/0x100, clock XO do RPMCC;
@@ -38,13 +41,17 @@
  *     qcom,remote-pid = <2>.
  *
  * Bloqueios conhecidos antes de qualquer ativacao:
- *   - o recurso do patch 0026 usa auto_boot=false, como o downstream:
- *     o boot vendor passa pelo qcom,adsp-loader (NVMEM adsp_variant,
- *     selecao adsp2 e sysfs boot/ssr), que nao foi portado. O sysfs
- *     generico de remoteproc nao foi validado como substituto;
- *   - o nome default de firmware do recurso e adsp.mdt, mas caminho
- *     de busca, variante adsp2 e disponibilidade dos segmentos no
- *     vendor nao foram verificados em hardware;
+ *   - o recurso do patch 0026 usa auto_boot=false, como o downstream.
+ *     O patch 0027 adiciona um loader limpo para o contrato
+ *     /sys/kernel/boot_adsp/{boot,ssr} que o init vendor escreve,
+ *     delegando ao remoteproc generico e sem a dependencia
+ *     spf_core_is_apm_ready() do driver vendor. Neste prototipo os
+ *     nos PAS e loader seguem desabilitados;
+ *   - o loader so aplica o nome escolhido pela adsp_variant quando
+ *     ele e um arquivo completo .mdt/.mbn. O radical "adsp2" do
+ *     Topaz mantem o default adsp.mdt do PAS, como no caminho
+ *     efetivo do loader 5.15 (que nao aplicava o nome ao rproc).
+ *     Caminho de busca e segmentos reais seguem sem hardware;
  *   - o PAS upstream consome cx e o segundo supply (px, ou mx pelo
  *     fallback do patch 0026), mas nao reproduz os votos explicitos
  *     de nivel TURBO que o driver downstream aplica via
@@ -54,9 +61,11 @@
  *     cliente spf_core=3, audio-pkt=0x17 e audio_prm=7, enquanto
  *     q6apm/q6prm upstream usam os IIDs estaticos 1/2. O par
  *     qcom,protection-domain "avs/audio"/"msm/adsp/audio_pd" vem
- *     do audio_pdr vendor, mas quem responde o service locator
- *     (daemon Android ou PD-mapper em kernel, ainda sem match de
- *     raiz Khaje/SM6225) nao foi fechado;
+ *     do audio_pdr vendor. No Android vendor do Topaz quem responde
+ *     o service locator e o servico userspace vendor.pd_mapper
+ *     (/vendor/bin/pd-mapper); por isso nao se adiciona match de
+ *     raiz Khaje/SM6225 ao PD-mapper em kernel. A coexistencia em
+ *     runtime continua sem validacao de hardware;
  *   - o SID 0x1c1 do q6apm-dais vem do no qcom,msm-audio-ion do
  *     FDT (mask vendor 0xf); confirmar em hardware antes de usar
  *     para DMA de verdade. LPASS/macros/SoundWire, WCD937x e o
@@ -133,5 +142,18 @@
 				#clock-cells = <2>;
 			};
 		};
+	};
+};
+
+&soc {
+	adsp_loader: qcom,msm-adsp-loader {
+		compatible = "qcom,adsp-loader";
+		qcom,adsp-state = <0>;
+		qcom,rproc-handle = <&adsp_pas>;
+		nvmem-cells = <&adsp_variant>;
+		nvmem-cell-names = "adsp_variant";
+		adsp-fw-names = "adsp2";
+		adsp-fw-bit-values = <1>;
+		status = "disabled";
 	};
 };
