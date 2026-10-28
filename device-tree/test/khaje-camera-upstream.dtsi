@@ -1,0 +1,56 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * DTS DE TESTE — PMIC de câmera WL2866D do topaz sobre o I2C GENI.
+ *
+ * NAO é incluído por nenhuma DTS de produção e não é encenado por
+ * tools/integrate_dts.py (que só copia device-tree/source). Serve para
+ * validar estaticamente o contrato do binding ovti,wl2866d-i2c
+ * (patch 0033) contra as labels reais da árvore encenada, sem ativar
+ * probe no topaz. O barramento e o nó ficam "disabled".
+ *
+ * Uso manual: incluir depois de khaje-idp-nopmi.dtsi numa DTS de teste
+ * e compilar com dtc. Auditoria completa em docs/camera-port-audit.md.
+ *
+ * Recursos, copiados do overlay vendor topaz-camera-sensor-idp e da
+ * FDT ativa (nó em &qupv3_se1_i2c):
+ *   - endereço I2C 0x28, enable no TLMM 26 com flags 0;
+ *   - registrador de identificação 3, valores aceitos 100 e 85;
+ *   - dois pares de inicialização de placa: (4, 75) e (14, 15).
+ * O driver downstream mantém o enable em nível baixo durante toda a
+ * inicialização e deixa as quatro saídas desligadas ao fim do probe;
+ * o port 0033 preserva essa sequência.
+ *
+ * Bloqueios conhecidos antes de qualquer ativação:
+ *   - a definição versionada de &qupv3_se1_i2c usa o compatible vendor
+ *     qcom,i2c-geni e carrega dmas de GPI, interconnects e
+ *     qcom,wrapper-core; a reconciliação com o binding qcom,geni-i2c
+ *     ainda não foi fechada — aqui só o compatible é sobreposto, sem
+ *     tocar nas demais propriedades, e o barramento segue desabilitado;
+ *   - os sensores físicos servidos pelas saídas DVDD/AVDD não foram
+ *     identificados: a DTS só tem slots genéricos qcom,cam-sensor;
+ *   - não há bloco SoC de câmera (CPAS/CCI/CSIPHY/TFE/CSID/OPE/SMMU)
+ *     na fonte DTS local nem decisão entre Spectra vendor e CAMSS;
+ *   - o consumidor userspace do /dev/wl2866d, se existir, não foi
+ *     localizado; o helper in-kernel ainda não tem chamador na série.
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+&qupv3_se1_i2c {
+	compatible = "qcom,geni-i2c";
+	status = "disabled";
+
+	wl2866d@28 {
+		compatible = "ovti,wl2866d-i2c";
+		reg = <0x28>;
+
+		id_reg = <3>;
+		id_val = <100>;
+		id_val1 = <85>;
+		init_num = <2>;
+		inits = <4 75 14 15>;
+		en-gpio = <&tlmm 26 GPIO_ACTIVE_HIGH>;
+
+		status = "disabled";
+	};
+};

@@ -1,0 +1,1006 @@
+From 07081d3062168fc32a9ec982b7ea381af3c36272 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Wed, 28 Oct 2026 18:40:28 +0000
+Subject: [PATCH] misc: add WL2866D camera power management IC driver
+
+Add a clean Kernel 6.12 port of the downstream Xiaomi WL2866D driver
+used by the Topaz/Tapas camera power path. Preserve the vendor device
+tree properties, default register table, identity check, board init
+sequence, four camera supply outputs, exported
+wl2866d_camera_power_control() helper and /dev/wl2866d register format.
+
+Modernize the implementation with an allocated reference-counted
+device, device property parsing with range validation, GPIO descriptor
+handling, bounded I2C transfers, a dynamic root-only misc minor and
+per-file register offsets. Correct the downstream misc semantics so
+read count is a byte capacity, read returns copied bytes, writes only
+process complete validated records and llseek returns the selected
+register.
+
+The outputs are disabled at the end of probe, as downstream does. This
+is not a regulator provider and does not add any camera sensor, CAMSS
+or Spectra support.
+
+Signed-off-by: Port <port@local>
+---
+ Documentation/ABI/testing/misc-wl2866d        |  32 +
+ .../bindings/misc/ovti,wl2866d-i2c.yaml       | 100 +++
+ drivers/misc/Kconfig                          |  14 +
+ drivers/misc/Makefile                         |   1 +
+ drivers/misc/wl2866d.c                        | 721 ++++++++++++++++++
+ include/linux/wl2866d.h                       |  52 ++
+ 6 files changed, 920 insertions(+)
+ create mode 100644 Documentation/ABI/testing/misc-wl2866d
+ create mode 100644 Documentation/devicetree/bindings/misc/ovti,wl2866d-i2c.yaml
+ create mode 100644 drivers/misc/wl2866d.c
+ create mode 100644 include/linux/wl2866d.h
+
+diff --git a/Documentation/ABI/testing/misc-wl2866d b/Documentation/ABI/testing/misc-wl2866d
+new file mode 100644
+index 0000000..ef2bce2
+--- /dev/null
++++ b/Documentation/ABI/testing/misc-wl2866d
+@@ -0,0 +1,32 @@
++What:		/dev/wl2866d
++Date:		Oct 2026
++KernelVersion:	6.12
++Contact:	linux-kernel@vger.kernel.org
++Description:
++		Root-only register access interface for the WL2866D
++		camera power management IC.  The device is present only
++		after the I2C device has probed successfully.
++
++		Each open file description starts at register 0.  An
++		llseek with SEEK_SET or SEEK_CUR selects the starting
++		register in the range 0-255 and returns the selected
++		register.
++
++		Reads return complete six-byte, uppercase hexadecimal
++		records of the form "RR VV ", where RR is a register
++		address and VV is its value.  The read count is the
++		capacity of the user buffer in bytes.  At most 20
++		registers are returned by one read, and the return
++		value is the number of bytes copied to user space.
++
++		Writes accept one or more records in the same format
++		and write the corresponding registers.  The trailing
++		space in the final record and one trailing newline are
++		optional.
++
++		This is a low-level diagnostic interface inherited from
++		the downstream camera driver.  Normal camera power
++		sequencing is performed in the kernel through
++		wl2866d_camera_power_control().
++
++Users:		Vendor camera diagnostics and factory tests.
+diff --git a/Documentation/devicetree/bindings/misc/ovti,wl2866d-i2c.yaml b/Documentation/devicetree/bindings/misc/ovti,wl2866d-i2c.yaml
+new file mode 100644
+index 0000000..75d40c1
+--- /dev/null
++++ b/Documentation/devicetree/bindings/misc/ovti,wl2866d-i2c.yaml
+@@ -0,0 +1,100 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/misc/ovti,wl2866d-i2c.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: WL2866D camera power management IC
++
++maintainers:
++  - Arnd Bergmann <arnd@arndb.de>
++  - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
++
++description: |
++  The WL2866D is an I2C-controlled power management IC used to supply
++  camera sensors.  It provides two digital and two analog outputs.  The
++  vendor device-tree contract carries the register used to identify the
++  device, the expected identification values and a small board-specific
++  register initialization sequence.
++
++properties:
++  compatible:
++    const: ovti,wl2866d-i2c
++
++  reg:
++    maxItems: 1
++
++  en-gpio:
++    maxItems: 1
++    description:
++      GPIO connected to the device enable input.  It is driven low while
++      the driver initializes the device, matching the downstream driver.
++
++  id_reg:
++    $ref: /schemas/types.yaml#/definitions/uint32
++    maximum: 255
++    description: Register address used for device identification.
++
++  id_val:
++    $ref: /schemas/types.yaml#/definitions/uint32
++    maximum: 255
++    description: First accepted value of the identification register.
++
++  id_val1:
++    $ref: /schemas/types.yaml#/definitions/uint32
++    maximum: 255
++    description: Second accepted value of the identification register.
++
++  init_num:
++    $ref: /schemas/types.yaml#/definitions/uint32
++    minimum: 1
++    maximum: 16
++    description: Number of register/value pairs in the inits property.
++
++  inits:
++    $ref: /schemas/types.yaml#/definitions/uint32-array
++    minItems: 2
++    maxItems: 32
++    items:
++      maximum: 255
++    description: |
++      Board-specific register/value pairs written after the driver's
++      default register sequence.  The array must contain exactly twice
++      as many entries as init_num.
++
++required:
++  - compatible
++  - reg
++  - en-gpio
++  - id_reg
++  - id_val
++  - id_val1
++  - init_num
++  - inits
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    gpio: gpio-controller {
++        gpio-controller;
++        #gpio-cells = <2>;
++    };
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        power-controller@28 {
++            compatible = "ovti,wl2866d-i2c";
++            reg = <0x28>;
++            en-gpio = <&gpio 26 GPIO_ACTIVE_HIGH>;
++            id_reg = <3>;
++            id_val = <100>;
++            id_val1 = <85>;
++            init_num = <2>;
++            inits = <4 75 14 15>;
++        };
++    };
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index 5018db9..894b4fb 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -153,6 +153,20 @@ config ICS932S401
+ 	  This driver can also be built as a module. If so, the module
+ 	  will be called ics932s401.
+ 
++config WL2866D
++	tristate "WL2866D camera power management IC"
++	depends on GPIOLIB
++	depends on I2C
++	depends on OF
++	help
++	  If you say yes here you get support for the WL2866D
++	  I2C-controlled power management IC used to supply camera
++	  sensors. The driver provides the downstream in-kernel power
++	  control helper and a root-only misc device for register access.
++
++	  This driver can also be built as a module. If so, the module
++	  will be called wl2866d.
++
+ config ATMEL_SSC
+ 	tristate "Device driver for Atmel SSC peripheral"
+ 	depends on HAS_IOMEM && (ARCH_AT91 || COMPILE_TEST)
+diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
+index a43fcbe..4043b97 100644
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -11,6 +11,7 @@ obj-$(CONFIG_AD525X_DPOT_SPI)	+= ad525x_dpot-spi.o
+ obj-$(CONFIG_ATMEL_SSC)		+= atmel-ssc.o
+ obj-$(CONFIG_DUMMY_IRQ)		+= dummy-irq.o
+ obj-$(CONFIG_ICS932S401)	+= ics932s401.o
++obj-$(CONFIG_WL2866D)		+= wl2866d.o
+ obj-$(CONFIG_LKDTM)		+= lkdtm/
+ obj-$(CONFIG_TIFM_CORE)       	+= tifm_core.o
+ obj-$(CONFIG_TIFM_7XX1)       	+= tifm_7xx1.o
+diff --git a/drivers/misc/wl2866d.c b/drivers/misc/wl2866d.c
+new file mode 100644
+index 0000000..e9fc981
+--- /dev/null
++++ b/drivers/misc/wl2866d.c
+@@ -0,0 +1,721 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * WL2866D camera power management IC driver
++ *
++ * Copyright (C) 2022 Xiaomi, Inc.
++ *
++ * Clean-room API update of the downstream Xiaomi driver. The hardware
++ * sequences and vendor interfaces are preserved: the default register
++ * table is written first, the DT supplied identity is checked, the
++ * board-specific init pairs are applied, and all outputs are left off.
++ * The misc device keeps the downstream textual register format, but uses
++ * normal byte-count semantics and fully validated user input.
++ */
++
++#include <linux/bits.h>
++#include <linux/err.h>
++#include <linux/fs.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/kernel.h>
++#include <linux/kref.h>
++#include <linux/limits.h>
++#include <linux/miscdevice.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/property.h>
++#include <linux/slab.h>
++#include <linux/types.h>
++#include <linux/uaccess.h>
++#include <linux/wl2866d.h>
++
++#define WL2866D_MAX_INIT_PAIRS		16
++#define WL2866D_MAX_READ_REGS		20
++#define WL2866D_MAX_WRITE_LEN		128
++#define WL2866D_RECORD_LEN		6
++
++#define WL2866D_REG_DISCHARGE		0x02
++#define WL2866D_REG_ENABLE		0x0e
++#define WL2866D_DISCHARGE_ENABLE	0x8f
++#define WL2866D_DVDD1_1V05_VALUE	0x4b
++#define WL2866D_REQUEST_1V05		1050000
++
++struct wl2866d_output_config {
++	const char *name;
++	u8 reg;
++	u8 value;
++	unsigned int microvolts;
++};
++
++static const struct wl2866d_output_config
++wl2866d_outputs[WL2866D_OUTPUT_COUNT] = {
++	[WL2866D_OUTPUT_DVDD1] = {
++		.name = "WL2866D_DVDD1",
++		.reg = 0x03,
++		.value = 0x64,
++		.microvolts = 1200000,
++	},
++	[WL2866D_OUTPUT_DVDD2] = {
++		.name = "WL2866D_DVDD2",
++		.reg = 0x04,
++		.value = 0x4b,
++		.microvolts = 1050000,
++	},
++	[WL2866D_OUTPUT_AVDD1] = {
++		.name = "WL2866D_AVDD1",
++		.reg = 0x05,
++		.value = 0x80,
++		.microvolts = 2800000,
++	},
++	[WL2866D_OUTPUT_AVDD2] = {
++		.name = "WL2866D_AVDD2",
++		.reg = 0x06,
++		.value = 0x80,
++		.microvolts = 2800000,
++	},
++};
++
++/* Values for registers 0x00 through 0x0f, from the downstream driver. */
++static const u8 wl2866d_default_values[] = {
++	0x00, 0x00, 0x8f, 0x64, 0x4b, 0x80, 0x80, 0x00,
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++};
++
++struct wl2866d_reg_setting {
++	u8 reg;
++	u8 value;
++};
++
++struct wl2866d {
++	struct i2c_client *client;
++	struct gpio_desc *en_gpio;
++	struct miscdevice miscdev;
++	struct mutex lock; /* protects hardware access and ready */
++	struct kref refcount;
++	u8 id_reg;
++	u8 id_val;
++	u8 id_val1;
++	unsigned int init_count;
++	struct wl2866d_reg_setting inits[WL2866D_MAX_INIT_PAIRS];
++	bool ready;
++};
++
++struct wl2866d_file {
++	struct wl2866d *wl;
++	u8 reg;
++};
++
++/*
++ * The downstream interface addresses a single chip through both the
++ * exported helper and the misc device. Keep that singleton explicit and
++ * reference counted instead of using writable static device state.
++ */
++static DEFINE_MUTEX(wl2866d_global_lock);
++static struct wl2866d *wl2866d_global;
++
++static void wl2866d_release(struct kref *refcount)
++{
++	struct wl2866d *wl = container_of(refcount, struct wl2866d, refcount);
++
++	kfree(wl);
++}
++
++static void wl2866d_put(struct wl2866d *wl)
++{
++	kref_put(&wl->refcount, wl2866d_release);
++}
++
++static struct wl2866d *wl2866d_get(void)
++{
++	struct wl2866d *wl;
++
++	mutex_lock(&wl2866d_global_lock);
++	wl = wl2866d_global;
++	if (wl)
++		kref_get(&wl->refcount);
++	mutex_unlock(&wl2866d_global_lock);
++
++	return wl;
++}
++
++static int wl2866d_write_reg(struct wl2866d *wl, u8 reg, u8 value)
++{
++	u8 buffer[2] = { reg, value };
++	int ret;
++
++	ret = i2c_master_send(wl->client, buffer, sizeof(buffer));
++	if (ret < 0)
++		return ret;
++
++	return ret == sizeof(buffer) ? 0 : -EIO;
++}
++
++static int wl2866d_read_reg(struct wl2866d *wl, u8 reg, u8 *value)
++{
++	u8 register_buffer = reg;
++	struct i2c_msg messages[] = {
++		{
++			.addr = wl->client->addr,
++			.len = sizeof(register_buffer),
++			.buf = &register_buffer,
++		},
++		{
++			.addr = wl->client->addr,
++			.flags = I2C_M_RD,
++			.len = sizeof(*value),
++			.buf = value,
++		},
++	};
++	int ret;
++
++	ret = i2c_transfer(wl->client->adapter, messages,
++			   ARRAY_SIZE(messages));
++	if (ret < 0)
++		return ret;
++
++	return ret == ARRAY_SIZE(messages) ? 0 : -EIO;
++}
++
++/* The caller must hold wl->lock and the output index must be valid. */
++static int wl2866d_set_output_locked(struct wl2866d *wl, unsigned int output,
++				     int request)
++{
++	const struct wl2866d_output_config *config = &wl2866d_outputs[output];
++	u8 enable;
++	u8 value;
++	int ret;
++
++	ret = wl2866d_read_reg(wl, WL2866D_REG_ENABLE, &enable);
++	if (ret)
++		return ret;
++
++	/* Enable discharge mode to avoid leakage, as downstream does. */
++	ret = wl2866d_write_reg(wl, WL2866D_REG_DISCHARGE,
++				WL2866D_DISCHARGE_ENABLE);
++	if (ret)
++		return ret;
++
++	if (request) {
++		ret = wl2866d_read_reg(wl, config->reg, &value);
++		if (ret || value != config->value) {
++			ret = wl2866d_write_reg(wl, config->reg, config->value);
++			if (ret)
++				return ret;
++		}
++
++		enable |= BIT(output);
++
++		/*
++		 * Downstream uses the numerical microvolt request to select
++		 * DVDD1 at 1.05 V instead of its default 1.2 V setting.
++		 * Preserve that special case after programming the default.
++		 */
++		if (output == WL2866D_OUTPUT_DVDD1 &&
++		    request == WL2866D_REQUEST_1V05) {
++			ret = wl2866d_write_reg(wl, config->reg,
++						WL2866D_DVDD1_1V05_VALUE);
++			if (ret)
++				return ret;
++		}
++	} else {
++		enable &= ~BIT(output);
++	}
++
++	ret = wl2866d_write_reg(wl, WL2866D_REG_ENABLE, enable);
++	if (!ret)
++		dev_dbg(&wl->client->dev, "%s %s (%u uV)\n", config->name,
++			request ? "on" : "off", config->microvolts);
++
++	return ret;
++}
++
++int wl2866d_camera_power_control(unsigned int output, int request)
++{
++	struct wl2866d *wl;
++	int ret;
++
++	if (output >= WL2866D_OUTPUT_COUNT)
++		return -EINVAL;
++
++	wl = wl2866d_get();
++	if (!wl)
++		return -ENODEV;
++
++	mutex_lock(&wl->lock);
++	if (!wl->ready)
++		ret = -ENODEV;
++	else
++		ret = wl2866d_set_output_locked(wl, output, request);
++	mutex_unlock(&wl->lock);
++
++	wl2866d_put(wl);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(wl2866d_camera_power_control);
++
++static int wl2866d_open(struct inode *inode, struct file *file)
++{
++	struct wl2866d_file *state;
++	struct wl2866d *wl;
++	bool ready;
++
++	wl = wl2866d_get();
++	if (!wl)
++		return -ENODEV;
++
++	mutex_lock(&wl->lock);
++	ready = wl->ready;
++	mutex_unlock(&wl->lock);
++	if (!ready) {
++		wl2866d_put(wl);
++		return -ENODEV;
++	}
++
++	state = kzalloc(sizeof(*state), GFP_KERNEL);
++	if (!state) {
++		wl2866d_put(wl);
++		return -ENOMEM;
++	}
++
++	state->wl = wl;
++	state->reg = 0;
++	file->private_data = state;
++
++	return 0;
++}
++
++static int wl2866d_release_file(struct inode *inode, struct file *file)
++{
++	struct wl2866d_file *state = file->private_data;
++	struct wl2866d *wl;
++
++	if (!state)
++		return 0;
++
++	wl = state->wl;
++	kfree(state);
++	file->private_data = NULL;
++	wl2866d_put(wl);
++
++	return 0;
++}
++
++static ssize_t wl2866d_read(struct file *file, char __user *buffer,
++			    size_t count, loff_t *position)
++{
++	struct wl2866d_file *state = file->private_data;
++	struct wl2866d *wl = state->wl;
++	char output[WL2866D_MAX_READ_REGS * WL2866D_RECORD_LEN];
++	size_t registers;
++	size_t length = 0;
++	unsigned int i;
++	int ret = 0;
++
++	if (!count)
++		return 0;
++
++	registers = min_t(size_t, count / WL2866D_RECORD_LEN,
++			  WL2866D_MAX_READ_REGS);
++	if (!registers)
++		return -EINVAL;
++
++	mutex_lock(&wl->lock);
++	if (!wl->ready) {
++		ret = -ENODEV;
++		goto out_unlock;
++	}
++
++	for (i = 0; i < registers; i++) {
++		u8 reg = (u8)(state->reg + i);
++		u8 value;
++
++		ret = wl2866d_read_reg(wl, reg, &value);
++		if (ret)
++			goto out_unlock;
++
++		length += scnprintf(output + length, sizeof(output) - length,
++				    "%02X %02X ", reg, value);
++	}
++
++out_unlock:
++	mutex_unlock(&wl->lock);
++	if (ret)
++		return ret;
++
++	if (copy_to_user(buffer, output, length))
++		return -EFAULT;
++
++	return length;
++}
++
++static bool wl2866d_parse_byte(const char *buffer, u8 *value)
++{
++	int high = hex_to_bin(buffer[0]);
++	int low = hex_to_bin(buffer[1]);
++
++	if (high < 0 || low < 0)
++		return false;
++
++	*value = (u8)((high << 4) | low);
++
++	return true;
++}
++
++static ssize_t wl2866d_write(struct file *file, const char __user *buffer,
++			     size_t count, loff_t *position)
++{
++	struct wl2866d_file *state = file->private_data;
++	struct wl2866d *wl = state->wl;
++	char input[WL2866D_MAX_WRITE_LEN];
++	size_t length = count;
++	size_t offset;
++	int ret = 0;
++
++	if (!count)
++		return 0;
++	if (count > sizeof(input))
++		return -EINVAL;
++	if (copy_from_user(input, buffer, count))
++		return -EFAULT;
++
++	if (length && input[length - 1] == '\n')
++		length--;
++	if (length && input[length - 1] == '\r')
++		length--;
++	if (!length)
++		return -EINVAL;
++
++	mutex_lock(&wl->lock);
++	if (!wl->ready) {
++		ret = -ENODEV;
++		goto out_unlock;
++	}
++
++	for (offset = 0; offset < length;) {
++		size_t remaining = length - offset;
++		u8 reg;
++		u8 value;
++
++		if (remaining < 5 || input[offset + 2] != ' ' ||
++		    !wl2866d_parse_byte(&input[offset], &reg) ||
++		    !wl2866d_parse_byte(&input[offset + 3], &value)) {
++			ret = -EINVAL;
++			break;
++		}
++
++		if (remaining > 5 && input[offset + 5] != ' ') {
++			ret = -EINVAL;
++			break;
++		}
++
++		ret = wl2866d_write_reg(wl, reg, value);
++		if (ret)
++			break;
++
++		offset += remaining == 5 ? 5 : WL2866D_RECORD_LEN;
++	}
++
++out_unlock:
++	mutex_unlock(&wl->lock);
++
++	return ret ? ret : (ssize_t)count;
++}
++
++static loff_t wl2866d_llseek(struct file *file, loff_t offset, int whence)
++{
++	struct wl2866d_file *state = file->private_data;
++	loff_t reg;
++
++	switch (whence) {
++	case SEEK_SET:
++		reg = offset;
++		break;
++	case SEEK_CUR:
++		reg = (loff_t)state->reg + offset;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	if (reg < 0 || reg > U8_MAX)
++		return -EINVAL;
++
++	state->reg = (u8)reg;
++	file->f_pos = reg;
++
++	return reg;
++}
++
++static const struct file_operations wl2866d_file_operations = {
++	.owner = THIS_MODULE,
++	.open = wl2866d_open,
++	.release = wl2866d_release_file,
++	.read = wl2866d_read,
++	.write = wl2866d_write,
++	.llseek = wl2866d_llseek,
++};
++
++static int wl2866d_property_read_u8(struct device *dev, const char *name,
++				    u8 *value)
++{
++	u32 property_value;
++	int ret;
++
++	ret = device_property_read_u32(dev, name, &property_value);
++	if (ret)
++		return ret;
++	if (property_value > U8_MAX)
++		return -EINVAL;
++
++	*value = (u8)property_value;
++
++	return 0;
++}
++
++static int wl2866d_parse_properties(struct wl2866d *wl)
++{
++	struct device *dev = &wl->client->dev;
++	u32 init_values[WL2866D_MAX_INIT_PAIRS * 2];
++	u32 init_num;
++	unsigned int i;
++	int count;
++	int ret;
++
++	ret = wl2866d_property_read_u8(dev, "id_reg", &wl->id_reg);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to read id_reg\n");
++
++	ret = wl2866d_property_read_u8(dev, "id_val", &wl->id_val);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to read id_val\n");
++
++	ret = wl2866d_property_read_u8(dev, "id_val1", &wl->id_val1);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to read id_val1\n");
++
++	ret = device_property_read_u32(dev, "init_num", &init_num);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to read init_num\n");
++	if (!init_num || init_num > WL2866D_MAX_INIT_PAIRS)
++		return dev_err_probe(dev, -EINVAL, "invalid init_num %u\n",
++				     init_num);
++
++	count = device_property_count_u32(dev, "inits");
++	if (count < 0)
++		return dev_err_probe(dev, count, "failed to read inits\n");
++	if (count != (int)(init_num * 2))
++		return dev_err_probe(dev, -EINVAL,
++				     "inits has %d entries for init_num %u\n",
++				     count, init_num);
++
++	ret = device_property_read_u32_array(dev, "inits", init_values, count);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to read inits\n");
++
++	for (i = 0; i < init_num; i++) {
++		u32 reg = init_values[i * 2];
++		u32 value = init_values[i * 2 + 1];
++
++		if (reg > U8_MAX || value > U8_MAX)
++			return dev_err_probe(dev, -EINVAL,
++					     "invalid inits entry %u\n", i);
++
++		wl->inits[i].reg = (u8)reg;
++		wl->inits[i].value = (u8)value;
++	}
++	wl->init_count = init_num;
++
++	return 0;
++}
++
++static int wl2866d_write_defaults(struct wl2866d *wl)
++{
++	unsigned int i;
++	int ret;
++
++	for (i = 0; i < ARRAY_SIZE(wl2866d_default_values); i++) {
++		ret = wl2866d_write_reg(wl, (u8)i, wl2866d_default_values[i]);
++		if (ret)
++			return ret;
++	}
++
++	return 0;
++}
++
++static int wl2866d_check_id(struct wl2866d *wl)
++{
++	struct device *dev = &wl->client->dev;
++	u8 chip_id;
++	int ret;
++
++	ret = wl2866d_read_reg(wl, wl->id_reg, &chip_id);
++	if (ret)
++		return ret;
++
++	if (chip_id != wl->id_val && chip_id != wl->id_val1)
++		return dev_err_probe(dev, -ENODEV,
++				     "unexpected chip ID 0x%02x\n", chip_id);
++
++	dev_dbg(dev, "chip ID 0x%02x\n", chip_id);
++
++	return 0;
++}
++
++static int wl2866d_apply_inits(struct wl2866d *wl)
++{
++	unsigned int i;
++	int ret;
++
++	for (i = 0; i < wl->init_count; i++) {
++		ret = wl2866d_write_reg(wl, wl->inits[i].reg,
++					wl->inits[i].value);
++		if (ret)
++			return ret;
++	}
++
++	return 0;
++}
++
++static int wl2866d_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct wl2866d *wl;
++	unsigned int output;
++	int ret;
++
++	wl = kzalloc(sizeof(*wl), GFP_KERNEL);
++	if (!wl)
++		return -ENOMEM;
++
++	wl->client = client;
++	mutex_init(&wl->lock);
++	kref_init(&wl->refcount);
++	i2c_set_clientdata(client, wl);
++
++	mutex_lock(&wl2866d_global_lock);
++	if (wl2866d_global) {
++		mutex_unlock(&wl2866d_global_lock);
++		ret = dev_err_probe(dev, -EBUSY, "only one device supported\n");
++		goto err_put;
++	}
++	wl2866d_global = wl;
++	mutex_unlock(&wl2866d_global_lock);
++
++	ret = wl2866d_parse_properties(wl);
++	if (ret)
++		goto err_clear_global;
++
++	/* Downstream holds EN low and never drives it high. */
++	wl->en_gpio = devm_gpiod_get(dev, "en", GPIOD_OUT_LOW);
++	if (IS_ERR(wl->en_gpio)) {
++		ret = dev_err_probe(dev, PTR_ERR(wl->en_gpio),
++				    "failed to get enable GPIO\n");
++		goto err_clear_global;
++	}
++
++	ret = wl2866d_write_defaults(wl);
++	if (ret) {
++		ret = dev_err_probe(dev, ret, "failed to write defaults\n");
++		goto err_clear_global;
++	}
++
++	ret = wl2866d_check_id(wl);
++	if (ret)
++		goto err_clear_global;
++
++	ret = wl2866d_apply_inits(wl);
++	if (ret) {
++		ret = dev_err_probe(dev, ret, "failed to apply inits\n");
++		goto err_clear_global;
++	}
++
++	wl->miscdev.minor = MISC_DYNAMIC_MINOR;
++	wl->miscdev.name = "wl2866d";
++	wl->miscdev.fops = &wl2866d_file_operations;
++	wl->miscdev.parent = dev;
++	wl->miscdev.mode = 0600;
++
++	ret = misc_register(&wl->miscdev);
++	if (ret) {
++		ret = dev_err_probe(dev, ret, "failed to register misc device\n");
++		goto err_clear_global;
++	}
++
++	mutex_lock(&wl->lock);
++	wl->ready = true;
++	for (output = 0; output < WL2866D_OUTPUT_COUNT; output++) {
++		ret = wl2866d_set_output_locked(wl, output, 0);
++		if (ret)
++			break;
++	}
++	if (ret)
++		wl->ready = false;
++	mutex_unlock(&wl->lock);
++
++	if (ret) {
++		ret = dev_err_probe(dev, ret, "failed to disable outputs\n");
++		goto err_deregister_misc;
++	}
++
++	dev_info(dev, "registered with outputs disabled\n");
++
++	return 0;
++
++err_deregister_misc:
++	misc_deregister(&wl->miscdev);
++err_clear_global:
++	mutex_lock(&wl2866d_global_lock);
++	if (wl2866d_global == wl)
++		wl2866d_global = NULL;
++	mutex_unlock(&wl2866d_global_lock);
++err_put:
++	i2c_set_clientdata(client, NULL);
++	wl2866d_put(wl);
++
++	return ret;
++}
++
++static void wl2866d_remove(struct i2c_client *client)
++{
++	struct wl2866d *wl = i2c_get_clientdata(client);
++
++	mutex_lock(&wl2866d_global_lock);
++	if (wl2866d_global == wl)
++		wl2866d_global = NULL;
++	mutex_unlock(&wl2866d_global_lock);
++
++	mutex_lock(&wl->lock);
++	wl->ready = false;
++	mutex_unlock(&wl->lock);
++
++	misc_deregister(&wl->miscdev);
++	wl2866d_put(wl);
++}
++
++static const struct of_device_id wl2866d_of_match[] = {
++	{ .compatible = "ovti,wl2866d-i2c" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, wl2866d_of_match);
++
++static const struct i2c_device_id wl2866d_i2c_id[] = {
++	{ "wl2866d-i2c", 0 },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, wl2866d_i2c_id);
++
++static struct i2c_driver wl2866d_driver = {
++	.driver = {
++		.name = "wl2866d",
++		.of_match_table = wl2866d_of_match,
++	},
++	.probe = wl2866d_probe,
++	.remove = wl2866d_remove,
++	.id_table = wl2866d_i2c_id,
++};
++module_i2c_driver(wl2866d_driver);
++
++MODULE_AUTHOR("Xiaomi, Inc.");
++MODULE_DESCRIPTION("WL2866D camera power management IC driver");
++MODULE_LICENSE("GPL");
+diff --git a/include/linux/wl2866d.h b/include/linux/wl2866d.h
+new file mode 100644
+index 0000000..136d303
+--- /dev/null
++++ b/include/linux/wl2866d.h
+@@ -0,0 +1,52 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (C) 2022 Xiaomi, Inc.
++ */
++
++#ifndef _LINUX_WL2866D_H
++#define _LINUX_WL2866D_H
++
++#include <linux/errno.h>
++#include <linux/kconfig.h>
++
++/**
++ * enum wl2866d_output - WL2866D camera supply outputs
++ * @WL2866D_OUTPUT_DVDD1: first digital supply output
++ * @WL2866D_OUTPUT_DVDD2: second digital supply output
++ * @WL2866D_OUTPUT_AVDD1: first analog supply output
++ * @WL2866D_OUTPUT_AVDD2: second analog supply output
++ * @WL2866D_OUTPUT_COUNT: number of outputs
++ */
++enum wl2866d_output {
++	WL2866D_OUTPUT_DVDD1,
++	WL2866D_OUTPUT_DVDD2,
++	WL2866D_OUTPUT_AVDD1,
++	WL2866D_OUTPUT_AVDD2,
++	WL2866D_OUTPUT_COUNT,
++};
++
++/* Output names used by the downstream camera stack. */
++#define OUT_DVDD1 WL2866D_OUTPUT_DVDD1
++#define OUT_DVDD2 WL2866D_OUTPUT_DVDD2
++#define OUT_AVDD1 WL2866D_OUTPUT_AVDD1
++#define OUT_AVDD2 WL2866D_OUTPUT_AVDD2
++
++#if IS_ENABLED(CONFIG_WL2866D)
++/**
++ * wl2866d_camera_power_control() - control one WL2866D output
++ * @output: output ID from &enum wl2866d_output
++ * @request: 0 to disable the output, nonzero to enable it; the special
++ *	value 1050000 selects the downstream 1.05 V setting for DVDD1
++ *
++ * Return: 0 on success or a negative errno on failure.
++ */
++int wl2866d_camera_power_control(unsigned int output, int request);
++#else
++static inline int wl2866d_camera_power_control(unsigned int output,
++					       int request)
++{
++	return -ENODEV;
++}
++#endif
++
++#endif /* _LINUX_WL2866D_H */
+-- 
+2.39.5
+
