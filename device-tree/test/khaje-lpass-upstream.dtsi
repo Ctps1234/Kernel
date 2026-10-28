@@ -48,7 +48,13 @@
  *   - o patch 0032 liga a maquina generica AudioReach sc8280xp ao
  *     compatible qcom,sm6225-sndcard. O no sound abaixo descreve
  *     somente os backends WCD Playback e WCD Capture sobre o
- *     &q6apmbedai, no mesmo formato das placas QCM6490 com WCD9370.
+ *     &q6apmbedai, no mesmo formato das placas QCM6490 com WCD9370;
+ *   - o audio-routing inclui so os pares cujos widgets existem nos
+ *     drivers da base 6.12 e cuja atribuicao esta no FDT Topaz:
+ *     entradas HPH e AUX do WCD alimentadas pela macro RX, AMIC1-3
+ *     e TX DMIC0-3 com os MIC BIAS1 ou 3 do WCD. As rotas vendor
+ *     "Analog Mic" e "Digital Mic" sao fontes duplicadas do mesmo
+ *     pino e nao entram; DEC0-3 e roteado dentro da macro TX.
  *
  * Bloqueios conhecidos antes de qualquer ativacao:
  *   - o overlay vendor tambem declara clocks VA dedicados 0x307/0x308,
@@ -68,7 +74,9 @@
  *     <1 2 2 3> nao reproduz o mapa por canal vendor. Mesmo com a
  *     maquina modelada, sem fechar isso, rotas, amplificadores, o
  *     link VA e a topologia AudioReach do firmware, nao ha card
- *     de som utilizavel;
+ *     de som utilizavel. As rotas por canal TX SWR_INPUT a partir
+ *     dos ADC do WCD tambem ficam fora: dependem do mesmo mapa de
+ *     canais TX ainda nao fechado, e o FDT nao traz rotas VA DMIC;
  *   - o ADSP/GPR/Q6PRM do fragmento vizinho continua desabilitado e
  *     sem boot/probe em hardware. Compilar este DTS nao valida os
  *     votos de clock no firmware nem a enumeracao SoundWire.
@@ -477,6 +485,17 @@
 		compatible = "qcom,sm6225-sndcard";
 		model = "SM6225-Topaz-WCD937x";
 		status = "disabled";
+
+		audio-routing = "IN1_HPHL", "HPHL_OUT",
+				"IN2_HPHR", "HPHR_OUT",
+				"IN3_AUX", "AUX_OUT",
+				"AMIC1", "MIC BIAS1",
+				"AMIC2", "MIC BIAS2",
+				"AMIC3", "MIC BIAS3",
+				"TX DMIC0", "MIC BIAS1",
+				"TX DMIC1", "MIC BIAS1",
+				"TX DMIC2", "MIC BIAS3",
+				"TX DMIC3", "MIC BIAS3";
 
 		wcd-playback-dai-link {
 			link-name = "WCD Playback";
