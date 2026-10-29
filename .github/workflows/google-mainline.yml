@@ -1,0 +1,57 @@
+name: Google ACK (android17-6.18) rebase cost
+
+# Trilha nova (docs/google-mainline-vendor-plan.md). Somente manual:
+# mede quantos patches da serie local aplicam limpos na base oficial
+# da Google fixada abaixo. Nao e gate de push e nao publica no branch
+# ci-artifacts (isso continua sendo do workflow dts-validate).
+on:
+  workflow_dispatch:
+
+env:
+  BASE_REPO: https://github.com/aosp-mirror/kernel_common
+  BASE_COMMIT: 1afe39edbe66c201d26f23f2e3396583238f6842
+
+jobs:
+  rebase-cost:
+    name: Apply-check da serie na base Google
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Kernel project
+        uses: actions/checkout@v4
+
+      - name: Clone base Google (commit fixado)
+        run: |
+          set -o pipefail
+          git clone --depth 1 "$BASE_REPO" basegoogle
+          cd basegoogle
+          git fetch --depth 1 origin "$BASE_COMMIT"
+          git checkout "$BASE_COMMIT"
+          git rev-parse HEAD
+          head -5 Makefile
+
+      - name: Apply-check sequencial da serie
+        run: |
+          set -o pipefail
+          cd basegoogle
+          : > ../rebase-cost.log
+          for p in ../patches/[0-9][0-9][0-9][0-9]-*.patch; do
+            n=$(basename "$p")
+            if err=$(git apply --check "$p" 2>&1); then
+              git apply "$p"
+              echo "CLEAN $n" | tee -a ../rebase-cost.log
+            else
+              echo "FAIL  $n" | tee -a ../rebase-cost.log
+              echo "$err" | head -4 | sed 's/^/      /' | tee -a ../rebase-cost.log
+            fi
+          done
+          echo "clean: $(grep -c '^CLEAN' ../rebase-cost.log)" | tee -a ../rebase-cost.log
+          echo "fail:  $(grep -c '^FAIL' ../rebase-cost.log)" | tee -a ../rebase-cost.log
+
+      - name: Archive rebase cost log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-rebase-cost
+          path: rebase-cost.log

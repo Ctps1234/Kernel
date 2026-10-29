@@ -33,6 +33,8 @@ O arquivo `google_drive/topaz-5.15.config` foi baixado e analisado; o usuário c
 
 Alvo confirmado: **Linux 6.12 com Android/GKI**, para o sistema Android 17 em execução sobre vendor/base Android 15. A linha `android16-6.12-lts` é a base candidata; o commit e as ressalvas de proveniência estão em [`docs/gki-source-validation.md`](docs/gki-source-validation.md).
 
+**Nova direção (decidida em 2026-10-29):** migrar a base para o ACK oficial da Google (`kernel/common`, branch `android17-6.18`, commit fixado `1afe39ed...`) e construir um **vendor novo próprio** (série de patches + config + DTB/DTBO deste repositório), em vez de perseguir compatibilidade com os módulos vendor Xiaomi. A série 0001–0033 e o CI atual permanecem congelados sobre a base 6.12 até a nova trilha atingir paridade; a medição inicial mostra 15/33 patches aplicando limpos na base nova e o 0029 tornado desnecessário por já estar upstream. Decisão, custo patch a patch e sequência de migração em [`docs/google-mainline-vendor-plan.md`](docs/google-mainline-vendor-plan.md).
+
 O KMI é específico da combinação de release Android e versão do kernel; a compatibilidade não é mantida ao trocar de branch/kernel. Portanto, os módulos atuais de 5.15 não podem ser presumidos compatíveis com 6.12: será necessário recompilá-los a partir de source ou portar/substituir os drivers necessários.
 
 ## Fontes e limitações conhecidas
