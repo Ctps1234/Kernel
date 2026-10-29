@@ -1,4 +1,4 @@
-From 659e6e2c68b44c1e47453b384d62ed67ebfe1862 Mon Sep 17 00:00:00 2001
+From f4d2eb174603cf8d8614e6999ada4b1c4032d7e6 Mon Sep 17 00:00:00 2001
 From: Port <port@local>
 Date: Thu, 29 Oct 2026 23:00:48 +0000
 Subject: [PATCH 10/11] clk: qcom: add voltage-corner and debug support
@@ -25,12 +25,12 @@ This patch has not been compiled or validated on hardware.
  drivers/clk/qcom/clk-rcg2.c         |  13 +
  drivers/clk/qcom/clk-regmap.c       | 124 +++++++
  drivers/clk/qcom/clk-regmap.h       |   9 +
- drivers/clk/qcom/common.c           | 242 +++++++++++++
+ drivers/clk/qcom/common.c           | 256 ++++++++++++++
  drivers/clk/qcom/common.h           |  16 +
  drivers/clk/qcom/vdd-class.c        | 506 +++++++++++++++++++++++++++
  drivers/clk/qcom/vdd-class.h        |  82 +++++
  drivers/clk/qcom/vdd-level-bengal.h |  64 ++++
- 12 files changed, 1794 insertions(+), 57 deletions(-)
+ 12 files changed, 1808 insertions(+), 57 deletions(-)
  create mode 100644 drivers/clk/qcom/clk-debug.c
  create mode 100644 drivers/clk/qcom/clk-debug.h
  create mode 100644 drivers/clk/qcom/vdd-class.c
@@ -1165,7 +1165,7 @@ index 14ec659a3..c6c72c4e6 100644
  
  #endif
 diff --git a/drivers/clk/qcom/common.c b/drivers/clk/qcom/common.c
-index 121591886..ce73cea4b 100644
+index 121591886..e04efb7e8 100644
 --- a/drivers/clk/qcom/common.c
 +++ b/drivers/clk/qcom/common.c
 @@ -7,11 +7,13 @@
@@ -1403,7 +1403,24 @@ index 121591886..ce73cea4b 100644
  static struct clk_hw *qcom_cc_clk_hw_get(struct of_phandle_args *clkspec,
  					 void *data)
  {
-@@ -337,6 +539,34 @@ int qcom_cc_really_probe(struct device *dev,
+@@ -321,6 +523,16 @@ static void qcom_cc_clk_regs_configure(struct device *dev, const struct qcom_cc_
+ 		data->clk_regs_configure(dev, regmap);
+ }
+ 
++static void qcom_cc_clk_regulator_deinit(void *data)
++{
++	clk_regulator_deinit(data);
++}
++
++static void qcom_cc_vdd_proxy_unvote(void *data)
++{
++	clk_vdd_proxy_unvote(NULL, data);
++}
++
+ int qcom_cc_really_probe(struct device *dev,
+ 			 const struct qcom_cc_desc *desc, struct regmap *regmap)
+ {
+@@ -337,6 +549,34 @@ int qcom_cc_really_probe(struct device *dev,
  	if (!cc)
  		return -ENOMEM;
  
@@ -1438,7 +1455,18 @@ index 121591886..ce73cea4b 100644
  	ret = devm_pm_domain_attach_list(dev, NULL, &cc->pd_list);
  	if (ret < 0 && ret != -EEXIST)
  		return ret;
-@@ -464,5 +694,17 @@ int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
+@@ -424,6 +664,10 @@ int qcom_cc_really_probe(struct device *dev,
+ 	if (ret)
+ 		goto put_rpm;
+ 
++	ret = qcom_cc_enable_critical_clocks(dev, cc);
++	if (ret)
++		goto put_rpm;
++
+ 	ret = qcom_cc_icc_register(dev, desc);
+ 
+ put_rpm:
+@@ -464,5 +708,17 @@ int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
  }
  EXPORT_SYMBOL_GPL(qcom_cc_probe_by_index);
  

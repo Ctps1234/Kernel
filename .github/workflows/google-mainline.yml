@@ -1,11 +1,18 @@
-name: Google ACK (android17-6.18) rebase cost
+name: Google ACK (android17-6.18) serie 6.18
 
-# Trilha nova (docs/google-mainline-vendor-plan.md). Somente manual:
-# mede quantos patches da serie local aplicam limpos na base oficial
-# da Google fixada abaixo. Nao e gate de push e nao publica no branch
-# ci-artifacts (isso continua sendo do workflow dts-validate).
+# Trilha nova (docs/google-mainline-vendor-plan.md, patches-6.18/).
+# Gate de push apenas para a serie rebaseada: todo patch em
+# patches-6.18/ tem de aplicar limpo, em ordem, na base oficial da
+# Google fixada abaixo; qualquer FAIL derruba o job. Nao publica no
+# branch ci-artifacts (isso continua sendo do workflow dts-validate).
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - arena/60994951-kernel
+    paths:
+      - "patches-6.18/**"
+      - ".github/workflows/google-mainline.yml"
 
 env:
   BASE_REPO: https://github.com/aosp-mirror/kernel_common

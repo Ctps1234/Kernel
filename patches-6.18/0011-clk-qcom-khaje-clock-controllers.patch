@@ -1,4 +1,4 @@
-From a22efb1b2800192aac4660e58b1590de740c4370 Mon Sep 17 00:00:00 2001
+From f2613586a775243e2afd08ff1e2f5d9e1981038a Mon Sep 17 00:00:00 2001
 From: Port <port@local>
 Date: Thu, 29 Oct 2026 23:00:49 +0000
 Subject: [PATCH 11/11] clk: qcom: add Khaje clock controllers
