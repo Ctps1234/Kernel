@@ -151,7 +151,11 @@ HEAD 6.18, continua nosso), 0024 (speed-bins A610),
   0011 com hunks manuais conferidos por comportamento), verificados
   aplicando limpos do zero sobre o commit fixado, com a árvore final
   idêntica à branch de trabalho. O workflow `google-mainline.yml`
-  virou gate de push para `patches-6.18/**`. Detalhes, método e
+  virou gate de push para `patches-6.18/**` e fechou verde na run
+  [`40970905805`](https://github.com/Ctps1234/Kernel/actions/runs/40970905805)
+  (commit `14b9d20`, que também corrige uma exportação incompleta do
+  0010 causada por edições paralelas no mesmo arquivo; detalhes no
+  README da série). Detalhes, método e
   fila restante em `patches-6.18/README.md`. Próxima fatia natural:
   0012–0015 + 0018 (limpos ou quase) ou o desbloqueio de display
   0016/0017; build de imagem nesta base continua pendente.

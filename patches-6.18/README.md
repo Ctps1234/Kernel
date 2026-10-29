@@ -21,7 +21,16 @@ hardware: o gate atual é aplicação limpa em sequência
 Rebaseados e verificados aplicando limpos, em ordem, sobre o commit
 fixado: **0001–0011** (fundação de SoC: pinctrl, RPMCC, PHY UFS,
 interconnect Bengal, reguladores RPM-SMD, votos de tensão/debug de
-clock e os controladores GCC/DISPCC/GPUCC/debugcc Khaje).
+clock e os controladores GCC/DISPCC/GPUCC/debugcc Khaje). Evidência:
+run [`40970905805`](https://github.com/Ctps1234/Kernel/actions/runs/40970905805)
+do workflow `google-mainline.yml` verde sobre o commit `14b9d20`, e
+reprodução local idêntica (árvore resultante byte a byte igual à
+branch de rebase). Errata do mesmo dia: a primeira exportação do 0010
+saiu incompleta (edições paralelas no mesmo arquivo se sobrescreveram
+e só um dos três trechos de `common.c` sobreviveu — aplicava limpo,
+mas não compilaria); corrigida e re-verificada no commit `14b9d20`.
+Lição registrada: edições no mesmo arquivo, sempre sequenciais e
+conferidas por grep de conteúdo, não só por aplicação limpa.
 
 Sete entraram sem nenhum ajuste (0001, 0002, 0003, 0006, 0007, 0008,
 0009). Quatro exigiram hunks manuais, todos conferidos por
