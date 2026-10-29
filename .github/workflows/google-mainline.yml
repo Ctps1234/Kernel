@@ -31,12 +31,12 @@ jobs:
           git rev-parse HEAD
           head -5 Makefile
 
-      - name: Apply-check sequencial da serie
+      - name: Apply-check sequencial da serie 6.18
         run: |
           set -o pipefail
           cd basegoogle
           : > ../rebase-cost.log
-          for p in ../patches/[0-9][0-9][0-9][0-9]-*.patch; do
+          for p in ../patches-6.18/[0-9][0-9][0-9][0-9]-*.patch; do
             n=$(basename "$p")
             if err=$(git apply --check "$p" 2>&1); then
               git apply "$p"
@@ -46,8 +46,15 @@ jobs:
               echo "$err" | head -4 | sed 's/^/      /' | tee -a ../rebase-cost.log
             fi
           done
-          echo "clean: $(grep -c '^CLEAN' ../rebase-cost.log)" | tee -a ../rebase-cost.log
-          echo "fail:  $(grep -c '^FAIL' ../rebase-cost.log)" | tee -a ../rebase-cost.log
+          cleans=$(grep -c '^CLEAN' ../rebase-cost.log || true)
+          fails=$(grep -c '^FAIL' ../rebase-cost.log || true)
+          echo "clean: $cleans" | tee -a ../rebase-cost.log
+          echo "fail:  $fails" | tee -a ../rebase-cost.log
+          if [ "$fails" != "0" ]; then
+            echo "serie 6.18 nao aplica limpa na base fixada" >&2
+            exit 1
+          fi
+          git diff --check | tee -a ../rebase-cost.log
 
       - name: Archive rebase cost log
         if: always()

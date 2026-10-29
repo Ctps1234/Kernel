@@ -1,0 +1,28 @@
+From 0e58674f82778b2abf18b4261e9c998abb4baac0 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Thu, 29 Oct 2026 23:00:45 +0000
+Subject: [PATCH 03/11] dt-bindings: clock: qcom: add Khaje RPMCC compatible
+
+Document the qcom,rpmcc-khaje compatible in the existing Qualcomm RPM
+clock-controller binding. The Khaje RPMCC node in the device reference has
+no parent-clock properties, so it is not added to the conditional requiring
+an XO input clock.
+---
+ Documentation/devicetree/bindings/clock/qcom,rpmcc.yaml | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Documentation/devicetree/bindings/clock/qcom,rpmcc.yaml b/Documentation/devicetree/bindings/clock/qcom,rpmcc.yaml
+index 90cd3feab..7237b9479 100644
+--- a/Documentation/devicetree/bindings/clock/qcom,rpmcc.yaml
++++ b/Documentation/devicetree/bindings/clock/qcom,rpmcc.yaml
+@@ -48,6 +48,7 @@ properties:
+           - qcom,rpmcc-sdm660
+           - qcom,rpmcc-sm6115
+           - qcom,rpmcc-sm6125
++          - qcom,rpmcc-khaje
+           - qcom,rpmcc-sm6375
+       - const: qcom,rpmcc
+ 
+-- 
+2.39.5
+

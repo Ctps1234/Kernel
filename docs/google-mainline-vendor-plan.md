@@ -143,3 +143,15 @@ HEAD 6.18, continua nosso), 0024 (speed-bins A610),
   comportamento, não só pelo contexto.
 - Nenhuma das duas bases foi testada em hardware. A troca de base não
   altera esse fato nem autoriza flash.
+
+## Progresso
+
+- **2026-10-29**: primeira fatia executada — patches **0001–0011**
+  rebaseados para `patches-6.18/` (sete sem ajuste; 0004, 0005, 0010 e
+  0011 com hunks manuais conferidos por comportamento), verificados
+  aplicando limpos do zero sobre o commit fixado, com a árvore final
+  idêntica à branch de trabalho. O workflow `google-mainline.yml`
+  virou gate de push para `patches-6.18/**`. Detalhes, método e
+  fila restante em `patches-6.18/README.md`. Próxima fatia natural:
+  0012–0015 + 0018 (limpos ou quase) ou o desbloqueio de display
+  0016/0017; build de imagem nesta base continua pendente.

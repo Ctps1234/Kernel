@@ -1,0 +1,2185 @@
+From 659e6e2c68b44c1e47453b384d62ed67ebfe1862 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Thu, 29 Oct 2026 23:00:48 +0000
+Subject: [PATCH 10/11] clk: qcom: add voltage-corner and debug support
+
+Port regulator-backed voltage-corner votes to the target's common-clock and
+regulator APIs, retaining per-level aggregation, transactional rollback, and
+the temporary maximum-level proxy vote until CCF sync_state. Adapt selected
+PLL and RCG operations to the target's pre/post-rate hooks and return setup
+errors instead of silently ignoring failed register writes. Add a checked
+register-update sequence helper and preserve qcom,critical-devices consumers
+as enabled clock references, including the topaz QUP clock dependency.
+
+Add the Khaje debug-mux measurement support used by the debug clock driver.
+All selector values in the Khaje data are treated as valid (no sentinel); the
+debugfs parent-change path rejects a missing/unresolved parent before calling
+clk_set_parent. No voltage vote is removed by this patch.
+
+This patch has not been compiled or validated on hardware.
+---
+ drivers/clk/qcom/clk-alpha-pll.c    | 207 ++++++++---
+ drivers/clk/qcom/clk-alpha-pll.h    |   9 +-
+ drivers/clk/qcom/clk-debug.c        | 516 ++++++++++++++++++++++++++++
+ drivers/clk/qcom/clk-debug.h        |  63 ++++
+ drivers/clk/qcom/clk-rcg2.c         |  13 +
+ drivers/clk/qcom/clk-regmap.c       | 124 +++++++
+ drivers/clk/qcom/clk-regmap.h       |   9 +
+ drivers/clk/qcom/common.c           | 242 +++++++++++++
+ drivers/clk/qcom/common.h           |  16 +
+ drivers/clk/qcom/vdd-class.c        | 506 +++++++++++++++++++++++++++
+ drivers/clk/qcom/vdd-class.h        |  82 +++++
+ drivers/clk/qcom/vdd-level-bengal.h |  64 ++++
+ 12 files changed, 1794 insertions(+), 57 deletions(-)
+ create mode 100644 drivers/clk/qcom/clk-debug.c
+ create mode 100644 drivers/clk/qcom/clk-debug.h
+ create mode 100644 drivers/clk/qcom/vdd-class.c
+ create mode 100644 drivers/clk/qcom/vdd-class.h
+ create mode 100644 drivers/clk/qcom/vdd-level-bengal.h
+
+diff --git a/drivers/clk/qcom/clk-alpha-pll.c b/drivers/clk/qcom/clk-alpha-pll.c
+index 6aeba4035..4f07aed9d 100644
+--- a/drivers/clk/qcom/clk-alpha-pll.c
++++ b/drivers/clk/qcom/clk-alpha-pll.c
+@@ -1207,6 +1207,10 @@ const struct clk_ops clk_alpha_pll_hwfsm_ops = {
+ EXPORT_SYMBOL_GPL(clk_alpha_pll_hwfsm_ops);
+ 
+ const struct clk_ops clk_alpha_pll_fixed_trion_ops = {
++	.prepare = clk_prepare_regmap,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.enable = clk_trion_pll_enable,
+ 	.disable = clk_trion_pll_disable,
+ 	.is_enabled = clk_trion_pll_is_enabled,
+@@ -1708,51 +1712,92 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_postdiv_fabia_ops);
+  * @regmap: register map
+  * @config: configuration to apply for pll
+  */
+-void clk_trion_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+-			     const struct alpha_pll_config *config)
++static int clk_alpha_pll_write_config_checked(struct regmap *regmap,
++					      unsigned int reg,
++					      unsigned int val)
++{
++	return val ? regmap_write(regmap, reg, val) : 0;
++}
++
++int clk_trion_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
++			    const struct alpha_pll_config *config)
+ {
++	int ret;
++
+ 	/*
+ 	 * If the bootloader left the PLL enabled it's likely that there are
+ 	 * RCGs that will lock up if we disable the PLL below.
+ 	 */
+ 	if (trion_pll_is_enabled(pll, regmap)) {
+ 		pr_debug("Trion PLL is already enabled, skipping configuration\n");
+-		return;
++		return 0;
+ 	}
+ 
+-	clk_alpha_pll_write_config(regmap, PLL_L_VAL(pll), config->l);
+-	regmap_write(regmap, PLL_CAL_L_VAL(pll), TRION_PLL_CAL_VAL);
+-	clk_alpha_pll_write_config(regmap, PLL_ALPHA_VAL(pll), config->alpha);
+-	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL(pll),
+-				     config->config_ctl_val);
+-	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL_U(pll),
+-				     config->config_ctl_hi_val);
+-	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL_U1(pll),
+-				     config->config_ctl_hi1_val);
+-	clk_alpha_pll_write_config(regmap, PLL_USER_CTL(pll),
+-					config->user_ctl_val);
+-	clk_alpha_pll_write_config(regmap, PLL_USER_CTL_U(pll),
+-					config->user_ctl_hi_val);
+-	clk_alpha_pll_write_config(regmap, PLL_USER_CTL_U1(pll),
+-					config->user_ctl_hi1_val);
+-	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL(pll),
+-					config->test_ctl_val);
+-	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U(pll),
+-					config->test_ctl_hi_val);
+-	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U1(pll),
+-					config->test_ctl_hi1_val);
++	ret = regmap_write(regmap, PLL_L_VAL(pll), config->l);
++	if (ret)
++		return ret;
++	ret = regmap_write(regmap, PLL_CAL_L_VAL(pll),
++			   config->cal_l ?: TRION_PLL_CAL_VAL);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_ALPHA_VAL(pll),
++						 config->alpha);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_CONFIG_CTL(pll),
++						 config->config_ctl_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_CONFIG_CTL_U(pll),
++						 config->config_ctl_hi_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_CONFIG_CTL_U1(pll),
++						 config->config_ctl_hi1_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_USER_CTL(pll),
++						 config->user_ctl_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_USER_CTL_U(pll),
++						 config->user_ctl_hi_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_USER_CTL_U1(pll),
++						 config->user_ctl_hi1_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_TEST_CTL(pll),
++						 config->test_ctl_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_TEST_CTL_U(pll),
++						 config->test_ctl_hi_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_TEST_CTL_U1(pll),
++						 config->test_ctl_hi1_val);
++	if (ret)
++		return ret;
+ 
+-	regmap_update_bits(regmap, PLL_MODE(pll), PLL_UPDATE_BYPASS,
+-			   PLL_UPDATE_BYPASS);
++	ret = regmap_update_bits(regmap, PLL_MODE(pll), PLL_UPDATE_BYPASS,
++				 PLL_UPDATE_BYPASS);
++	if (ret)
++		return ret;
+ 
+ 	/* Disable PLL output */
+-	regmap_update_bits(regmap, PLL_MODE(pll),  PLL_OUTCTRL, 0);
++	ret = regmap_update_bits(regmap, PLL_MODE(pll), PLL_OUTCTRL, 0);
++	if (ret)
++		return ret;
+ 
+-	/* Set operation mode to OFF */
+-	regmap_write(regmap, PLL_OPMODE(pll), PLL_STANDBY);
++	/* Set operation mode to OFF, then place the PLL in STANDBY. */
++	ret = regmap_write(regmap, PLL_OPMODE(pll), PLL_STANDBY);
++	if (ret)
++		return ret;
+ 
+-	/* Place the PLL in STANDBY mode */
+-	regmap_update_bits(regmap, PLL_MODE(pll), PLL_RESET_N, PLL_RESET_N);
++	return regmap_update_bits(regmap, PLL_MODE(pll), PLL_RESET_N,
++				  PLL_RESET_N);
+ }
+ EXPORT_SYMBOL_GPL(clk_trion_pll_configure);
+ 
+@@ -1766,8 +1811,14 @@ static int __alpha_pll_trion_prepare(struct clk_hw *hw, u32 pcal_done)
+ 	u32 val;
+ 	int ret;
+ 
++	ret = clk_prepare_regmap(hw);
++	if (ret)
++		return ret;
++
+ 	/* Return early if calibration is not needed. */
+-	regmap_read(pll->clkr.regmap, PLL_STATUS(pll), &val);
++	ret = regmap_read(pll->clkr.regmap, PLL_STATUS(pll), &val);
++	if (ret)
++		goto err_unprepare;
+ 	if (val & pcal_done)
+ 		return 0;
+ 
+@@ -1775,7 +1826,11 @@ static int __alpha_pll_trion_prepare(struct clk_hw *hw, u32 pcal_done)
+ 	ret = clk_trion_pll_enable(hw);
+ 	if (!ret)
+ 		clk_trion_pll_disable(hw);
++	if (!ret)
++		return 0;
+ 
++err_unprepare:
++	clk_unprepare_regmap(hw);
+ 	return ret;
+ }
+ 
+@@ -1844,6 +1899,9 @@ static int alpha_pll_trion_set_rate(struct clk_hw *hw, unsigned long rate,
+ 
+ const struct clk_ops clk_alpha_pll_trion_ops = {
+ 	.prepare = alpha_pll_trion_prepare,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.enable = clk_trion_pll_enable,
+ 	.disable = clk_trion_pll_disable,
+ 	.is_enabled = clk_trion_pll_is_enabled,
+@@ -1855,6 +1913,9 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_trion_ops);
+ 
+ const struct clk_ops clk_alpha_pll_lucid_ops = {
+ 	.prepare = alpha_pll_lucid_prepare,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.enable = clk_trion_pll_enable,
+ 	.disable = clk_trion_pll_disable,
+ 	.is_enabled = clk_trion_pll_is_enabled,
+@@ -2155,31 +2216,67 @@ const struct clk_ops clk_alpha_pll_postdiv_lucid_5lpe_ops = {
+ };
+ EXPORT_SYMBOL_GPL(clk_alpha_pll_postdiv_lucid_5lpe_ops);
+ 
+-void clk_zonda_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+-			     const struct alpha_pll_config *config)
++int clk_zonda_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
++			    const struct alpha_pll_config *config)
+ {
+-	clk_alpha_pll_write_config(regmap, PLL_L_VAL(pll), config->l);
+-	clk_alpha_pll_write_config(regmap, PLL_ALPHA_VAL(pll), config->alpha);
+-	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL(pll), config->config_ctl_val);
+-	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL_U(pll), config->config_ctl_hi_val);
+-	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL_U1(pll), config->config_ctl_hi1_val);
+-	clk_alpha_pll_write_config(regmap, PLL_USER_CTL(pll), config->user_ctl_val);
+-	clk_alpha_pll_write_config(regmap, PLL_USER_CTL_U(pll), config->user_ctl_hi_val);
+-	clk_alpha_pll_write_config(regmap, PLL_USER_CTL_U1(pll), config->user_ctl_hi1_val);
+-	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL(pll), config->test_ctl_val);
+-	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U(pll), config->test_ctl_hi_val);
+-	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U1(pll), config->test_ctl_hi1_val);
+-
+-	regmap_update_bits(regmap, PLL_MODE(pll), PLL_BYPASSNL, 0);
++	int ret;
+ 
+-	/* Disable PLL output */
+-	regmap_update_bits(regmap, PLL_MODE(pll), PLL_OUTCTRL, 0);
++	ret = regmap_write(regmap, PLL_L_VAL(pll), config->l);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_ALPHA_VAL(pll),
++						 config->alpha);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_CONFIG_CTL(pll),
++						 config->config_ctl_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_CONFIG_CTL_U(pll),
++						 config->config_ctl_hi_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_CONFIG_CTL_U1(pll),
++						 config->config_ctl_hi1_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_USER_CTL(pll),
++						 config->user_ctl_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_USER_CTL_U(pll),
++						 config->user_ctl_hi_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_USER_CTL_U1(pll),
++						 config->user_ctl_hi1_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_TEST_CTL(pll),
++						 config->test_ctl_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_TEST_CTL_U(pll),
++						 config->test_ctl_hi_val);
++	if (ret)
++		return ret;
++	ret = clk_alpha_pll_write_config_checked(regmap, PLL_TEST_CTL_U1(pll),
++						 config->test_ctl_hi1_val);
++	if (ret)
++		return ret;
+ 
+-	/* Set operation mode to OFF */
+-	regmap_write(regmap, PLL_OPMODE(pll), PLL_STANDBY);
++	ret = regmap_update_bits(regmap, PLL_MODE(pll), PLL_BYPASSNL, 0);
++	if (ret)
++		return ret;
++	ret = regmap_update_bits(regmap, PLL_MODE(pll), PLL_OUTCTRL, 0);
++	if (ret)
++		return ret;
++	ret = regmap_write(regmap, PLL_OPMODE(pll), PLL_STANDBY);
++	if (ret)
++		return ret;
+ 
+-	/* Place the PLL in STANDBY mode */
+-	regmap_update_bits(regmap, PLL_MODE(pll), PLL_RESET_N, PLL_RESET_N);
++	return regmap_update_bits(regmap, PLL_MODE(pll), PLL_RESET_N,
++				  PLL_RESET_N);
+ }
+ EXPORT_SYMBOL_GPL(clk_zonda_pll_configure);
+ 
+@@ -2315,6 +2412,10 @@ static int clk_zonda_pll_set_rate(struct clk_hw *hw, unsigned long rate,
+ }
+ 
+ const struct clk_ops clk_alpha_pll_zonda_ops = {
++	.prepare = clk_prepare_regmap,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.enable = clk_zonda_pll_enable,
+ 	.disable = clk_zonda_pll_disable,
+ 	.is_enabled = clk_trion_pll_is_enabled,
+diff --git a/drivers/clk/qcom/clk-alpha-pll.h b/drivers/clk/qcom/clk-alpha-pll.h
+index 0903a05b1..81326cd97 100644
+--- a/drivers/clk/qcom/clk-alpha-pll.h
++++ b/drivers/clk/qcom/clk-alpha-pll.h
+@@ -128,6 +128,7 @@ struct clk_alpha_pll_postdiv {
+ 
+ struct alpha_pll_config {
+ 	u32 l;
++	u32 cal_l;
+ 	u32 alpha;
+ 	u32 alpha_hi;
+ 	u32 config_ctl_val;
+@@ -218,15 +219,15 @@ void clk_huayra_2290_pll_configure(struct clk_alpha_pll *pll, struct regmap *reg
+ 				   const struct alpha_pll_config *config);
+ void clk_fabia_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+ 				const struct alpha_pll_config *config);
+-void clk_trion_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+-			     const struct alpha_pll_config *config);
++int clk_trion_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
++			    const struct alpha_pll_config *config);
+ void clk_agera_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+ 				const struct alpha_pll_config *config);
+ #define clk_lucid_pll_configure(pll, regmap, config) \
+ 	clk_trion_pll_configure(pll, regmap, config)
+ 
+-void clk_zonda_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+-			     const struct alpha_pll_config *config);
++int clk_zonda_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
++			    const struct alpha_pll_config *config);
+ void clk_lucid_5lpe_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+ 				  const struct alpha_pll_config *config);
+ void clk_lucid_evo_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+diff --git a/drivers/clk/qcom/clk-debug.c b/drivers/clk/qcom/clk-debug.c
+new file mode 100644
+index 000000000..364f3dcd4
+--- /dev/null
++++ b/drivers/clk/qcom/clk-debug.c
+@@ -0,0 +1,516 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Minimal Qualcomm debug-clock mux support for controllers with register
++ * based measurement hardware.
++ */
++
++#include <linux/clk.h>
++#include <linux/clk-provider.h>
++#include <linux/debugfs.h>
++#include <linux/err.h>
++#include <linux/export.h>
++#include <linux/iopoll.h>
++#include <linux/kernel.h>
++#include <linux/math64.h>
++#include <linux/mfd/syscon.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/of.h>
++#include <linux/of_device.h>
++#include <linux/platform_device.h>
++#include <linux/regmap.h>
++#include <linux/seq_file.h>
++#include <linux/slab.h>
++
++#include "clk-debug.h"
++
++#define TCXO_DIV_4_HZ		4800000
++#define SAMPLE_TICKS_1_MS	0x1000
++#define SAMPLE_TICKS_27_MS	0x20000
++
++#define XO_DIV4_CNT_DONE	BIT(25)
++#define CNT_EN			BIT(20)
++#define CLR_CNT			BIT(21)
++#define XO_DIV4_TERM_CNT_MASK	GENMASK(19, 0)
++#define MEASURE_CNT		GENMASK(24, 0)
++#define CBCR_ENA		BIT(0)
++
++static DEFINE_MUTEX(clk_debug_lock);
++static LIST_HEAD(clk_debug_mux_list);
++static struct clk_hw *measure;
++
++static bool clk_is_debug_mux(const struct clk_hw *hw)
++{
++	struct clk_debug_mux *mux;
++
++	if (!hw)
++		return false;
++
++	list_for_each_entry(mux, &clk_debug_mux_list, list)
++		if (&mux->hw == hw)
++			return true;
++
++	return false;
++}
++
++static int clk_debug_set_parent(struct clk_hw *hw, struct clk_hw *parent)
++{
++	struct clk *clk, *parent_clk;
++
++	/* Do not pass an unresolved/orphaned parent to the CCF. */
++	if (!hw || !parent)
++		return -EINVAL;
++
++	clk = hw->clk;
++	parent_clk = parent->clk;
++	if (!clk || !parent_clk)
++		return -EINVAL;
++
++	return clk_set_parent(clk, parent_clk);
++}
++
++static int clk_find_and_set_parent(struct clk_hw *mux, struct clk_hw *target)
++{
++	struct clk_hw *parent;
++	int i, ret;
++
++	if (!mux || !target)
++		return -EINVAL;
++	if (mux == target)
++		return 0;
++	if (!clk_is_debug_mux(mux))
++		return -EINVAL;
++
++	for (i = 0; i < clk_hw_get_num_parents(mux); i++) {
++		parent = clk_hw_get_parent_by_index(mux, i);
++		if (!parent)
++			continue;
++
++		if (parent == target)
++			return clk_debug_set_parent(mux, parent);
++
++		if (!clk_is_debug_mux(parent))
++			continue;
++
++		ret = clk_find_and_set_parent(parent, target);
++		if (!ret)
++			return clk_debug_set_parent(mux, parent);
++	}
++
++	return -EINVAL;
++}
++
++static u8 clk_debug_mux_get_parent(struct clk_hw *hw)
++{
++	struct clk_debug_mux *mux = to_clk_measure(hw);
++	struct clk_hw *parent;
++	u32 value;
++	int i, ret;
++
++	if (!mux->regmap || !mux->mux_sels) {
++		parent = clk_hw_get_parent(hw);
++		if (!parent)
++			return 0xff;
++		for (i = 0; i < clk_hw_get_num_parents(hw); i++)
++			if (clk_hw_get_parent_by_index(hw, i) == parent)
++				return i;
++		return 0xff;
++	}
++
++	ret = regmap_read(mux->regmap, mux->debug_offset, &value);
++	if (ret)
++		return 0xff;
++
++	value = (value & mux->src_sel_mask) >> mux->src_sel_shift;
++	for (i = 0; i < clk_hw_get_num_parents(hw) &&
++	     i < mux->num_mux_sels; i++) {
++		parent = clk_hw_get_parent_by_index(hw, i);
++		if (parent && mux->mux_sels[i] == value)
++			return i;
++	}
++
++	return 0xff;
++}
++
++static int clk_debug_mux_set_parent(struct clk_hw *hw, u8 index)
++{
++	struct clk_debug_mux *mux = to_clk_measure(hw);
++	struct clk_hw *parent;
++	int ret;
++
++	if (!mux->mux_sels)
++		return 0;
++	if (index >= mux->num_mux_sels ||
++	    index >= clk_hw_get_num_parents(hw))
++		return -EINVAL;
++
++	parent = clk_hw_get_parent_by_index(hw, index);
++	if (!parent)
++		return -EINVAL;
++	if (!mux->regmap)
++		return -ENODEV;
++
++	ret = regmap_update_bits(mux->regmap, mux->debug_offset,
++				  mux->src_sel_mask,
++				  mux->mux_sels[index] << mux->src_sel_shift);
++	if (ret)
++		return ret;
++
++	if (mux->post_div_offset == U32_MAX)
++		return 0;
++
++	return regmap_update_bits(mux->regmap, mux->post_div_offset,
++				  mux->post_div_mask,
++				  (mux->post_div_val - 1) <<
++				  mux->post_div_shift);
++}
++
++const struct clk_ops clk_debug_mux_ops = {
++	.get_parent = clk_debug_mux_get_parent,
++	.set_parent = clk_debug_mux_set_parent,
++	.debug_init = clk_debug_measure_add,
++	.determine_rate = clk_hw_determine_rate_no_reparent,
++};
++EXPORT_SYMBOL_GPL(clk_debug_mux_ops);
++
++static int clk_dummy_set_rate(struct clk_hw *hw, unsigned long rate,
++			      unsigned long parent_rate)
++{
++	struct clk_dummy *dummy = container_of(hw, struct clk_dummy, hw);
++
++	dummy->rate = rate;
++	return 0;
++}
++
++static long clk_dummy_round_rate(struct clk_hw *hw, unsigned long rate,
++				unsigned long *parent_rate)
++{
++	return rate;
++}
++
++static unsigned long clk_dummy_recalc_rate(struct clk_hw *hw,
++					   unsigned long parent_rate)
++{
++	struct clk_dummy *dummy = container_of(hw, struct clk_dummy, hw);
++
++	return dummy->rate;
++}
++
++const struct clk_ops clk_dummy_ops = {
++	.set_rate = clk_dummy_set_rate,
++	.round_rate = clk_dummy_round_rate,
++	.recalc_rate = clk_dummy_recalc_rate,
++	.debug_init = clk_debug_measure_add,
++};
++EXPORT_SYMBOL_GPL(clk_dummy_ops);
++
++static int clk_debug_mux_enable(struct clk_hw *hw)
++{
++	struct clk_debug_mux *mux;
++	struct clk_hw *parent;
++	u32 value;
++	int ret;
++
++	if (!clk_is_debug_mux(hw))
++		return 0;
++
++	mux = to_clk_measure(hw);
++	parent = clk_hw_get_parent(hw);
++	ret = clk_debug_mux_enable(parent);
++	if (ret)
++		return ret;
++
++	if (mux->cbcr_offset == U32_MAX || !mux->regmap)
++		return 0;
++
++	mux->en_mask = mux->en_mask ?: CBCR_ENA;
++	ret = regmap_read(mux->regmap, mux->cbcr_offset, &value);
++	if (ret)
++		return ret;
++
++	mux->cbcr_enabled_by_measure = !(value & mux->en_mask);
++	if (!mux->cbcr_enabled_by_measure)
++		return 0;
++
++	return regmap_update_bits(mux->regmap, mux->cbcr_offset,
++				  mux->en_mask, mux->en_mask);
++}
++
++static void clk_debug_mux_disable(struct clk_hw *hw)
++{
++	struct clk_debug_mux *mux;
++	struct clk_hw *parent;
++
++	if (!clk_is_debug_mux(hw))
++		return;
++
++	mux = to_clk_measure(hw);
++	if (mux->cbcr_offset != U32_MAX && mux->regmap &&
++	    mux->cbcr_enabled_by_measure) {
++		regmap_update_bits(mux->regmap, mux->cbcr_offset,
++				   mux->en_mask, 0);
++		mux->cbcr_enabled_by_measure = false;
++	}
++
++	parent = clk_hw_get_parent(hw);
++	clk_debug_mux_disable(parent);
++}
++
++static u32 clk_debug_mux_divisor(struct clk_hw *hw)
++{
++	struct clk_debug_mux *mux;
++	int index;
++	u32 divisor;
++
++	if (!clk_is_debug_mux(hw))
++		return 1;
++
++	mux = to_clk_measure(hw);
++	divisor = mux->post_div_val ?: 1;
++	if (mux->pre_div_vals) {
++		index = clk_hw_get_parent_index(hw);
++		if (index >= 0 && index < mux->num_parents)
++			divisor *= mux->pre_div_vals[index];
++	}
++
++	return divisor * clk_debug_mux_divisor(clk_hw_get_parent(hw));
++}
++
++static int clk_debug_run_measurement(unsigned int ticks,
++				     struct regmap *regmap,
++				     u32 ctl_reg, u32 status_reg,
++				     u32 *count)
++{
++	u32 value;
++	int ret;
++
++	ret = regmap_update_bits(regmap, ctl_reg, CNT_EN, 0);
++	if (ret)
++		return ret;
++	ret = regmap_update_bits(regmap, ctl_reg, CLR_CNT, CLR_CNT);
++	if (ret)
++		return ret;
++
++	/* Allow the hardware counter to clear for at least three XO cycles. */
++	udelay(1);
++
++	ret = regmap_update_bits(regmap, ctl_reg, CLR_CNT, 0);
++	if (ret)
++		return ret;
++	ret = regmap_update_bits(regmap, ctl_reg, XO_DIV4_TERM_CNT_MASK,
++				  ticks & XO_DIV4_TERM_CNT_MASK);
++	if (ret)
++		return ret;
++	ret = regmap_update_bits(regmap, ctl_reg, CNT_EN, CNT_EN);
++	if (ret)
++		return ret;
++
++	ret = regmap_read_poll_timeout(regmap, status_reg, value,
++				       value & XO_DIV4_CNT_DONE, 10, 100000);
++	if (ret)
++		goto disable_counter;
++
++	*count = value & MEASURE_CNT;
++
++ disable_counter:
++	regmap_update_bits(regmap, ctl_reg, CNT_EN, 0);
++	return ret;
++}
++
++static int clk_debug_mux_measure_rate(struct clk_hw *hw,
++				      unsigned long *rate)
++{
++	struct clk_debug_mux *mux = to_clk_measure(hw);
++	struct measure_clk_data *data = mux->priv;
++	u32 xo4, short_count, full_count;
++	u64 value;
++	int ret;
++
++	if (!data || !data->cxo || !mux->regmap)
++		return -EINVAL;
++
++	ret = clk_prepare_enable(data->cxo);
++	if (ret)
++		return ret;
++
++	ret = regmap_read(mux->regmap, data->xo_div4_cbcr, &xo4);
++	if (ret)
++		goto out_disable_xo;
++
++	ret = regmap_update_bits(mux->regmap, data->xo_div4_cbcr,
++				  CBCR_ENA, CBCR_ENA);
++	if (ret)
++		goto out_restore_xo_div4;
++
++	ret = clk_debug_run_measurement(SAMPLE_TICKS_1_MS, mux->regmap,
++					data->ctl_reg, data->status_reg,
++					&short_count);
++	if (ret)
++		goto out_disable_branch;
++
++	ret = clk_debug_run_measurement(SAMPLE_TICKS_27_MS, mux->regmap,
++					data->ctl_reg, data->status_reg,
++					&full_count);
++	if (ret)
++		goto out_disable_branch;
++
++	if (full_count == short_count) {
++		*rate = 0;
++	} else {
++		value = ((u64)full_count * 10 + 15) * TCXO_DIV_4_HZ;
++		do_div(value, (SAMPLE_TICKS_27_MS * 10ULL) + 35);
++		*rate = value * clk_debug_mux_divisor(hw);
++	}
++
++out_disable_branch:
++out_restore_xo_div4:
++	regmap_update_bits(mux->regmap, data->xo_div4_cbcr, CBCR_ENA,
++			   xo4 & CBCR_ENA);
++out_disable_xo:
++	clk_disable_unprepare(data->cxo);
++	return ret;
++}
++
++static int clk_debug_measure_get(void *data, u64 *value)
++{
++	struct clk_hw *hw = data;
++	struct clk_debug_mux *parent_mux;
++	struct clk_hw *parent;
++	unsigned long rate;
++	u32 period;
++	int ret;
++
++	if (!measure || !hw)
++		return -EINVAL;
++
++	mutex_lock(&clk_debug_lock);
++	ret = clk_find_and_set_parent(measure, hw);
++	if (ret)
++		goto out_unlock;
++
++	parent = clk_hw_get_parent(measure);
++	if (parent && clk_is_debug_mux(parent)) {
++		parent_mux = to_clk_measure(parent);
++		if (!parent_mux->mux_sels) {
++			if (!parent_mux->regmap) {
++				ret = -ENODEV;
++				goto out_unlock;
++			}
++			ret = regmap_read(parent_mux->regmap,
++					  parent_mux->period_offset, &period);
++			if (ret)
++				goto out_unlock;
++			if (!period) {
++				ret = -EINVAL;
++				goto out_unlock;
++			}
++			*value = div_u64(1000000000000ULL, period);
++			goto out_unlock;
++		}
++	}
++
++	ret = clk_debug_mux_enable(measure);
++	if (ret)
++		goto out_disable_mux;
++
++	ret = clk_debug_mux_measure_rate(measure, &rate);
++	if (!ret)
++		*value = rate;
++	clk_debug_mux_disable(measure);
++	goto out_unlock;
++
++out_disable_mux:
++	clk_debug_mux_disable(measure);
++out_unlock:
++	mutex_unlock(&clk_debug_lock);
++	return ret;
++}
++
++DEFINE_DEBUGFS_ATTRIBUTE(clk_measure_fops, clk_debug_measure_get, NULL,
++			 "%llu\n");
++
++void clk_debug_measure_add(struct clk_hw *hw, struct dentry *dentry)
++{
++	debugfs_create_file("clk_measure", 0444, dentry, hw,
++			    &clk_measure_fops);
++}
++EXPORT_SYMBOL_GPL(clk_debug_measure_add);
++
++int clk_debug_measure_register(struct clk_hw *hw)
++{
++	int ret = 0;
++
++	if (!hw)
++		return -EINVAL;
++
++	mutex_lock(&clk_debug_lock);
++	if (!measure)
++		measure = hw;
++	else if (measure != hw)
++		ret = -EBUSY;
++	mutex_unlock(&clk_debug_lock);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(clk_debug_measure_register);
++
++static void clk_debug_mux_unregister(void *data)
++{
++	struct clk_debug_mux *mux = data;
++
++	mutex_lock(&clk_debug_lock);
++	if (!list_empty(&mux->list))
++		list_del_init(&mux->list);
++	if (measure == &mux->hw)
++		measure = NULL;
++	mutex_unlock(&clk_debug_lock);
++}
++
++int devm_clk_register_debug_mux(struct device *dev,
++				struct clk_debug_mux *mux)
++{
++	struct clk *clk;
++	int ret;
++
++	if (!dev || !mux)
++		return -EINVAL;
++
++	INIT_LIST_HEAD(&mux->list);
++	clk = devm_clk_register(dev, &mux->hw);
++	if (IS_ERR(clk))
++		return PTR_ERR(clk);
++
++	mutex_lock(&clk_debug_lock);
++	list_add_tail(&mux->list, &clk_debug_mux_list);
++	mutex_unlock(&clk_debug_lock);
++
++	ret = devm_add_action_or_reset(dev, clk_debug_mux_unregister, mux);
++	return ret;
++}
++EXPORT_SYMBOL_GPL(devm_clk_register_debug_mux);
++
++int map_debug_bases(struct platform_device *pdev, const char *base,
++		    struct clk_debug_mux *mux)
++{
++	struct device_node *np;
++
++	if (!pdev || !base || !mux)
++		return -EINVAL;
++	if (!of_get_property(pdev->dev.of_node, base, NULL))
++		return -EBADR;
++
++	np = of_parse_phandle(pdev->dev.of_node, base, 0);
++	if (!np)
++		return -ENODEV;
++
++	mux->regmap = device_node_to_regmap(np);
++	of_node_put(np);
++	if (IS_ERR(mux->regmap))
++		return PTR_ERR(mux->regmap);
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(map_debug_bases);
++
++MODULE_DESCRIPTION("Qualcomm clock debug mux support");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/clk/qcom/clk-debug.h b/drivers/clk/qcom/clk-debug.h
+new file mode 100644
+index 000000000..c3071c3a8
+--- /dev/null
++++ b/drivers/clk/qcom/clk-debug.h
+@@ -0,0 +1,63 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++#ifndef __QCOM_CLK_DEBUG_H__
++#define __QCOM_CLK_DEBUG_H__
++
++#include <linux/clk-provider.h>
++#include <linux/list.h>
++#include <linux/platform_device.h>
++
++struct clk;
++struct dentry;
++struct regmap;
++
++struct measure_clk_data {
++	struct clk *cxo;
++	u32 ctl_reg;
++	u32 status_reg;
++	u32 xo_div4_cbcr;
++};
++
++struct clk_debug_mux {
++	int *mux_sels;
++	int num_mux_sels;
++	int *pre_div_vals;
++	int num_parents;
++	struct regmap *regmap;
++	void *priv;
++	u32 en_mask;
++	u32 debug_offset;
++	u32 cbcr_offset;
++	u32 src_sel_mask;
++	u32 src_sel_shift;
++	u32 post_div_offset;
++	u32 post_div_mask;
++	u32 post_div_shift;
++	u32 post_div_val;
++	u32 period_offset;
++	bool cbcr_enabled_by_measure;
++	struct clk_hw hw;
++	struct list_head list;
++};
++
++struct mux_regmap_names {
++	struct clk_debug_mux *mux;
++	const char *regmap_name;
++};
++
++struct clk_dummy {
++	unsigned long rate;
++	struct clk_hw hw;
++};
++
++#define to_clk_measure(_hw) container_of(_hw, struct clk_debug_mux, hw)
++
++extern const struct clk_ops clk_debug_mux_ops;
++extern const struct clk_ops clk_dummy_ops;
++
++void clk_debug_measure_add(struct clk_hw *hw, struct dentry *dentry);
++int clk_debug_measure_register(struct clk_hw *hw);
++int devm_clk_register_debug_mux(struct device *dev, struct clk_debug_mux *mux);
++int map_debug_bases(struct platform_device *pdev, const char *base,
++		    struct clk_debug_mux *mux);
++
++#endif /* __QCOM_CLK_DEBUG_H__ */
+diff --git a/drivers/clk/qcom/clk-rcg2.c b/drivers/clk/qcom/clk-rcg2.c
+index e18cb8807..070bc1c8f 100644
+--- a/drivers/clk/qcom/clk-rcg2.c
++++ b/drivers/clk/qcom/clk-rcg2.c
+@@ -21,6 +21,7 @@
+ #include <asm/div64.h>
+ 
+ #include "clk-rcg.h"
++#include "clk-regmap.h"
+ #include "common.h"
+ 
+ #define CMD_REG			0x0
+@@ -801,6 +802,10 @@ static int clk_rcg2_set_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
+ }
+ 
+ const struct clk_ops clk_rcg2_ops = {
++	.prepare = clk_prepare_regmap,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.is_enabled = clk_rcg2_is_enabled,
+ 	.get_parent = clk_rcg2_get_parent,
+ 	.set_parent = clk_rcg2_set_parent,
+@@ -826,6 +831,10 @@ const struct clk_ops clk_rcg2_gp_ops = {
+ EXPORT_SYMBOL_GPL(clk_rcg2_gp_ops);
+ 
+ const struct clk_ops clk_rcg2_floor_ops = {
++	.prepare = clk_prepare_regmap,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.is_enabled = clk_rcg2_is_enabled,
+ 	.get_parent = clk_rcg2_get_parent,
+ 	.set_parent = clk_rcg2_set_parent,
+@@ -1103,6 +1112,10 @@ static int clk_byte2_set_rate_and_parent(struct clk_hw *hw,
+ }
+ 
+ const struct clk_ops clk_byte2_ops = {
++	.prepare = clk_prepare_regmap,
++	.unprepare = clk_unprepare_regmap,
++	.pre_rate_change = clk_pre_change_regmap,
++	.post_rate_change = clk_post_change_regmap,
+ 	.is_enabled = clk_rcg2_is_enabled,
+ 	.get_parent = clk_rcg2_get_parent,
+ 	.set_parent = clk_rcg2_set_parent,
+diff --git a/drivers/clk/qcom/clk-regmap.c b/drivers/clk/qcom/clk-regmap.c
+index 92ac4e0d7..2900766eb 100644
+--- a/drivers/clk/qcom/clk-regmap.c
++++ b/drivers/clk/qcom/clk-regmap.c
+@@ -5,6 +5,8 @@
+ 
+ #include <linux/device.h>
+ #include <linux/clk-provider.h>
++#include <linux/err.h>
++#include <linux/kernel.h>
+ #include <linux/regmap.h>
+ #include <linux/export.h>
+ 
+@@ -104,3 +106,125 @@ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
+ 	return devm_clk_hw_register(dev, &rclk->hw);
+ }
+ EXPORT_SYMBOL_GPL(devm_clk_register_regmap);
++
++int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
++			  unsigned long new_rate)
++{
++	struct clk_regmap *rclk = to_clk_regmap(hw);
++	int old_level = rclk->vdd_data.vdd_level;
++	int new_level, ret;
++
++	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max)
++		return 0;
++
++	new_level = clk_find_vdd_level(hw, &rclk->vdd_data, new_rate);
++	if (new_level < 0)
++		return new_level;
++
++	if (new_level <= old_level) {
++		if (!clk_hw_is_prepared(hw))
++			rclk->vdd_data.vdd_level = new_level;
++		return 0;
++	}
++
++	if (clk_hw_is_prepared(hw)) {
++		ret = clk_vote_vdd_level(&rclk->vdd_data, new_level);
++		if (ret)
++			return ret;
++
++		if (old_level > 0) {
++			ret = clk_unvote_vdd_level(&rclk->vdd_data, old_level);
++			if (ret) {
++				clk_unvote_vdd_level(&rclk->vdd_data, new_level);
++				return ret;
++			}
++		}
++	}
++
++	rclk->vdd_data.vdd_level = new_level;
++	return 0;
++}
++EXPORT_SYMBOL_GPL(clk_pre_change_regmap);
++
++int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
++			   unsigned long cur_rate)
++{
++	struct clk_regmap *rclk = to_clk_regmap(hw);
++	int old_level = rclk->vdd_data.vdd_level;
++	int new_level, ret;
++
++	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max)
++		return 0;
++
++	new_level = clk_find_vdd_level(hw, &rclk->vdd_data, cur_rate);
++	if (new_level < 0)
++		return new_level;
++	if (new_level >= old_level)
++		return 0;
++
++	if (clk_hw_is_prepared(hw)) {
++		if (new_level > 0) {
++			ret = clk_vote_vdd_level(&rclk->vdd_data, new_level);
++			if (ret)
++				return ret;
++		}
++
++		if (old_level > 0) {
++			ret = clk_unvote_vdd_level(&rclk->vdd_data, old_level);
++			if (ret) {
++				if (new_level > 0)
++					clk_unvote_vdd_level(&rclk->vdd_data,
++							     new_level);
++				return ret;
++			}
++		}
++	}
++
++	rclk->vdd_data.vdd_level = new_level;
++	return 0;
++}
++EXPORT_SYMBOL_GPL(clk_post_change_regmap);
++
++int clk_prepare_regmap(struct clk_hw *hw)
++{
++	struct clk_regmap *rclk = to_clk_regmap(hw);
++	int level, ret;
++
++	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max)
++		return 0;
++
++	level = clk_find_vdd_level(hw, &rclk->vdd_data, clk_hw_get_rate(hw));
++	if (level < 0)
++		return level;
++
++	rclk->vdd_data.vdd_level = level;
++	if (!level)
++		return 0;
++
++	ret = clk_vote_vdd_level(&rclk->vdd_data, level);
++	if (ret)
++		rclk->vdd_data.vdd_level = 0;
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(clk_prepare_regmap);
++
++void clk_unprepare_regmap(struct clk_hw *hw)
++{
++	struct clk_regmap *rclk = to_clk_regmap(hw);
++	int level = rclk->vdd_data.vdd_level;
++	int ret;
++
++	if (!rclk->vdd_data.rate_max || !rclk->vdd_data.num_rate_max || !level)
++		return;
++
++	ret = clk_unvote_vdd_level(&rclk->vdd_data, level);
++	if (ret) {
++		pr_warn("%s: failed to remove voltage vote at level %d: %d\n",
++			clk_hw_get_name(hw), level, ret);
++		return;
++	}
++
++	rclk->vdd_data.vdd_level = 0;
++}
++EXPORT_SYMBOL_GPL(clk_unprepare_regmap);
+diff --git a/drivers/clk/qcom/clk-regmap.h b/drivers/clk/qcom/clk-regmap.h
+index 14ec659a3..c6c72c4e6 100644
+--- a/drivers/clk/qcom/clk-regmap.h
++++ b/drivers/clk/qcom/clk-regmap.h
+@@ -6,6 +6,8 @@
+ 
+ #include <linux/clk-provider.h>
+ 
++#include "vdd-class.h"
++
+ struct regmap;
+ 
+ /**
+@@ -23,6 +25,7 @@ struct clk_regmap {
+ 	unsigned int enable_reg;
+ 	unsigned int enable_mask;
+ 	bool enable_is_inverted;
++	struct clk_vdd_class_data vdd_data;
+ };
+ 
+ static inline struct clk_regmap *to_clk_regmap(struct clk_hw *hw)
+@@ -34,5 +37,11 @@ int clk_is_enabled_regmap(struct clk_hw *hw);
+ int clk_enable_regmap(struct clk_hw *hw);
+ void clk_disable_regmap(struct clk_hw *hw);
+ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk);
++int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
++			  unsigned long new_rate);
++int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
++			   unsigned long cur_rate);
++int clk_prepare_regmap(struct clk_hw *hw);
++void clk_unprepare_regmap(struct clk_hw *hw);
+ 
+ #endif
+diff --git a/drivers/clk/qcom/common.c b/drivers/clk/qcom/common.c
+index 121591886..ce73cea4b 100644
+--- a/drivers/clk/qcom/common.c
++++ b/drivers/clk/qcom/common.c
+@@ -7,11 +7,13 @@
+ #include <linux/module.h>
+ #include <linux/regmap.h>
+ #include <linux/platform_device.h>
++#include <linux/clk.h>
+ #include <linux/clk-provider.h>
+ #include <linux/interconnect-clk.h>
+ #include <linux/pm_runtime.h>
+ #include <linux/reset-controller.h>
+ #include <linux/of.h>
++#include <linux/slab.h>
+ 
+ #include "common.h"
+ #include "clk-alpha-pll.h"
+@@ -20,6 +22,7 @@
+ #include "clk-regmap.h"
+ #include "reset.h"
+ #include "gdsc.h"
++#include "vdd-class.h"
+ 
+ struct qcom_cc {
+ 	struct qcom_reset_controller reset;
+@@ -118,6 +121,63 @@ qcom_cc_map(struct platform_device *pdev, const struct qcom_cc_desc *desc)
+ }
+ EXPORT_SYMBOL_GPL(qcom_cc_map);
+ 
++int qcom_cc_update_regmap_sequence(
++		struct device *dev, struct regmap *regmap,
++		const struct qcom_cc_regmap_update *updates, size_t num_updates)
++{
++	u32 *old_values;
++	size_t i, j;
++	int ret, rollback_ret;
++
++	if (!regmap || (!updates && num_updates))
++		return -EINVAL;
++	if (!num_updates)
++		return 0;
++
++	old_values = kcalloc(num_updates, sizeof(*old_values), GFP_KERNEL);
++	if (!old_values)
++		return -ENOMEM;
++
++	for (i = 0; i < num_updates; i++) {
++		ret = regmap_read(regmap, updates[i].reg, &old_values[i]);
++		if (ret) {
++			dev_err_probe(dev, ret, "failed to read register %#x\n",
++				      updates[i].reg);
++			goto out;
++		}
++	}
++
++	for (i = 0; i < num_updates; i++) {
++		ret = regmap_update_bits(regmap, updates[i].reg,
++					 updates[i].mask, updates[i].val);
++		if (!ret)
++			continue;
++
++		dev_err_probe(dev, ret, "failed to update register %#x\n",
++			      updates[i].reg);
++		for (j = i + 1; j > 0; j--) {
++			size_t index = j - 1;
++
++			rollback_ret = regmap_update_bits(regmap,
++							  updates[index].reg,
++							  updates[index].mask,
++							  old_values[index] &
++							  updates[index].mask);
++			if (rollback_ret)
++				dev_warn(dev,
++					 "failed to restore register %#x: %d\n",
++					 updates[index].reg, rollback_ret);
++		}
++		goto out;
++	}
++
++	ret = 0;
++out:
++	kfree(old_values);
++	return ret;
++}
++EXPORT_SYMBOL_GPL(qcom_cc_update_regmap_sequence);
++
+ void
+ qcom_pll_set_fsm_mode(struct regmap *map, u32 reg, u8 bias_count, u8 lock_count)
+ {
+@@ -241,6 +301,148 @@ static void qcom_cc_drop_protected(struct device *dev, struct qcom_cc *cc)
+ 	}
+ }
+ 
++static void qcom_cc_disable_critical_clk(void *data)
++{
++	clk_disable_unprepare(data);
++}
++
++static int qcom_cc_enable_critical_clk(struct device *dev,
++				       struct qcom_cc *cc,
++				       bool *enabled, u32 idx)
++{
++	struct clk *clk;
++	int ret;
++
++	if (idx >= cc->num_rclks)
++		return dev_err_probe(dev, -EINVAL,
++				     "critical clock index %u is out of range\n", idx);
++	if (!cc->rclks[idx])
++		return dev_err_probe(dev, -ENOENT,
++				     "critical clock %u is not registered\n", idx);
++	if (enabled[idx])
++		return 0;
++
++	clk = devm_clk_hw_get_clk(dev, &cc->rclks[idx]->hw, "critical");
++	if (IS_ERR(clk))
++		return dev_err_probe(dev, PTR_ERR(clk),
++				     "failed to get critical clock %u\n", idx);
++
++	ret = clk_prepare_enable(clk);
++	if (ret)
++		return dev_err_probe(dev, ret,
++				     "failed to enable critical clock %u\n", idx);
++
++	ret = devm_add_action_or_reset(dev, qcom_cc_disable_critical_clk, clk);
++	if (ret)
++		return ret;
++
++	enabled[idx] = true;
++	return 0;
++}
++
++/*
++ * Keep clocks used by nodes listed in qcom,critical-devices enabled. The
++ * referenced device can be a child of a node that carries the clock list, so
++ * inspect each ancestor as well as the referenced node.
++ */
++static int qcom_cc_enable_critical_device(struct device *dev,
++					  struct qcom_cc *cc,
++					  struct device_node *np,
++					  bool *enabled)
++{
++	struct device_node *parent;
++	struct of_phandle_args args;
++	bool found = false;
++	int count, i, ret;
++
++	while (np) {
++		if (of_find_property(np, "clocks", NULL)) {
++			count = of_count_phandle_with_args(np, "clocks",
++							   "#clock-cells");
++			if (count < 0) {
++				ret = dev_err_probe(dev, count,
++						    "failed to parse clocks for critical device %pOF\n",
++						    np);
++				goto out_put_node;
++			}
++
++			for (i = 0; i < count; i++) {
++				ret = of_parse_phandle_with_args(np, "clocks",
++								 "#clock-cells", i, &args);
++				if (ret)
++					goto out_put_node;
++
++				if (args.np == dev->of_node) {
++					found = true;
++					if (!args.args_count)
++						ret = -EINVAL;
++					else
++						ret = qcom_cc_enable_critical_clk(dev, cc,
++									 enabled,
++									 args.args[0]);
++				} else {
++					ret = 0;
++				}
++
++				of_node_put(args.np);
++				if (ret)
++					goto out_put_node;
++			}
++		}
++
++		parent = of_get_parent(np);
++		of_node_put(np);
++		np = parent;
++	}
++
++	if (!found)
++		return dev_err_probe(dev, -ENOENT,
++				     "critical device has no clocks from this controller\n");
++
++	return 0;
++
++out_put_node:
++	of_node_put(np);
++	return ret;
++}
++
++static int qcom_cc_enable_critical_clocks(struct device *dev,
++					  struct qcom_cc *cc)
++{
++	struct device_node *np;
++	bool *enabled;
++	u32 phandle, idx;
++	int ret;
++
++	if (!of_find_property(dev->of_node, "qcom,critical-clocks", NULL) &&
++	    !of_find_property(dev->of_node, "qcom,critical-devices", NULL))
++		return 0;
++
++	enabled = devm_kcalloc(dev, cc->num_rclks, sizeof(*enabled), GFP_KERNEL);
++	if (!enabled && cc->num_rclks)
++		return -ENOMEM;
++
++	of_property_for_each_u32(dev->of_node, "qcom,critical-clocks", idx) {
++		ret = qcom_cc_enable_critical_clk(dev, cc, enabled, idx);
++		if (ret)
++			return ret;
++	}
++
++	of_property_for_each_u32(dev->of_node, "qcom,critical-devices", phandle) {
++		np = of_find_node_by_phandle(phandle);
++		if (!np)
++			return dev_err_probe(dev, -EINVAL,
++					     "critical device phandle %#x not found\n",
++					     phandle);
++
++		ret = qcom_cc_enable_critical_device(dev, cc, np, enabled);
++		if (ret)
++			return ret;
++	}
++
++	return 0;
++}
++
+ static struct clk_hw *qcom_cc_clk_hw_get(struct of_phandle_args *clkspec,
+ 					 void *data)
+ {
+@@ -337,6 +539,34 @@ int qcom_cc_really_probe(struct device *dev,
+ 	if (!cc)
+ 		return -ENOMEM;
+ 
++	if (desc->num_clk_regulators) {
++		ret = clk_regulator_init(dev, desc);
++		if (ret)
++			return ret;
++
++		ret = devm_add_action_or_reset(dev, qcom_cc_clk_regulator_deinit,
++					       (void *)desc);
++		if (ret)
++			return ret;
++
++		ret = clk_vdd_proxy_vote(dev, desc);
++		if (ret)
++			return ret;
++
++		ret = devm_add_action_or_reset(dev,
++					       qcom_cc_vdd_proxy_unvote,
++					       (void *)desc);
++		if (ret)
++			return ret;
++	}
++
++	if (desc->pre_probe) {
++		ret = desc->pre_probe(dev, regmap);
++		if (ret)
++			return dev_err_probe(dev, ret,
++					     "clock-controller pre-probe setup failed\n");
++	}
++
+ 	ret = devm_pm_domain_attach_list(dev, NULL, &cc->pd_list);
+ 	if (ret < 0 && ret != -EEXIST)
+ 		return ret;
+@@ -464,5 +694,17 @@ int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
+ }
+ EXPORT_SYMBOL_GPL(qcom_cc_probe_by_index);
+ 
++void qcom_cc_sync_state(struct device *dev, const struct qcom_cc_desc *desc)
++{
++	int ret;
++
++	clk_sync_state(dev);
++	ret = clk_vdd_proxy_unvote(dev, desc);
++	if (ret)
++		dev_warn(dev, "failed to remove clock voltage proxy vote: %d\n",
++			 ret);
++}
++EXPORT_SYMBOL_GPL(qcom_cc_sync_state);
++
+ MODULE_LICENSE("GPL v2");
+ MODULE_DESCRIPTION("QTI Common Clock module");
+diff --git a/drivers/clk/qcom/common.h b/drivers/clk/qcom/common.h
+index 953c91f7b..085038ae8 100644
+--- a/drivers/clk/qcom/common.h
++++ b/drivers/clk/qcom/common.h
+@@ -4,9 +4,11 @@
+ #ifndef __QCOM_CLK_COMMON_H__
+ #define __QCOM_CLK_COMMON_H__
+ 
++struct device;
+ struct platform_device;
+ struct regmap_config;
+ struct clk_regmap;
++struct clk_vdd_class;
+ struct qcom_reset_map;
+ struct regmap;
+ struct freq_tbl;
+@@ -35,10 +37,19 @@ struct qcom_cc_driver_data {
+ 	void (*clk_regs_configure)(struct device *dev, struct regmap *regmap);
+ };
+ 
++struct qcom_cc_regmap_update {
++	u32 reg;
++	u32 mask;
++	u32 val;
++};
++
+ struct qcom_cc_desc {
+ 	const struct regmap_config *config;
+ 	struct clk_regmap **clks;
+ 	size_t num_clks;
++	struct clk_vdd_class **clk_regulators;
++	size_t num_clk_regulators;
++	int (*pre_probe)(struct device *dev, struct regmap *regmap);
+ 	const struct qcom_reset_map *resets;
+ 	size_t num_resets;
+ 	struct gdsc **gdscs;
+@@ -81,6 +92,9 @@ extern int qcom_cc_register_sleep_clk(struct device *dev);
+ 
+ extern struct regmap *qcom_cc_map(struct platform_device *pdev,
+ 				  const struct qcom_cc_desc *desc);
++extern int qcom_cc_update_regmap_sequence(
++		struct device *dev, struct regmap *regmap,
++		const struct qcom_cc_regmap_update *updates, size_t num_updates);
+ extern int qcom_cc_really_probe(struct device *dev,
+ 				const struct qcom_cc_desc *desc,
+ 				struct regmap *regmap);
+@@ -88,5 +102,7 @@ extern int qcom_cc_probe(struct platform_device *pdev,
+ 			 const struct qcom_cc_desc *desc);
+ extern int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
+ 				  const struct qcom_cc_desc *desc);
++extern void qcom_cc_sync_state(struct device *dev,
++			       const struct qcom_cc_desc *desc);
+ 
+ #endif
+diff --git a/drivers/clk/qcom/vdd-class.c b/drivers/clk/qcom/vdd-class.c
+new file mode 100644
+index 000000000..e615b9647
+--- /dev/null
++++ b/drivers/clk/qcom/vdd-class.c
+@@ -0,0 +1,506 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Regulator-backed voltage-corner voting for Qualcomm clock controllers.
++ */
++
++#include <linux/clk-provider.h>
++#include <linux/err.h>
++#include <linux/export.h>
++#include <linux/kernel.h>
++#include <linux/math64.h>
++#include <linux/mutex.h>
++#include <linux/regulator/consumer.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++
++#include "vdd-class.h"
++
++static DEFINE_MUTEX(vdd_lock);
++
++static int clk_vdd_class_validate(struct clk_vdd_class *vdd_class,
++				  bool require_regulators)
++{
++	int i;
++
++	if (!vdd_class || !vdd_class->num_levels ||
++	    !vdd_class->num_regulators || !vdd_class->vdd_uv ||
++	    !vdd_class->level_votes || !vdd_class->regulator ||
++	    !vdd_class->regulator_names)
++		return -EINVAL;
++
++	for (i = 0; i < vdd_class->num_regulators; i++) {
++		if (!vdd_class->regulator_names[i])
++			return -EINVAL;
++		if (!require_regulators)
++			continue;
++		if (IS_ERR(vdd_class->regulator[i]))
++			return PTR_ERR(vdd_class->regulator[i]);
++		if (!vdd_class->regulator[i])
++			return -EPROBE_DEFER;
++	}
++
++	return 0;
++}
++
++/* vdd_lock must be held by the caller. */
++static int clk_aggregate_vdd(struct clk_vdd_class *vdd_class)
++{
++	int old_level = vdd_class->cur_level;
++	int new_level = 0;
++	int old_base, new_base;
++	int voltage_done = 0, status_done = 0;
++	bool old_on, new_on;
++	int i, ret;
++
++	for (i = vdd_class->num_levels - 1; i > 0; i--) {
++		if (vdd_class->level_votes[i]) {
++			new_level = i;
++			break;
++		}
++	}
++
++	if (old_level < 0 || old_level > vdd_class->num_levels)
++		return -EINVAL;
++
++	/* Nothing has ever been enabled and there are still no votes. */
++	if (old_level == vdd_class->num_levels && !new_level) {
++		vdd_class->cur_level = 0;
++		return 0;
++	}
++
++	if (old_level == new_level)
++		return 0;
++
++	old_on = old_level > 0 && old_level < vdd_class->num_levels;
++	new_on = new_level > 0;
++	old_base = (old_on ? old_level : 0) * vdd_class->num_regulators;
++	new_base = new_level * vdd_class->num_regulators;
++
++	for (i = 0; i < vdd_class->num_regulators; i++) {
++		ret = regulator_set_voltage(vdd_class->regulator[i],
++					   vdd_class->vdd_uv[new_base + i], INT_MAX);
++		if (ret)
++			goto rollback;
++		voltage_done = i + 1;
++
++		if (!old_on && new_on)
++			ret = regulator_enable(vdd_class->regulator[i]);
++		else if (old_on && !new_on)
++			ret = regulator_disable(vdd_class->regulator[i]);
++		else
++			ret = 0;
++		if (ret)
++			goto rollback;
++		status_done = i + 1;
++	}
++
++	vdd_class->cur_level = new_level;
++	return 0;
++
++rollback:
++	while (status_done > 0) {
++		int rollback_ret;
++
++		i = --status_done;
++		if (!old_on && new_on)
++			rollback_ret = regulator_disable(vdd_class->regulator[i]);
++		else if (old_on && !new_on)
++			rollback_ret = regulator_enable(vdd_class->regulator[i]);
++		else
++			rollback_ret = 0;
++		if (rollback_ret)
++			pr_warn("%s: failed to roll back regulator status: %d\n",
++				vdd_class->class_name, rollback_ret);
++	}
++
++	while (voltage_done > 0) {
++		int rollback_ret;
++
++		i = --voltage_done;
++		rollback_ret = regulator_set_voltage(vdd_class->regulator[i],
++						     vdd_class->vdd_uv[old_base + i],
++						     INT_MAX);
++		if (rollback_ret)
++			pr_warn("%s: failed to roll back voltage: %d\n",
++				vdd_class->class_name, rollback_ret);
++	}
++
++	return ret;
++}
++
++/* vdd_lock must be held by the caller. */
++static int clk_vote_vdd_class_level(struct clk_vdd_class *vdd_class, int level)
++{
++	int ret;
++
++	ret = clk_vdd_class_validate(vdd_class, true);
++	if (ret)
++		return ret;
++	if (level < 0 || level >= vdd_class->num_levels)
++		return -EINVAL;
++	if (vdd_class->level_votes[level] == INT_MAX)
++		return -EOVERFLOW;
++
++	vdd_class->level_votes[level]++;
++	ret = clk_aggregate_vdd(vdd_class);
++	if (ret)
++		vdd_class->level_votes[level]--;
++
++	return ret;
++}
++
++/* vdd_lock must be held by the caller. */
++static int clk_unvote_vdd_class_level(struct clk_vdd_class *vdd_class,
++				       int level)
++{
++	int ret;
++
++	ret = clk_vdd_class_validate(vdd_class, true);
++	if (ret)
++		return ret;
++	if (level < 0 || level >= vdd_class->num_levels)
++		return -EINVAL;
++	if (!vdd_class->level_votes[level]) {
++		pr_warn("%s: unbalanced voltage vote at level %d\n",
++			vdd_class->class_name, level);
++		return -EINVAL;
++	}
++
++	vdd_class->level_votes[level]--;
++	ret = clk_aggregate_vdd(vdd_class);
++	if (ret)
++		vdd_class->level_votes[level]++;
++
++	return ret;
++}
++
++int clk_find_vdd_level(struct clk_hw *hw, struct clk_vdd_class_data *vdd_data,
++		       unsigned long rate)
++{
++	int level;
++
++	if (!vdd_data || !vdd_data->rate_max || !vdd_data->num_rate_max)
++		return -ENODATA;
++
++	/* PLL fractional rounding can differ from the table by a few Hz. */
++	for (level = 0; level < vdd_data->num_rate_max; level++) {
++		if (vdd_data->rate_max[level] &&
++		    DIV_ROUND_CLOSEST_ULL((u64)rate, 1000) <=
++		    DIV_ROUND_CLOSEST_ULL((u64)vdd_data->rate_max[level], 1000))
++			return level;
++	}
++
++	pr_err("%s: rate %lu is above the highest voltage-class Fmax\n",
++	       hw ? clk_hw_get_name(hw) : "clock", rate);
++	return -EINVAL;
++}
++EXPORT_SYMBOL_GPL(clk_find_vdd_level);
++
++static int clk_vdd_data_validate(struct clk_vdd_class_data *vdd_data)
++{
++	if (!vdd_data || vdd_data->num_vdd_classes < 0 ||
++	    (vdd_data->num_vdd_classes && !vdd_data->vdd_classes) ||
++	    (!vdd_data->vdd_class && !vdd_data->num_vdd_classes))
++		return -EINVAL;
++
++	return 0;
++}
++
++int clk_vote_vdd_level(struct clk_vdd_class_data *vdd_data, int level)
++{
++	int i, done = 0, ret;
++
++	ret = clk_vdd_data_validate(vdd_data);
++	if (ret || level < 0)
++		return ret ?: -EINVAL;
++
++	mutex_lock(&vdd_lock);
++	for (i = 0; i < vdd_data->num_vdd_classes; i++) {
++		ret = clk_vote_vdd_class_level(vdd_data->vdd_classes[i], level);
++		if (ret)
++			goto rollback;
++		done++;
++	}
++
++	if (vdd_data->vdd_class) {
++		ret = clk_vote_vdd_class_level(vdd_data->vdd_class, level);
++		if (ret)
++			goto rollback;
++	}
++	mutex_unlock(&vdd_lock);
++	return 0;
++
++rollback:
++	while (done > 0) {
++		int rollback_ret;
++
++		rollback_ret = clk_unvote_vdd_class_level(
++			vdd_data->vdd_classes[--done], level);
++		if (rollback_ret)
++			pr_warn("failed to roll back clock voltage vote: %d\n",
++				rollback_ret);
++	}
++	mutex_unlock(&vdd_lock);
++	return ret;
++}
++EXPORT_SYMBOL_GPL(clk_vote_vdd_level);
++
++int clk_unvote_vdd_level(struct clk_vdd_class_data *vdd_data, int level)
++{
++	int i, done = 0, ret;
++
++	ret = clk_vdd_data_validate(vdd_data);
++	if (ret || level < 0)
++		return ret ?: -EINVAL;
++
++	mutex_lock(&vdd_lock);
++	for (i = 0; i < vdd_data->num_vdd_classes; i++) {
++		ret = clk_unvote_vdd_class_level(vdd_data->vdd_classes[i], level);
++		if (ret)
++			goto rollback;
++		done++;
++	}
++
++	if (vdd_data->vdd_class) {
++		ret = clk_unvote_vdd_class_level(vdd_data->vdd_class, level);
++		if (ret)
++			goto rollback;
++	}
++	mutex_unlock(&vdd_lock);
++	return 0;
++
++rollback:
++	while (done > 0) {
++		int rollback_ret;
++
++		rollback_ret = clk_vote_vdd_class_level(
++			vdd_data->vdd_classes[--done], level);
++		if (rollback_ret)
++			pr_warn("failed to restore clock voltage vote: %d\n",
++				rollback_ret);
++	}
++	mutex_unlock(&vdd_lock);
++	return ret;
++}
++EXPORT_SYMBOL_GPL(clk_unvote_vdd_level);
++
++int clk_get_vdd_voltage(struct clk_vdd_class_data *vdd_data, int vdd_level)
++{
++	struct clk_vdd_class *vdd_class;
++	int i, j, voltage = -EINVAL;
++	int ret;
++
++	ret = clk_vdd_data_validate(vdd_data);
++	if (ret || vdd_level < 0)
++		return ret ?: -EINVAL;
++
++	for (i = 0; i < vdd_data->num_vdd_classes; i++) {
++		vdd_class = vdd_data->vdd_classes[i];
++		if (clk_vdd_class_validate(vdd_class, false) ||
++		    vdd_level >= vdd_class->num_levels)
++			return -EINVAL;
++		for (j = 0; j < vdd_class->num_regulators; j++)
++			voltage = max(voltage,
++				      vdd_class->vdd_uv[vdd_level *
++						vdd_class->num_regulators + j]);
++	}
++
++	vdd_class = vdd_data->vdd_class;
++	if (vdd_class) {
++		if (clk_vdd_class_validate(vdd_class, false) ||
++		    vdd_level >= vdd_class->num_levels)
++			return -EINVAL;
++		for (j = 0; j < vdd_class->num_regulators; j++)
++			voltage = max(voltage,
++				      vdd_class->vdd_uv[vdd_level *
++						vdd_class->num_regulators + j]);
++	}
++
++	return voltage;
++}
++EXPORT_SYMBOL_GPL(clk_get_vdd_voltage);
++
++int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc)
++{
++	struct clk_vdd_class *vdd_class;
++	struct regulator *regulator;
++	int i, j, ret;
++
++	if (!desc || (!desc->clk_regulators && desc->num_clk_regulators))
++		return -EINVAL;
++
++	for (i = 0; i < desc->num_clk_regulators; i++) {
++		vdd_class = desc->clk_regulators[i];
++		ret = clk_vdd_class_validate(vdd_class, false);
++		if (ret)
++			goto err_reset;
++
++		for (j = 0; j < vdd_class->num_regulators; j++) {
++			if (vdd_class->regulator[j]) {
++				ret = -EBUSY;
++				goto err_reset;
++			}
++
++			regulator = devm_regulator_get(dev,
++						       vdd_class->regulator_names[j]);
++			if (IS_ERR(regulator)) {
++				ret = PTR_ERR(regulator);
++				if (ret != -EPROBE_DEFER)
++					dev_err(dev, "%s: failed to get %s regulator: %d\n",
++						__func__, vdd_class->regulator_names[j], ret);
++				goto err_reset;
++			}
++			vdd_class->regulator[j] = regulator;
++		}
++	}
++
++	mutex_lock(&vdd_lock);
++	for (i = 0; i < desc->num_clk_regulators; i++) {
++		vdd_class = desc->clk_regulators[i];
++		memset(vdd_class->level_votes, 0,
++		       sizeof(*vdd_class->level_votes) * vdd_class->num_levels);
++		vdd_class->cur_level = vdd_class->num_levels;
++		vdd_class->proxy_vote = false;
++	}
++	mutex_unlock(&vdd_lock);
++	return 0;
++
++err_reset:
++	for (i = 0; i < desc->num_clk_regulators; i++) {
++		vdd_class = desc->clk_regulators[i];
++		if (!vdd_class || !vdd_class->regulator)
++			continue;
++		for (j = 0; j < vdd_class->num_regulators; j++)
++			vdd_class->regulator[j] = NULL;
++	}
++	return ret;
++}
++EXPORT_SYMBOL_GPL(clk_regulator_init);
++
++void clk_regulator_deinit(const struct qcom_cc_desc *desc)
++{
++	struct clk_vdd_class *vdd_class;
++	int i, j;
++
++	if (!desc || !desc->clk_regulators)
++		return;
++
++	mutex_lock(&vdd_lock);
++	for (i = 0; i < desc->num_clk_regulators; i++) {
++		vdd_class = desc->clk_regulators[i];
++		if (!vdd_class)
++			continue;
++		for (j = 0; j < vdd_class->num_regulators; j++)
++			vdd_class->regulator[j] = NULL;
++		if (vdd_class->level_votes)
++			memset(vdd_class->level_votes, 0,
++			       sizeof(*vdd_class->level_votes) * vdd_class->num_levels);
++		vdd_class->cur_level = vdd_class->num_levels;
++		vdd_class->proxy_vote = false;
++	}
++	mutex_unlock(&vdd_lock);
++}
++EXPORT_SYMBOL_GPL(clk_regulator_deinit);
++
++int clk_vdd_proxy_vote(struct device *dev, const struct qcom_cc_desc *desc)
++{
++	struct clk_vdd_class **voted;
++	struct clk_vdd_class *vdd_class;
++	int i, num_voted = 0, ret;
++
++	if (!desc || !desc->num_clk_regulators)
++		return 0;
++	if (!desc->clk_regulators)
++		return -EINVAL;
++
++	voted = kcalloc(desc->num_clk_regulators, sizeof(*voted), GFP_KERNEL);
++	if (!voted)
++		return -ENOMEM;
++
++	for (i = 0; i < desc->num_clk_regulators; i++) {
++		vdd_class = desc->clk_regulators[i];
++		if (!vdd_class) {
++			ret = -EINVAL;
++			goto rollback;
++		}
++
++		mutex_lock(&vdd_lock);
++		if (vdd_class->proxy_vote) {
++			mutex_unlock(&vdd_lock);
++			continue;
++		}
++		ret = clk_vote_vdd_class_level(vdd_class,
++					       vdd_class->num_levels - 1);
++		if (!ret) {
++			vdd_class->proxy_vote = true;
++			voted[num_voted++] = vdd_class;
++		}
++		mutex_unlock(&vdd_lock);
++		if (ret)
++			goto rollback;
++	}
++
++	kfree(voted);
++	return 0;
++
++rollback:
++	while (num_voted > 0) {
++		int rollback_ret;
++
++		vdd_class = voted[--num_voted];
++		mutex_lock(&vdd_lock);
++		rollback_ret = clk_unvote_vdd_class_level(
++			vdd_class, vdd_class->num_levels - 1);
++		if (!rollback_ret)
++			vdd_class->proxy_vote = false;
++		mutex_unlock(&vdd_lock);
++		if (rollback_ret)
++			dev_warn(dev, "%s: failed to roll back proxy vote: %d\n",
++				 __func__, rollback_ret);
++	}
++	kfree(voted);
++	return ret;
++}
++EXPORT_SYMBOL_GPL(clk_vdd_proxy_vote);
++
++int clk_vdd_proxy_unvote(struct device *dev, const struct qcom_cc_desc *desc)
++{
++	struct clk_vdd_class *vdd_class;
++	int i, ret, first_error = 0;
++
++	if (!desc || !desc->num_clk_regulators)
++		return 0;
++	if (!desc->clk_regulators)
++		return -EINVAL;
++
++	for (i = 0; i < desc->num_clk_regulators; i++) {
++		vdd_class = desc->clk_regulators[i];
++		if (!vdd_class)
++			return -EINVAL;
++
++		mutex_lock(&vdd_lock);
++		if (!vdd_class->proxy_vote) {
++			mutex_unlock(&vdd_lock);
++			continue;
++		}
++		ret = clk_unvote_vdd_class_level(vdd_class,
++						 vdd_class->num_levels - 1);
++		if (!ret)
++			vdd_class->proxy_vote = false;
++		mutex_unlock(&vdd_lock);
++
++		if (ret) {
++			if (!first_error)
++				first_error = ret;
++			if (dev)
++				dev_warn(dev, "%s: failed to remove proxy vote: %d\n",
++					 __func__, ret);
++			else
++				pr_warn("%s: failed to remove proxy vote: %d\n",
++					__func__, ret);
++		}
++	}
++
++	return first_error;
++}
++EXPORT_SYMBOL_GPL(clk_vdd_proxy_unvote);
+diff --git a/drivers/clk/qcom/vdd-class.h b/drivers/clk/qcom/vdd-class.h
+new file mode 100644
+index 000000000..45519baa7
+--- /dev/null
++++ b/drivers/clk/qcom/vdd-class.h
+@@ -0,0 +1,82 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++#ifndef __QCOM_CLK_VDD_CLASS_H__
++#define __QCOM_CLK_VDD_CLASS_H__
++
++#include <linux/clk-provider.h>
++#include <linux/device.h>
++#include <linux/regulator/consumer.h>
++
++#include "common.h"
++
++/**
++ * struct clk_vdd_class - regulator-backed voltage-corner aggregation
++ * @class_name: diagnostic name
++ * @regulator: regulator handles, one per supply in the class
++ * @regulator_names: names used to acquire the handles
++ * @num_regulators: number of supplies in the class
++ * @vdd_uv: voltage request for each level and supply, level-major
++ * @level_votes: reference count for each level
++ * @num_levels: number of entries in @vdd_uv and @level_votes
++ * @cur_level: currently aggregated level, or @num_levels when off
++ * @proxy_vote: whether qcom_cc holds its temporary maximum-level vote
++ */
++struct clk_vdd_class {
++	const char *class_name;
++	struct regulator **regulator;
++	const char **regulator_names;
++	int num_regulators;
++	int *vdd_uv;
++	int *level_votes;
++	int num_levels;
++	int cur_level;
++	bool proxy_vote;
++};
++
++/**
++ * struct clk_vdd_class_data - voltage requirements for a clock
++ * @vdd_class: primary voltage class
++ * @vdd_classes: additional classes voted together with @vdd_class
++ * @rate_max: maximum rate supported at each voltage level, in Hz
++ * @num_rate_max: number of entries in @rate_max
++ * @vdd_level: cached level currently held by this clock
++ * @num_vdd_classes: number of entries in @vdd_classes
++ */
++struct clk_vdd_class_data {
++	struct clk_vdd_class *vdd_class;
++	struct clk_vdd_class **vdd_classes;
++	unsigned long *rate_max;
++	int num_rate_max;
++	int vdd_level;
++	int num_vdd_classes;
++};
++
++#define DEFINE_VDD_REGULATORS(_name, _num_levels, _num_regulators, _vdd_uv) \
++	struct clk_vdd_class _name = { \
++		.class_name = #_name, \
++		.regulator_names = (const char *[_num_regulators]) { #_name }, \
++		.regulator = (struct regulator *[_num_regulators]) { }, \
++		.num_regulators = (_num_regulators), \
++		.vdd_uv = (_vdd_uv), \
++		.level_votes = (int[_num_levels]) { }, \
++		.num_levels = (_num_levels), \
++		.cur_level = (_num_levels), \
++	}
++
++#define DEFINE_VDD_REGS_INIT(_name, _num_regulators) \
++	struct clk_vdd_class _name = { \
++		.class_name = #_name, \
++		.regulator = (struct regulator *[_num_regulators]) { }, \
++		.num_regulators = (_num_regulators), \
++	}
++
++int clk_find_vdd_level(struct clk_hw *hw, struct clk_vdd_class_data *vdd_data,
++		       unsigned long rate);
++int clk_vote_vdd_level(struct clk_vdd_class_data *vdd_data, int level);
++int clk_unvote_vdd_level(struct clk_vdd_class_data *vdd_data, int level);
++int clk_get_vdd_voltage(struct clk_vdd_class_data *vdd_data, int vdd_level);
++int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc);
++void clk_regulator_deinit(const struct qcom_cc_desc *desc);
++int clk_vdd_proxy_vote(struct device *dev, const struct qcom_cc_desc *desc);
++int clk_vdd_proxy_unvote(struct device *dev, const struct qcom_cc_desc *desc);
++
++#endif /* __QCOM_CLK_VDD_CLASS_H__ */
+diff --git a/drivers/clk/qcom/vdd-level-bengal.h b/drivers/clk/qcom/vdd-level-bengal.h
+new file mode 100644
+index 000000000..1b97a1418
+--- /dev/null
++++ b/drivers/clk/qcom/vdd-level-bengal.h
+@@ -0,0 +1,64 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
++ */
++
++#ifndef __DRIVERS_CLK_QCOM_VDD_LEVEL_H
++#define __DRIVERS_CLK_QCOM_VDD_LEVEL_H
++
++#include <linux/regulator/consumer.h>
++#include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
++
++enum vdd_levels {
++	VDD_NONE,
++	VDD_MIN,		/* MIN SVS */
++	VDD_LOWER,		/* SVS2 */
++	VDD_LOW,		/* SVS */
++	VDD_LOW_L1,		/* SVSL1 */
++	VDD_NOMINAL,		/* NOM */
++	VDD_NOMINAL_L1,		/* NOM L1 */
++	VDD_HIGH,		/* TURBO */
++	VDD_HIGH_L1,		/* TURBO_L1 */
++	VDD_NUM,
++};
++
++static int vdd_corner[] __maybe_unused = {
++	[VDD_NONE]    = 0,
++	[VDD_MIN]     = RPM_SMD_REGULATOR_LEVEL_MIN_SVS,
++	[VDD_LOWER]   = RPM_SMD_REGULATOR_LEVEL_LOW_SVS,
++	[VDD_LOW]     = RPM_SMD_REGULATOR_LEVEL_SVS,
++	[VDD_LOW_L1]  = RPM_SMD_REGULATOR_LEVEL_SVS_PLUS,
++	[VDD_NOMINAL] = RPM_SMD_REGULATOR_LEVEL_NOM,
++	[VDD_NOMINAL_L1] = RPM_SMD_REGULATOR_LEVEL_NOM_PLUS,
++	[VDD_HIGH]    = RPM_SMD_REGULATOR_LEVEL_TURBO,
++	[VDD_HIGH_L1]    = RPM_SMD_REGULATOR_LEVEL_TURBO_NO_CPR,
++};
++
++enum vdd_l2_levels {
++	VDD_L2_NONE,
++	VDD_L2_MIN,		/* MIN SVS */
++	VDD_L2_LOWER,		/* SVS2 */
++	VDD_L2_LOW,		/* SVS */
++	VDD_L2_LOW_L1,		/* SVSL1 */
++	VDD_L2_NOMINAL,		/* NOM */
++	VDD_L2_NOMINAL_L1,		/* NOM L1 */
++	VDD_L2_HIGH,		/* TURBO */
++	VDD_L2_HIGH_L1,		/* TURBO_L1 */
++	VDD_L2_HIGH_L2,		/* TURBO L2 */
++	VDD_L2_NUM,
++};
++
++static int vdd_l2_corner[] __maybe_unused = {
++	[VDD_L2_NONE]    = 0,
++	[VDD_L2_MIN]     = RPM_SMD_REGULATOR_LEVEL_MIN_SVS,
++	[VDD_L2_LOWER]   = RPM_SMD_REGULATOR_LEVEL_LOW_SVS,
++	[VDD_L2_LOW]     = RPM_SMD_REGULATOR_LEVEL_SVS,
++	[VDD_L2_LOW_L1]  = RPM_SMD_REGULATOR_LEVEL_SVS_PLUS,
++	[VDD_L2_NOMINAL] = RPM_SMD_REGULATOR_LEVEL_NOM,
++	[VDD_L2_NOMINAL_L1] = RPM_SMD_REGULATOR_LEVEL_NOM_PLUS,
++	[VDD_L2_HIGH]    = RPM_SMD_REGULATOR_LEVEL_TURBO,
++	[VDD_L2_HIGH_L1]    = RPM_SMD_REGULATOR_LEVEL_TURBO_NO_CPR,
++	[VDD_L2_HIGH_L2]    = RPM_SMD_REGULATOR_LEVEL_SUPER_TURBO,
++};
++
++#endif
+-- 
+2.39.5
+

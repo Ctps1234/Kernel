@@ -1,0 +1,61 @@
+From 347e4b6666ae4903a38cd1092bd9782e99b829da Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Thu, 29 Oct 2026 23:00:46 +0000
+Subject: [PATCH 05/11] dt-bindings: phy: qcom: add SM6225 QMP UFS PHY
+
+Add qcom,sm6225-qmp-ufs-phy to the compatible lists in the Qualcomm QMP
+UFS PHY binding. This documents the compatible for the upstream QMP driver
+port; no device-tree source is added here.
+
+The SM6225 (Khaje) PHY is wired with nine clocks (the three reference
+clocks plus the RX/TX symbol mux and PHY clocks), while the other SoCs
+listed here use three. Move the compatible to its own conditional so the
+clock list matches the hardware captured in the device tree.
+---
+ .../phy/qcom,sc8280xp-qmp-ufs-phy.yaml        | 23 +++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
+index fba7b2549..da8a12703 100644
+--- a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
++++ b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
+@@ -39,6 +39,7 @@ properties:
+           - qcom,sdm845-qmp-ufs-phy
+           - qcom,sm6115-qmp-ufs-phy
+           - qcom,sm6125-qmp-ufs-phy
++          - qcom,sm6225-qmp-ufs-phy
+           - qcom,sm6350-qmp-ufs-phy
+           - qcom,sm7150-qmp-ufs-phy
+           - qcom,sm8150-qmp-ufs-phy
+@@ -128,6 +129,28 @@ allOf:
+             - const: ref_aux
+             - const: qref
+ 
++  - if:
++      properties:
++        compatible:
++          contains:
++            const: qcom,sm6225-qmp-ufs-phy
++    then:
++      properties:
++        clocks:
++          minItems: 9
++          maxItems: 9
++        clock-names:
++          items:
++            - const: ref_clk_src
++            - const: ref_aux_clk
++            - const: qref_clk
++            - const: rx_sym0_mux_clk
++            - const: rx_sym1_mux_clk
++            - const: tx_sym0_mux_clk
++            - const: rx_sym0_phy_clk
++            - const: rx_sym1_phy_clk
++            - const: tx_sym0_phy_clk
++
+   - if:
+       properties:
+         compatible:
+-- 
+2.39.5
+

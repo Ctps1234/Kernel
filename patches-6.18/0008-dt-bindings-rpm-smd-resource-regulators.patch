@@ -1,0 +1,346 @@
+From 68714d78333c50de11468fca4e06c3fbb86c504a Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Thu, 29 Oct 2026 23:00:47 +0000
+Subject: [PATCH 08/11] dt-bindings: regulator: describe nested RPM-SMD
+ resources
+
+Document direct qcom,rpm-smd-regulator-resource children of the SMD RPM node,
+including resource IDs, active/sleep sets, voltage-level and floor-level keys,
+and the cooling-device subnodes present in the captured Khaje FDT. The shared
+qcom,rpm-smd-regulator child compatible is explicitly described for both
+physical PM6125 rails and generic RPM level votes. Add the resource-node pattern
+to the parent SMD-RPM binding and provide DT constants for the common RPM level
+values and regulator modes.
+
+Give qcom,set and qcom,regulator-type an explicit type: dtschema rejects
+a property that only carries an enum, and without the reference to
+types.yaml the value was never decoded as an integer. The regulator names
+pattern was also missing its grouping, which made every property starting
+with "s" (including "status") be validated as if it were a regulator.
+---
+ .../regulator/qcom,smd-rpm-regulator.yaml     | 191 +++++++++++++++++-
+ .../bindings/soc/qcom/qcom,smd-rpm.yaml       |  11 +-
+ .../regulator/qcom,rpm-smd-regulator.h        |  34 ++++
+ 3 files changed, 224 insertions(+), 12 deletions(-)
+ create mode 100644 include/dt-bindings/regulator/qcom,rpm-smd-regulator.h
+
+diff --git a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
+index b7241ce97..e311419f7 100644
+--- a/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
++++ b/Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
+@@ -9,7 +9,7 @@ title: QCOM SMD RPM REGULATOR
+ description:
+   The Qualcomm RPM over SMD regulator is modelled as a subdevice of the RPM.
+   Because SMD is used as the communication transport mechanism, the RPM
+-  resides as a subnode of the SMD.  As such, the SMD-RPM regulator requires
++  resides as a subnode of the SMD. As such, the SMD-RPM regulator requires
+   that the SMD and RPM nodes be present.
+ 
+   Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.yaml for
+@@ -18,20 +18,21 @@ description:
+   Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
+   for information regarding the RPM node.
+ 
+-  The regulator node houses sub-nodes for each regulator within the device.
+-  Each sub-node is identified using the node's name, with valid values listed
+-  for each of the pmics below.
++  The conventional PMIC regulator node houses one sub-node for each physical
++  regulator. Each sub-node is identified using the node's name, with valid
++  values listed for each of the PMICs below.
+ 
+   For mp5496, s1, s2, l2, l5
+ 
+   For pm2250, s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
+   l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22
+ 
+-  For pm6125 s1, s2, s3, s4, s5, s6, s7, s8, l1, l2, l3, l5, l6, l7, l8, l9,
+-  l10, l22, l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22, l23, l24
++  For pm6125 s1, s2, s3, s4, s5, s6, s7, s8, l1, l2, l3, l4, l5, l6, l7,
++  l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22,
++  l23, l24
+ 
+-  For pm660, s1, s2, s3, s4, s5, s6, l1, l2, l3, l5, l6, l7, l8, l9, l10, l22,
+-  l12, l13, l14, l15, l16, l17, l18, l19
++  For pm660, s1, s2, s3, s4, s5, s6, l1, l2, l3, l5, l6, l7, l8, l9, l10,
++  l11, l12, l13, l14, l15, l16, l17, l18, l19
+ 
+   For pm660l s1, s2, s3, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, bob
+ 
+@@ -79,10 +80,111 @@ description:
+   For pms405, s1, s2, s3, s4, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
+   l12, l13
+ 
++  Some downstream RPM implementations group PMIC regulators and generic
++  voltage-level votes under qcom,rpm-smd-regulator-resource nodes. The resource
++  node supplies the RPM resource type and ID and populates its children. Both
++  physical PMIC regulators and voltage-level votes use the compatible
++  qcom,rpm-smd-regulator; the qcom,use-voltage-level and
++  qcom,use-voltage-floor-level properties select the level-vote form. A
++  physical PM6125 regulator child is matched against its regulator-name and
++  the containing resource type and ID.
++
+ maintainers:
+   - Andy Gross <agross@kernel.org>
+   - Bjorn Andersson <bjorn.andersson@linaro.org>
+ 
++$defs:
++  rpm-smd-regulator:
++    type: object
++    properties:
++      compatible:
++        const: qcom,rpm-smd-regulator
++
++      regulator-name:
++        $ref: /schemas/types.yaml#/definitions/string
++
++      qcom,set:
++        description: Bitmask selecting active and/or sleep RPM states.
++        $ref: /schemas/types.yaml#/definitions/uint32
++        enum: [1, 2, 3]
++
++      qcom,init-voltage:
++        description: Initial voltage vote in microvolts for a physical PMIC rail.
++        $ref: /schemas/types.yaml#/definitions/uint32
++
++      qcom,use-voltage-level:
++        description: Use the RPM vlvl key for a generic voltage-level vote.
++        type: boolean
++
++      qcom,use-voltage-floor-level:
++        description: Use the RPM vfl key for a generic voltage-floor vote.
++        type: boolean
++
++      qcom,init-voltage-level:
++        description: Initial voltage-level vote sent with the RPM vlvl key.
++        $ref: /schemas/types.yaml#/definitions/uint32
++
++      qcom,init-voltage-floor-level:
++        description: Initial voltage-floor vote sent with the RPM vfl key.
++        $ref: /schemas/types.yaml#/definitions/uint32
++
++      qcom,always-send-voltage:
++        description: Keep this regulator's voltage key in the aggregate when disabled.
++        type: boolean
++
++    required:
++      - compatible
++      - regulator-name
++      - qcom,set
++
++    allOf:
++      - $ref: regulator.yaml#
++      - if:
++          anyOf:
++            - required: [qcom,use-voltage-level]
++            - required: [qcom,use-voltage-floor-level]
++        then:
++          required:
++            - regulator-min-microvolt
++            - regulator-max-microvolt
++          oneOf:
++            - required: [qcom,use-voltage-level]
++              not:
++                required: [qcom,use-voltage-floor-level]
++            - required: [qcom,use-voltage-floor-level]
++              not:
++                required: [qcom,use-voltage-level]
++        else:
++          not:
++            anyOf:
++              - required: [qcom,init-voltage-level]
++              - required: [qcom,init-voltage-floor-level]
++
++    unevaluatedProperties: false
++
++  rpm-smd-regulator-cooling-device:
++    type: object
++    properties:
++      compatible:
++        const: qcom,regulator-cooling-device
++
++      regulator-cdev-supply:
++        $ref: /schemas/types.yaml#/definitions/phandle
++
++      regulator-levels:
++        $ref: /schemas/types.yaml#/definitions/uint32-array
++
++      '#cooling-cells':
++        const: 2
++
++    required:
++      - compatible
++      - regulator-cdev-supply
++      - regulator-levels
++      - '#cooling-cells'
++
++    additionalProperties: false
++
+ properties:
+   compatible:
+     enum:
+@@ -106,16 +208,56 @@ properties:
+       - qcom,rpm-pmi8998-regulators
+       - qcom,rpm-pmr735a-regulators
+       - qcom,rpm-pms405-regulators
++      - qcom,rpm-smd-regulator-resource
++
++  qcom,resource-name:
++    description: RPM resource type name for a nested SMD regulator resource.
++    enum: [ldoa, rwcx, rwlc, rwlm, rwmx, smpa]
++
++  qcom,resource-id:
++    description: RPM resource identifier for a nested SMD regulator resource.
++    $ref: /schemas/types.yaml#/definitions/uint32
++
++  qcom,regulator-type:
++    description: RPM regulator type, zero for LDO and one for SMPS.
++    $ref: /schemas/types.yaml#/definitions/uint32
++    enum: [0, 1]
++
++  qcom,regulator-hw-type:
++    description: PMIC regulator implementation type.
++    enum: [pmic4-ldo, pmic5-ldo]
++
++  qcom,hpm-min-load:
++    description: Minimum load in microamps for high-power mode.
++    $ref: /schemas/types.yaml#/definitions/uint32
+ 
+ patternProperties:
+   ".*-supply$":
+     description: Input supply phandle(s) for this node
+ 
+-  "^((s|l|lvs|5vs)[0-9]*)|(boost-bypass)|(bob)$":
++  "^((s|l|lvs|5vs)[0-9]*|(boost-bypass)|(bob))$":
+     description: List of regulators and its properties
+     $ref: regulator.yaml#
+     unevaluatedProperties: false
+ 
++  "^regulator-[a-z0-9-]+$":
++    $ref: "#/$defs/rpm-smd-regulator"
++
++  "^(cx|mx)-cdev-lvl$":
++    $ref: "#/$defs/rpm-smd-regulator-cooling-device"
++
++allOf:
++  - if:
++      properties:
++        compatible:
++          const: qcom,rpm-smd-regulator-resource
++      required: [compatible]
++    then:
++      required:
++        - qcom,resource-name
++        - qcom,resource-id
++        - qcom,regulator-type
++
+ additionalProperties: false
+ 
+ required:
+@@ -142,4 +284,35 @@ examples:
+             regulator-max-microvolt = <2950000>;
+         };
+     };
++  - |
++    rpm-regulator-smpa6 {
++        compatible = "qcom,rpm-smd-regulator-resource";
++        qcom,resource-name = "smpa";
++        qcom,resource-id = <6>;
++        qcom,regulator-type = <1>;
++
++        regulator-s6 {
++            compatible = "qcom,rpm-smd-regulator";
++            regulator-name = "pm6125_s6";
++            regulator-min-microvolt = <400000>;
++            regulator-max-microvolt = <1400000>;
++            qcom,set = <3>;
++        };
++    };
++  - |
++    rpm-regulator-smpa3 {
++        compatible = "qcom,rpm-smd-regulator-resource";
++        qcom,resource-name = "rwcx";
++        qcom,resource-id = <0>;
++        qcom,regulator-type = <1>;
++
++        regulator-s3-level {
++            compatible = "qcom,rpm-smd-regulator";
++            regulator-name = "pm6125_s3_level";
++            regulator-min-microvolt = <16>;
++            regulator-max-microvolt = <512>;
++            qcom,set = <3>;
++            qcom,use-voltage-level;
++        };
++    };
+ ...
+diff --git a/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml b/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
+index 270bcd079..9468c8b45 100644
+--- a/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
++++ b/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
+@@ -16,9 +16,10 @@ description: |
+   qcom,smd.yaml for the required edge properties.  All SMD/GLINK related
+   properties will reside within the RPM node itself.
+ 
+-  The RPM exposes resources to its subnodes.  The rpm_requests node must be
+-  present and this subnode may contain children that designate regulator
+-  resources.
++  The RPM exposes resources to its subnodes. The rpm_requests node must be
++  present. Conventional regulator containers may be placed below it, and
++  downstream RPM implementations may expose individual regulator-resource
++  nodes directly below the RPM node.
+ 
+   Refer to Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.yaml
+   for information on the regulator subnodes that can exist under the
+@@ -86,6 +87,10 @@ patternProperties:
+     $ref: /schemas/regulator/qcom,smd-rpm-regulator.yaml#
+     unevaluatedProperties: false
+ 
++  "^rpm-regulator-[a-z0-9-]+$":
++    $ref: /schemas/regulator/qcom,smd-rpm-regulator.yaml#
++    unevaluatedProperties: false
++
+ if:
+   properties:
+     compatible:
+diff --git a/include/dt-bindings/regulator/qcom,rpm-smd-regulator.h b/include/dt-bindings/regulator/qcom,rpm-smd-regulator.h
+new file mode 100644
+index 000000000..b5782b29e
+--- /dev/null
++++ b/include/dt-bindings/regulator/qcom,rpm-smd-regulator.h
+@@ -0,0 +1,34 @@
++/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
++/*
++ * Copyright (c) 2015, 2017, 2019-2020, The Linux Foundation. All rights reserved.
++ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
++ */
++
++#ifndef __QCOM_RPM_SMD_REGULATOR_H
++#define __QCOM_RPM_SMD_REGULATOR_H
++
++#define RPM_SMD_REGULATOR_LEVEL_NONE		0
++#define RPM_SMD_REGULATOR_LEVEL_RETENTION	16
++#define RPM_SMD_REGULATOR_LEVEL_RETENTION_PLUS	32
++#define RPM_SMD_REGULATOR_LEVEL_MIN_SVS		48
++#define RPM_SMD_REGULATOR_LEVEL_LOW_SVS		64
++#define RPM_SMD_REGULATOR_LEVEL_LOW_SVS_L1	80
++#define RPM_SMD_REGULATOR_LEVEL_SVS		128
++#define RPM_SMD_REGULATOR_LEVEL_SVS_L0		144
++#define RPM_SMD_REGULATOR_LEVEL_SVS_PLUS	192
++#define RPM_SMD_REGULATOR_LEVEL_SVS_L2		224
++#define RPM_SMD_REGULATOR_LEVEL_NOM		256
++#define RPM_SMD_REGULATOR_LEVEL_NOM_PLUS	320
++#define RPM_SMD_REGULATOR_LEVEL_TURBO		384
++#define RPM_SMD_REGULATOR_LEVEL_TURBO_NO_CPR	416
++#define RPM_SMD_REGULATOR_LEVEL_TURBO_L2	432
++#define RPM_SMD_REGULATOR_LEVEL_SUPER_TURBO	464
++#define RPM_SMD_REGULATOR_LEVEL_BINNING		512
++
++#define RPM_SMD_REGULATOR_MODE_PASS		0
++#define RPM_SMD_REGULATOR_MODE_RET		1
++#define RPM_SMD_REGULATOR_MODE_LPM		2
++#define RPM_SMD_REGULATOR_MODE_AUTO		3
++#define RPM_SMD_REGULATOR_MODE_HPM		4
++
++#endif
+-- 
+2.39.5
+
