@@ -159,3 +159,13 @@ HEAD 6.18, continua nosso), 0024 (speed-bins A610),
   fila restante em `patches-6.18/README.md`. Próxima fatia natural:
   0012–0015 + 0018 (limpos ou quase) ou o desbloqueio de display
   0016/0017; build de imagem nesta base continua pendente.
+- **2026-10-29 (continuação)**: rebase **concluído** — 0012–0015
+  (run `40977113902`), 0016–0025 (run `40978017904`; destaque para o
+  0017 re-desenhado sobre o `qcom_ubwc_cfg_data` compartilhado) e
+  0026–0033 (run `40978442794`), totalizando 32 patches com o 0029
+  descartado por já estar upstream. Todas as fatias verificadas do
+  zero (aplicação limpa + árvore idêntica) e verdes no gate
+  `google-mainline.yml`. Próximo marco: job de build de imagem no
+  mesmo workflow (auditoria prévia: todos os 57 símbolos do fragmento
+  e os símbolos obrigatórios do `configure_kernel.sh` ainda têm
+  definição Kconfig na árvore 6.18+série).

@@ -1,10 +1,14 @@
 name: Google ACK (android17-6.18) serie 6.18
 
 # Trilha nova (docs/google-mainline-vendor-plan.md, patches-6.18/).
-# Gate de push apenas para a serie rebaseada: todo patch em
-# patches-6.18/ tem de aplicar limpo, em ordem, na base oficial da
-# Google fixada abaixo; qualquer FAIL derruba o job. Nao publica no
-# branch ci-artifacts (isso continua sendo do workflow dts-validate).
+# Gates de push para a serie rebaseada sobre a base oficial da Google
+# fixada abaixo:
+#  * rebase-cost: todo patch em patches-6.18/ tem de aplicar limpo,
+#    em ordem; qualquer FAIL derruba o job.
+#  * kernel-build: a serie aplicada tem de configurar (fragmento do
+#    port via tools/configure_kernel.sh) e compilar/linkar o Image.
+# Nao publica no branch ci-artifacts (isso continua sendo do workflow
+# dts-validate); logs vao como artefatos da run.
 on:
   workflow_dispatch:
   push:
@@ -12,6 +16,8 @@ on:
       - arena/60994951-kernel
     paths:
       - "patches-6.18/**"
+      - "config/**"
+      - "tools/configure_kernel.sh"
       - ".github/workflows/google-mainline.yml"
 
 env:
@@ -69,3 +75,58 @@ jobs:
         with:
           name: google-rebase-cost
           path: rebase-cost.log
+
+  kernel-build:
+    name: Kernel build 6.18 (port Khaje)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Kernel project
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang lld llvm make gcc-aarch64-linux-gnu bc bison flex \
+            libssl-dev libelf-dev
+
+      - name: Clone base Google (commit fixado)
+        run: |
+          set -o pipefail
+          git clone --depth 1 "$BASE_REPO" basegoogle
+          cd basegoogle
+          git fetch --depth 1 origin "$BASE_COMMIT"
+          git checkout "$BASE_COMMIT"
+          git rev-parse HEAD
+
+      - name: Apply local patch series 6.18
+        run: |
+          set -o pipefail
+          cd basegoogle
+          for p in ../patches-6.18/[0-9][0-9][0-9][0-9]-*.patch; do
+            git apply --check "$p" || exit 1
+            git apply "$p" || exit 1
+          done
+
+      - name: Configure (defconfig GKI + fragmento Khaje)
+        run: |
+          set -o pipefail
+          sh tools/configure_kernel.sh basegoogle 2>&1 | tee basegoogle/configure.log
+
+      - name: Build kernel image
+        run: |
+          set -o pipefail
+          cd basegoogle
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image \
+            2>&1 | tee kernel-build-618.log
+
+      - name: Archive build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-kernel-build-logs
+          path: |
+            basegoogle/kernel-build-618.log
+            basegoogle/configure.log
