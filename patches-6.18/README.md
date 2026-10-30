@@ -129,8 +129,11 @@ mclk/dcodec/npl); 0031 limpo; 0032 só a linha de match; 0033 só o
    `sm6225-mainline`/`pmos-tapas` como referência), e o match UBWC
    `qcom,sm6225` quando existir DTS upstream-style (hoje só
    `qcom,khaje`, que é o que o FDT vendor declara).
-4. Só depois de build verde: discutir aposentar a trilha 6.12 e
-   promover esta série a `patches/` principal.
+4. ~~Discutir promover esta série~~: **decidido pelo dono —
+   prosseguir com a 6.18 como trilha principal.** A série 6.12 em
+   `patches/` fica congelada como referência/histórico até uma
+   decisão separada sobre removê-la; trabalho novo vai para
+   `patches-6.18/`.
 
 ## Rodadas de build (CI)
 
@@ -143,9 +146,12 @@ mclk/dcodec/npl); 0031 limpo; 0032 só a linha de match; 0033 só o
   `phy-qcom-qmp-ufs.c` — o 0006 referenciava a lista compartilhada
   `qmp_phy_vreg_l`, removida no split por-SoC do driver 6.18. O 0006
   exportado agora define `sm6225_ufsphy_vreg_l` sem `init_load_uA`
-  (mesmo comportamento da lista compartilhada antiga) porque os
-  maximos `vdda-phy`/`vdda-pll` do Khaje ainda nao foram comprovados;
-  preencher quando houver dado de FDT/downstream confiavel. Relatorio
+  (mesmo comportamento da lista compartilhada antiga). **Errata
+  posterior:** os maximos ja estavam no FDT vivo em
+  `device-tree/reference/topaz-live-reference.dts`
+  (`vdda-phy-max-microamp = 85700`, `vdda-pll-max-microamp = 18300`;
+  supplies `pm6125_l4`/`pm6125_l18`), identicos no overlay 51 e no
+  `khaje-idp.dtsi`; o 0006 passou a votar essas cargas. Relatorio
   de cada rodada fica na issue rotulada `ci-report` ("build do kernel
   6.18").
 - Run 40980614978: proximo erro em `pinctrl-khaje.c` (0002):

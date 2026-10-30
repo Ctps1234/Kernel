@@ -99,8 +99,8 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   Objetivo: paridade com o marco B2a da 6.12 (prompt no serial),
   quando houver aparelho para testar.
 - **S2 – Storage**: UFS host+PHY com supplies/ICC reais; gate
-  `dtbs_check`. (Cargas `vdda-*`: ainda sem valores comprovados —
-  ver pendência registrada no 0006.)
+  `dtbs_check`. (Cargas `vdda-*` comprovadas no FDT vivo:
+  85700/18300 µA sobre `pm6125_l4`/`pm6125_l18` — ver 0006.)
 - **S3 – Display**: MDSS/DPU/DSI/PHY + painel M7 + dispcc/gpucc;
   validar também o comportamento de TE/modo-comando anotado no
   0016 quando houver hardware.
@@ -122,12 +122,16 @@ arquivos novos da S1).
 
 ## Fora de escopo / decisões pendentes do dono
 
-- Promover a série 6.18 a principal e destino da trilha 6.12 —
-  condição técnica (paridade de aplicação+build) atingida em
-  40983813425/40981633325; é decisão de produto, registrada no
-  plano de vendor.
-- Valores `init_load_uA` da PHY UFS e providers exatos de
-  `vdda-phy`/`vdda-pll` no topaz: dependem de evidência do aparelho.
+- ~~Promover a série 6.18 a principal~~ — **decidido pelo dono:
+  prosseguir com a 6.18.** Destino final da trilha 6.12 (congelar
+  vs. remover) é decisão separada, sem pressa.
+- ~~Valores `init_load_uA` da PHY UFS e providers de
+  `vdda-phy`/`vdda-pll`~~ — resolvido do FDT vivo (85700/18300 µA,
+  `pm6125_l4`/`pm6125_l18`); falta só a *tradução* dos nós para a
+  binding upstream na S2 e, um dia, a confirmação em runtime.
+- Informações do aparelho ainda necessárias (confirmações de
+  estado atual, backups de segurança e canal de log de boot):
+  ver `docs/hardware-info-needed.md`.
 - Touch FT3519 e câmera S5KJN1/CAMSS: frentes de driver próprias.
 
 ## Disciplina (a mesma das fatias anteriores)

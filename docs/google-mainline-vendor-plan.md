@@ -181,3 +181,10 @@ HEAD 6.18, continua nosso), 0024 (speed-bins A610),
   da trilha 6.12 ficam para decisão do dono do projeto. Próxima
   frente técnica: DT upstream-style do SM6225/topaz (hoje a imagem
   compila sem DTB da placa; boot segue sem evidência).
+- **Decisão do dono (registrada nesta sessão)**: **prosseguir com
+  a 6.18 como trilha principal.** A trilha 6.12 fica congelada
+  como referência até decisão separada. Auditoria do mesmo dia
+  também resolveu a pendência de cargas da PHY UFS a partir do
+  FDT vivo já versionado (85700/18300 µA, `pm6125_l4`/`pm6125_l18`);
+  o que falta do aparelho está listado em
+  `docs/hardware-info-needed.md`.

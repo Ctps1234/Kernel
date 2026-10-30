@@ -86,14 +86,14 @@ index 8a280433a..a24042bb9 100644
  };
  
 +/*
-+ * No proven downstream load values for Khaje are available yet, so do
-+ * not vote an initial load (same behaviour as the shared supply list
-+ * this SoC used before the per-SoC split). Fill in init_load_uA once
-+ * vdda-phy/vdda-pll maxima are confirmed from device data.
++ * Load maxima from the downstream topaz device tree:
++ * vdda-phy-max-microamp / vdda-pll-max-microamp on the
++ * ufsphy_mem node. The supplies are the RPM-SMD rails
++ * pm6125_l4 (vdda-phy) and pm6125_l18 (vdda-pll).
 + */
 +static const struct regulator_bulk_data sm6225_ufsphy_vreg_l[] = {
-+	{ .supply = "vdda-phy" },
-+	{ .supply = "vdda-pll" },
++	{ .supply = "vdda-phy", .init_load_uA = 85700 },
++	{ .supply = "vdda-pll", .init_load_uA = 18300 },
 +};
 +
  static const struct regulator_bulk_data sm7150_ufsphy_vreg_l[] = {
