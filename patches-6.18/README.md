@@ -50,9 +50,17 @@ QMP PHY no formato do 0005, os trilhos fisicos PM6125
 L4/L11/L18/L24 como recursos RPM-SMD (janelas de tensao finais do
 FDT vivo) e a fiação de placa (vcc/vccq2 a 800 mA, supplies da
 PHY, reset no gpio113). Serie com **35 patches** (0001-0036 sem o
-0029). Sem `power-domains` (gcc-khaje nao registra GDSC) e sem
-`iommus` (apps_smmu ainda nao existe) — dividas documentadas no
-plano de DT.
+0029). Sem `iommus` (apps_smmu ainda nao existe) — divida
+documentada no plano de DT.
+
+Errata da S2 (mesmo dia): a primeira run do gate (41101955941)
+reprovou o 0036 — o binding da PHY do 0005 exigia 9 clocks com
+teto-base 3 (insatisfazivel) e o binding upstream exige
+`power-domains` na PHY, mas o gcc-khaje nao registrava GDSCs.
+Entra o **0037**: teto do binding corrigido, os 9 GDSCs do GCC
+registrados (offsets do bengal-gdsc.dtsi = upstream SM6115) e
+`power-domains`/`vdd-hba` ligados na DT. Serie com **36 patches**
+(0001-0037 sem o 0029).
 
 ## Estado (2026-10-29)
 

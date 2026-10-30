@@ -1,0 +1,265 @@
+From f2e3305e2e31e62a1a68ee161c401cba84be59a8 Mon Sep 17 00:00:00 2001
+From: Arena <arena@local>
+Date: Fri, 30 Oct 2026 18:22:22 +0000
+Subject: [PATCH] clk: qcom: gcc-khaje: register the GCC GDSCs
+
+The Khaje GCC registered no power domains, which both left the
+sm6225.dtsi GCC node advertising #power-domain-cells for nothing
+and blocked the S2 UFS PHY node: the upstream QMP UFS PHY binding
+requires power-domains (found by the dtbs_check gate).
+
+Add the nine GCC GDSCs from the downstream bengal-gdsc.dtsi map
+(gdscr = node address - 0x1400000): CAMSS_TOP, UFS_PHY, USB30_PRIM,
+VCODEC0 and VENUS as plain PWRSTS_OFF_ON domains, plus the four
+HLOS1 vote domains as VOTABLE - every offset matches the SM6115
+upstream registration one to one. Export the domain indexes in the
+gcc-khaje header, select QCOM_GDSC, wire the UFS PHY/HC
+power-domains and the board ref-clk pad supply (vdd-hba = PM6125
+L18, the downstream vddp-ref-clk rail).
+
+Also fix a defect the same gate surfaced in this series' QMP UFS
+PHY binding: the sm6225 conditional demands nine clocks while the
+base properties capped clocks/clock-names at three, which is
+unsatisfiable; raise the base ceiling to nine.
+---
+ .../phy/qcom,sc8280xp-qmp-ufs-phy.yaml        |  4 +-
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  2 +
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 18 ++--
+ drivers/clk/qcom/Kconfig                      |  1 +
+ drivers/clk/qcom/gcc-khaje.c                  | 96 +++++++++++++++++++
+ include/dt-bindings/clock/qcom,gcc-khaje.h    | 13 ++-
+ 6 files changed, 123 insertions(+), 11 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
+index da8a12703..125970a6f 100644
+--- a/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
++++ b/Documentation/devicetree/bindings/phy/qcom,sc8280xp-qmp-ufs-phy.yaml
+@@ -56,11 +56,11 @@ properties:
+ 
+   clocks:
+     minItems: 2
+-    maxItems: 3
++    maxItems: 9
+ 
+   clock-names:
+     minItems: 2
+-    maxItems: 3
++    maxItems: 9
+ 
+   power-domains:
+     maxItems: 1
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index ba9371a7a..3634c7859 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -228,6 +228,8 @@ &uart4 {
+ 
+ &ufs_mem_hc {
+ 	reset-gpios = <&tlmm 113 GPIO_ACTIVE_LOW>;
++	/* Ref-clk pad supply; the downstream name is vddp-ref-clk. */
++	vdd-hba-supply = <&pm6125_l18>;
+ 	vcc-supply = <&pm6125_l24>;
+ 	vcc-max-microamp = <800000>;
+ 	vccq2-supply = <&pm6125_l11>;
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 4acc65ae8..bb280ac54 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -535,14 +535,12 @@ rpm_msg_ram: sram@45f0000 {
+ 
+ 		/*
+ 		 * Slice S2: UFS host + QMP PHY, translated from the
+-		 * downstream khaje nodes. Two deliberate gaps, both
+-		 * tracked in docs/dt-upstream-sm6225-plan.md: no
+-		 * power-domains (the gcc-khaje driver registers no
+-		 * GDSCs yet; downstream routes vdd-hba to the UFS PHY
+-		 * GDSC) and no iommus (the apps SMMU node lands in its
+-		 * own slice; the FDT SID is 0x100). The downstream
+-		 * HS-G3 cap has no upstream DT equivalent; the 2-lane
+-		 * UFS 2.2 device negotiates G3 on its own.
++		 * downstream khaje nodes. One deliberate gap, tracked
++		 * in docs/dt-upstream-sm6225-plan.md: no iommus until
++		 * the apps SMMU node lands in its own slice (the FDT
++		 * SID is 0x100). The downstream HS-G3 cap has no
++		 * upstream DT equivalent; the 2-lane UFS 2.2 device
++		 * negotiates G3 on its own.
+ 		 */
+ 		ufs_mem_hc: ufshc@4804000 {
+ 			compatible = "qcom,sm6225-ufshc", "qcom,ufshc",
+@@ -558,6 +556,8 @@ ufs_mem_hc: ufshc@4804000 {
+ 			resets = <&gcc GCC_UFS_PHY_BCR>;
+ 			reset-names = "rst";
+ 
++			power-domains = <&gcc GCC_UFS_PHY_GDSC>;
++
+ 			clocks = <&gcc GCC_UFS_PHY_AXI_CLK>,
+ 				 <&gcc GCC_SYS_NOC_UFS_PHY_AXI_CLK>,
+ 				 <&gcc GCC_UFS_PHY_AHB_CLK>,
+@@ -619,6 +619,8 @@ ufs_mem_phy: phy@4807000 {
+ 				      "rx_sym1_phy_clk",
+ 				      "tx_sym0_phy_clk";
+ 
++			power-domains = <&gcc GCC_UFS_PHY_GDSC>;
++
+ 			resets = <&ufs_mem_hc 0>;
+ 			reset-names = "ufsphy";
+ 
+diff --git a/drivers/clk/qcom/Kconfig b/drivers/clk/qcom/Kconfig
+index 6fd7d9295..dd815fb41 100644
+--- a/drivers/clk/qcom/Kconfig
++++ b/drivers/clk/qcom/Kconfig
+@@ -1574,6 +1574,7 @@ config SM_DISPCC_6225
+ config SM_GCC_6225
+ 	tristate "SM6225 Khaje Global Clock Controller"
+ 	depends on ARM64 || COMPILE_TEST
++	select QCOM_GDSC
+ 	help
+ 	  Support the global clock controller on Qualcomm Technologies, Inc.
+ 	  SM6225 (Khaje) devices.
+diff --git a/drivers/clk/qcom/gcc-khaje.c b/drivers/clk/qcom/gcc-khaje.c
+index 7c9c85632..8235e87dd 100644
+--- a/drivers/clk/qcom/gcc-khaje.c
++++ b/drivers/clk/qcom/gcc-khaje.c
+@@ -24,6 +24,7 @@
+ #include "clk-regmap-divider.h"
+ #include "clk-regmap-mux.h"
+ #include "common.h"
++#include "gdsc.h"
+ #include "reset.h"
+ #include "vdd-level-bengal.h"
+ 
+@@ -3854,6 +3855,99 @@ static const struct qcom_reset_map gcc_khaje_resets[] = {
+ 	[GCC_VIDEO_INTERFACE_BCR] = { 0x6e000 },
+ };
+ 
++/*
++ * GDSCs live at gdscr = (downstream node address - GCC base 0x1400000)
++ * and match the bengal-gdsc.dtsi register map one to one; the four
++ * hlos1 vote domains follow the SM6115 upstream treatment (VOTABLE,
++ * no status polling, as in the downstream no-status-check-on-disable).
++ */
++static struct gdsc gcc_camss_top_gdsc = {
++	.gdscr = 0x58004,
++	.pd = {
++		.name = "gcc_camss_top",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++};
++
++static struct gdsc gcc_ufs_phy_gdsc = {
++	.gdscr = 0x45004,
++	.pd = {
++		.name = "gcc_ufs_phy",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++};
++
++static struct gdsc gcc_usb30_prim_gdsc = {
++	.gdscr = 0x1a004,
++	.pd = {
++		.name = "gcc_usb30_prim",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++};
++
++static struct gdsc gcc_vcodec0_gdsc = {
++	.gdscr = 0x58098,
++	.pd = {
++		.name = "gcc_vcodec0",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++};
++
++static struct gdsc gcc_venus_gdsc = {
++	.gdscr = 0x5807c,
++	.pd = {
++		.name = "gcc_venus",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++};
++
++static struct gdsc hlos1_vote_turing_mmu_tbu1_gdsc = {
++	.gdscr = 0x7d060,
++	.pd = {
++		.name = "hlos1_vote_turing_mmu_tbu1",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++	.flags = VOTABLE,
++};
++
++static struct gdsc hlos1_vote_turing_mmu_tbu0_gdsc = {
++	.gdscr = 0x7d07c,
++	.pd = {
++		.name = "hlos1_vote_turing_mmu_tbu0",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++	.flags = VOTABLE,
++};
++
++static struct gdsc hlos1_vote_mm_snoc_mmu_tbu_rt_gdsc = {
++	.gdscr = 0x7d074,
++	.pd = {
++		.name = "hlos1_vote_mm_snoc_mmu_tbu_rt",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++	.flags = VOTABLE,
++};
++
++static struct gdsc hlos1_vote_mm_snoc_mmu_tbu_nrt_gdsc = {
++	.gdscr = 0x7d078,
++	.pd = {
++		.name = "hlos1_vote_mm_snoc_mmu_tbu_nrt",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++	.flags = VOTABLE,
++};
++
++static struct gdsc *gcc_khaje_gdscs[] = {
++	[GCC_CAMSS_TOP_GDSC] = &gcc_camss_top_gdsc,
++	[GCC_UFS_PHY_GDSC] = &gcc_ufs_phy_gdsc,
++	[GCC_USB30_PRIM_GDSC] = &gcc_usb30_prim_gdsc,
++	[GCC_VCODEC0_GDSC] = &gcc_vcodec0_gdsc,
++	[GCC_VENUS_GDSC] = &gcc_venus_gdsc,
++	[HLOS1_VOTE_TURING_MMU_TBU1_GDSC] = &hlos1_vote_turing_mmu_tbu1_gdsc,
++	[HLOS1_VOTE_TURING_MMU_TBU0_GDSC] = &hlos1_vote_turing_mmu_tbu0_gdsc,
++	[HLOS1_VOTE_MM_SNOC_MMU_TBU_RT_GDSC] = &hlos1_vote_mm_snoc_mmu_tbu_rt_gdsc,
++	[HLOS1_VOTE_MM_SNOC_MMU_TBU_NRT_GDSC] = &hlos1_vote_mm_snoc_mmu_tbu_nrt_gdsc,
++};
+ 
+ static const struct clk_rcg_dfs_data gcc_dfs_clocks[] = {
+ 	DEFINE_RCG_DFS(gcc_qupv3_wrap0_s0_clk_src),
+@@ -3914,6 +4008,8 @@ static const struct qcom_cc_desc gcc_khaje_desc = {
+ 	.num_clks = ARRAY_SIZE(gcc_khaje_clocks),
+ 	.resets = gcc_khaje_resets,
+ 	.num_resets = ARRAY_SIZE(gcc_khaje_resets),
++	.gdscs = gcc_khaje_gdscs,
++	.num_gdscs = ARRAY_SIZE(gcc_khaje_gdscs),
+ 	.clk_regulators = gcc_khaje_regulators,
+ 	.num_clk_regulators = ARRAY_SIZE(gcc_khaje_regulators),
+ 	.pre_probe = gcc_khaje_pre_probe,
+diff --git a/include/dt-bindings/clock/qcom,gcc-khaje.h b/include/dt-bindings/clock/qcom,gcc-khaje.h
+index 750d233d0..07068f064 100644
+--- a/include/dt-bindings/clock/qcom,gcc-khaje.h
++++ b/include/dt-bindings/clock/qcom,gcc-khaje.h
+@@ -201,6 +201,17 @@
+ #define GCC_VIDEO_INTERFACE_BCR					9
+ #define GCC_USB3PHY_PHY_PRIM_SP0_BCR				10
+ #define GCC_USB3_PHY_PRIM_SP0_BCR				11
+-#define GCC_USB3_DP_PHY_PRIM_BCR				12
++#define GCC_USB3_DP_PHY_PRIM_BCR			12
++
++/* Indexes for GDSCs */
++#define GCC_CAMSS_TOP_GDSC				0
++#define GCC_UFS_PHY_GDSC				1
++#define GCC_USB30_PRIM_GDSC				2
++#define GCC_VCODEC0_GDSC				3
++#define GCC_VENUS_GDSC					4
++#define HLOS1_VOTE_TURING_MMU_TBU1_GDSC			5
++#define HLOS1_VOTE_TURING_MMU_TBU0_GDSC			6
++#define HLOS1_VOTE_MM_SNOC_MMU_TBU_RT_GDSC		7
++#define HLOS1_VOTE_MM_SNOC_MMU_TBU_NRT_GDSC		8
+ 
+ #endif
+-- 
+2.39.5
+

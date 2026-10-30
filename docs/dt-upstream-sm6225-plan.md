@@ -116,15 +116,20 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   reais; gate `dtbs_check`. (Cargas `vdda-*` comprovadas no FDT
   vivo: 85700/18300 µA sobre `pm6125_l4`/`pm6125_l18` — ver 0006.)
   Puxou da S5 os trilhos físicos L4/L11/L18/L24 do PM6125.
-  **Dívidas registradas na fatia**: (a) `power-domains` ausente —
-  o `gcc-khaje` não registra GDSC nenhum (o downstream roteia
-  `vdd-hba` ao GDSC da PHY UFS @0x1445004; modelar GDSCs no
-  driver/header é frente própria, pré-requisito de qualquer boot
-  sério — dispcc/gpucc da S3 têm GDSCs próprios nos patches
-  0019/0023, mas os do GCC não existem); (b) `iommus` ausente até
-  existir o nó `apps_smmu` (SID do UFS no FDT: 0x100); (c) o teto
-  HS-G3 downstream não é expressível no binding upstream (o
-  device UFS 2.2 de 2 vias negocia G3 sozinho).
+  Primeira run do gate (41101955941) reprovou a fatia por dois
+  defeitos da própria série: o binding da PHY (0005) pedia 9
+  clocks com teto-base 3, e `power-domains` é obrigatório no
+  binding upstream enquanto o `gcc-khaje` não registrava GDSC
+  nenhum. Correção no **0037**: teto do binding a 9 + os 9 GDSCs
+  do GCC registrados no driver (offsets do `bengal-gdsc.dtsi`,
+  idênticos aos do upstream SM6115) + `power-domains`/`vdd-hba`
+  na DT. **Dívidas restantes da fatia**: (a) `iommus` ausente até
+  existir o nó `apps_smmu` (SID do UFS no FDT: 0x100);
+  (b) o teto HS-G3 downstream não é expressível no binding
+  upstream (o device UFS 2.2 de 2 vias negocia G3 sozinho);
+  (c) os stubs de clock-símbolo da PHY como parents do GCC
+  continuam (como downstream); trocar pelos clocks reais da PHY
+  é limpeza posterior.
 - **S3 – Display**: MDSS/DPU/DSI/PHY + painel M7 + dispcc/gpucc;
   validar também o comportamento de TE/modo-comando anotado no
   0016 quando houver hardware.
