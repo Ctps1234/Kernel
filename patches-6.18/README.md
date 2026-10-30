@@ -19,6 +19,21 @@ hardware seguem sem nenhuma evidencia: falta DT upstream-style do
 SM6225/topaz e teste no aparelho. O texto historico abaixo e
 mantido como registro das fatias do rebase.
 
+Atualizacao (2026-10-30, fatia S1 da DT): entra o **0034** —
+`sm6225.dtsi` minimo (CPUs/PSCI/timer/GIC, GCC+RPMCC, TLMM,
+UART de console, interconnect Bengal, votos CX/MX via SMD-RPM) e
+`sm6225-xiaomi-topaz.dts` (memoria, reserved-memory com o
+`ramoops@5d000000` do FDT vivo, stdout-path no UART), mais os
+compatibles de suporte (`qcom,sm6225` em qcom.yaml/UBWC,
+`qcom,rpm-sm6225`, `qcom,sm6225-rpm-proc`,
+`qcom,sm6225-apcs-hmss-global`). O fragmento de config sobe
+`PSTORE`/`PSTORE_RAM`/`PSTORE_CONSOLE` para built-in e o job de
+build ganha o gate `CHECK_DTBS=1` (dtbs_check) sobre o DTB novo.
+Serie agora com **33 patches** (0001-0034 sem o 0029),
+reverificada aplicando 33/33 do pin. Escopo, fontes de cada dado e
+o que ficou para as fatias S2-S6: `docs/dt-upstream-sm6225-plan.md`.
+Continua sendo so CI: nada disto e evidencia de boot.
+
 ## Estado (2026-10-29)
 
 Rebaseados e verificados aplicando limpos, em ordem, sobre o commit

@@ -1,0 +1,873 @@
+From 746edddaa5e3e04d591f9ad008535f0e403a321c Mon Sep 17 00:00:00 2001
+From: Arena <arena@local>
+Date: Fri, 30 Oct 2026 12:02:12 +0000
+Subject: [PATCH] arm64: dts: qcom: add SM6225 SoC and Xiaomi topaz board (S1
+ minimal)
+
+First upstream-style device tree slice for SM6225 (Khaje) on this
+base: CPUs/PSCI/timer/GIC, khaje GCC + RPMCC, TLMM, the QUPv3 debug
+UART (serial0), Bengal interconnects and the SMD-RPM CX/MX level
+votes, modelled on sm6115.dtsi. All addresses, IRQs, capacities and
+the board reserved-memory map come from the live FDT of a topaz unit
+and the downstream khaje/bengal DTS import, translated to the
+bindings this series provides.
+
+The board file describes memory (4 GB unit banks; the bootloader
+rewrites them per SKU) and reserved-memory including the ramoops
+region at 0x5d000000 the stock kernel uses, so pstore can serve as
+the log channel for a future first boot without UART hardware.
+
+Also register the SoC/board compatibles this needs: qcom,sm6225 in
+arm/qcom.yaml and the UBWC table (same data as qcom,khaje),
+qcom,rpm-sm6225 (binding + SMD RPM driver), qcom,sm6225-rpm-proc
+and qcom,sm6225-apcs-hmss-global.
+
+Deliberately not in this slice (later slices of the DT plan): UFS,
+display, audio/ADSP, PMIC SPMI rails beyond CX/MX, cpufreq-hw/OPPs,
+CPU idle states and the apps SMMU. Not boot-tested: CI dtbs/
+dtbs_check only.
+---
+ .../devicetree/bindings/arm/qcom.yaml         |   5 +
+ .../mailbox/qcom,apcs-kpss-global.yaml        |   1 +
+ .../bindings/remoteproc/qcom,rpm-proc.yaml    |   1 +
+ .../bindings/soc/qcom/qcom,smd-rpm.yaml       |   1 +
+ arch/arm64/boot/dts/qcom/Makefile             |   1 +
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 225 ++++++++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 503 ++++++++++++++++++
+ drivers/soc/qcom/smd-rpm.c                    |   1 +
+ drivers/soc/qcom/ubwc_config.c                |   1 +
+ 9 files changed, 739 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+ create mode 100644 arch/arm64/boot/dts/qcom/sm6225.dtsi
+
+diff --git a/Documentation/devicetree/bindings/arm/qcom.yaml b/Documentation/devicetree/bindings/arm/qcom.yaml
+index 18b5ed044..ce28d9255 100644
+--- a/Documentation/devicetree/bindings/arm/qcom.yaml
++++ b/Documentation/devicetree/bindings/arm/qcom.yaml
+@@ -945,6 +945,11 @@ properties:
+               - xiaomi,laurel-sprout
+           - const: qcom,sm6125
+ 
++      - items:
++          - enum:
++              - xiaomi,topaz
++          - const: qcom,sm6225
++
+       - items:
+           - enum:
+               - sony,pdx213
+diff --git a/Documentation/devicetree/bindings/mailbox/qcom,apcs-kpss-global.yaml b/Documentation/devicetree/bindings/mailbox/qcom,apcs-kpss-global.yaml
+index 615ed103b..655bf1ae0 100644
+--- a/Documentation/devicetree/bindings/mailbox/qcom,apcs-kpss-global.yaml
++++ b/Documentation/devicetree/bindings/mailbox/qcom,apcs-kpss-global.yaml
+@@ -43,6 +43,7 @@ properties:
+               - qcom,sm4250-apcs-hmss-global
+               - qcom,sm6115-apcs-hmss-global
+               - qcom,sm6125-apcs-hmss-global
++              - qcom,sm6225-apcs-hmss-global
+           - const: qcom,msm8994-apcs-kpss-global
+       - items:
+           - enum:
+diff --git a/Documentation/devicetree/bindings/remoteproc/qcom,rpm-proc.yaml b/Documentation/devicetree/bindings/remoteproc/qcom,rpm-proc.yaml
+index 540bdfca5..8d57db7a6 100644
+--- a/Documentation/devicetree/bindings/remoteproc/qcom,rpm-proc.yaml
++++ b/Documentation/devicetree/bindings/remoteproc/qcom,rpm-proc.yaml
+@@ -89,6 +89,7 @@ properties:
+           - qcom,sdm660-rpm-proc
+           - qcom,sm6115-rpm-proc
+           - qcom,sm6125-rpm-proc
++          - qcom,sm6225-rpm-proc
+           - qcom,sm6375-rpm-proc
+       - const: qcom,rpm-proc
+ 
+diff --git a/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml b/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
+index 9468c8b45..3009d6b43 100644
+--- a/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
++++ b/Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
+@@ -60,6 +60,7 @@ properties:
+               - qcom,rpm-sdm660
+               - qcom,rpm-sm6115
+               - qcom,rpm-sm6125
++              - qcom,rpm-sm6225
+               - qcom,rpm-sm6375
+           - const: qcom,glink-smd-rpm
+ 
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+index 296688f7c..8d0c7c58d 100644
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -268,6 +268,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= sm6115p-lenovo-j606f.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6125-sony-xperia-seine-pdx201.dtb
+ dtb-$(CONFIG_ARCH_QCOM) += sm6125-xiaomi-ginkgo.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6125-xiaomi-laurel-sprout.dtb
++dtb-$(CONFIG_ARCH_QCOM)	+= sm6225-xiaomi-topaz.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6350-sony-xperia-lena-pdx213.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6375-sony-xperia-murray-pdx225.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm7125-xiaomi-curtana.dtb
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+new file mode 100644
+index 000000000..7b07a10d9
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -0,0 +1,225 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Xiaomi Redmi Note 12 4G (topaz), SM6225.
++ *
++ * S1 of docs/dt-upstream-sm6225-plan.md: board file with memory,
++ * reserved-memory (including the ramoops region the stock kernel
++ * uses) and the debug UART as stdout-path. Memory banks and the
++ * reserved-memory map were copied from the live FDT of a 4 GB
++ * topaz unit; the bootloader rebuilds them per SKU at every boot.
++ * Nothing here is boot-tested yet: this milestone is CI-only
++ * (dtbs/dtbs_check), see docs/hardware-info-needed.md for the
++ * safety constraints on the only available device.
++ */
++
++/dts-v1/;
++
++#include "sm6225.dtsi"
++
++/ {
++	model = "Xiaomi Redmi Note 12 4G";
++	compatible = "xiaomi,topaz", "qcom,sm6225";
++	chassis-type = "handset";
++
++	aliases {
++		serial0 = &uart4;
++	};
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	memory@40000000 {
++		device_type = "memory";
++		reg = <0x0 0x40000000 0x0 0x3dd00000>,
++		      <0x0 0x80000000 0x0 0x40000000>,
++		      <0x0 0xc0000000 0x0 0x80000000>;
++	};
++
++	reserved-memory {
++		#address-cells = <2>;
++		#size-cells = <2>;
++		ranges;
++
++		hyp_region@45700000 {
++			no-map;
++			reg = <0x0 0x45700000 0x0 0x600000>;
++		};
++
++		xbl_aop_region@45e00000 {
++			no-map;
++			reg = <0x0 0x45e00000 0x0 0x140000>;
++		};
++
++		sec_apps_region@45fff000 {
++			no-map;
++			reg = <0x0 0x45fff000 0x0 0x1000>;
++		};
++
++		smem_mem: smem_region@46000000 {
++			no-map;
++			reg = <0x0 0x46000000 0x0 0x200000>;
++		};
++
++		cdsp_sec_regions@46200000 {
++			no-map;
++			reg = <0x0 0x46200000 0x0 0x1e00000>;
++		};
++
++		modem_region@4ab00000 {
++			no-map;
++			reg = <0x0 0x4ab00000 0x0 0x6900000>;
++		};
++
++		wlan_msa_region@51900000 {
++			no-map;
++			reg = <0x0 0x51900000 0x0 0x100000>;
++		};
++
++		cdsp_regions@51a00000 {
++			no-map;
++			reg = <0x0 0x51a00000 0x0 0x1a00000>;
++		};
++
++		pil_adsp_region@53800000 {
++			no-map;
++			reg = <0x0 0x53800000 0x0 0x2300000>;
++		};
++
++		ipa_fw_region@55b00000 {
++			no-map;
++			reg = <0x0 0x55b00000 0x0 0x10000>;
++		};
++
++		ipa_gsi_region@55b10000 {
++			no-map;
++			reg = <0x0 0x55b10000 0x0 0x5000>;
++		};
++
++		gpu_region@55b15000 {
++			no-map;
++			reg = <0x0 0x55b15000 0x0 0x2000>;
++		};
++
++		video_region@55b17000 {
++			no-map;
++			reg = <0x0 0x55b17000 0x0 0x700000>;
++		};
++
++		removed_region@60000000 {
++			no-map;
++			reg = <0x0 0x60000000 0x0 0x3900000>;
++		};
++
++		/*
++		 * Same region and layout the stock kernel uses for
++		 * pstore; with CONFIG_PSTORE_RAM=y it is the log
++		 * channel designed for a first on-device test without
++		 * a UART (docs/hardware-info-needed.md).
++		 */
++		ramoops@5d000000 {
++			compatible = "ramoops";
++			reg = <0x0 0x5d000000 0x0 0x200000>;
++			record-size = <0x40000>;
++			console-size = <0x80000>;
++			pmsg-size = <0x100000>;
++		};
++
++		dfps_data_region@5cf00000 {
++			label = "dfps_data_region";
++			reg = <0x0 0x5cf00000 0x0 0x100000>;
++		};
++
++		splash_region@5c000000 {
++			label = "cont_splash_region";
++			reg = <0x0 0x5c000000 0x0 0xf00000>;
++		};
++
++		user_contig_region {
++			compatible = "shared-dma-pool";
++			reusable;
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			alignment = <0x0 0x400000>;
++			size = <0x0 0x1000000>;
++		};
++
++		non_secure_display_region {
++			compatible = "shared-dma-pool";
++			reusable;
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			alignment = <0x0 0x400000>;
++			size = <0x0 0xa400000>;
++		};
++
++		secure_display_region {
++			compatible = "shared-dma-pool";
++			reusable;
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			alignment = <0x0 0x400000>;
++			size = <0x0 0x5c00000>;
++		};
++
++		qseecom_region {
++			compatible = "shared-dma-pool";
++			reusable;
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			alignment = <0x0 0x400000>;
++			size = <0x0 0x1400000>;
++		};
++
++		qseecom_ta_region {
++			compatible = "shared-dma-pool";
++			reusable;
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			alignment = <0x0 0x400000>;
++			size = <0x0 0x1000000>;
++		};
++
++		adsp_region {
++			compatible = "shared-dma-pool";
++			reusable;
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			alignment = <0x0 0x400000>;
++			size = <0x0 0x800000>;
++		};
++
++		va_md_mem_region {
++			compatible = "shared-dma-pool";
++			reusable;
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			size = <0x0 0x1000000>;
++		};
++
++		mem_dump_region {
++			compatible = "shared-dma-pool";
++			reusable;
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			size = <0x0 0x800000>;
++		};
++
++		linux_cma_region {
++			compatible = "shared-dma-pool";
++			reusable;
++			alloc-ranges = <0x0 0x0 0x0 0xffffffff>;
++			alignment = <0x0 0x400000>;
++			size = <0x0 0x2000000>;
++			linux,cma-default;
++		};
++	};
++};
++
++&sleep_clk {
++	clock-frequency = <32764>;
++};
++
++&xo_board {
++	clock-frequency = <19200000>;
++};
++
++&qupv3_id_0 {
++	status = "okay";
++};
++
++&uart4 {
++	status = "okay";
++};
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+new file mode 100644
+index 000000000..d40f127f5
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -0,0 +1,503 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Qualcomm SM6225 (Khaje / Bengal) SoC, upstream-style.
++ *
++ * S1 of docs/dt-upstream-sm6225-plan.md: minimal SoC with the debug
++ * UART described. Every address, IRQ and resource here was lifted
++ * from the live FDT of a topaz unit and/or the downstream
++ * khaje/bengal DTS import of this project, then translated to the
++ * upstream bindings (model: sm6115.dtsi from this tree). Nodes such
++ * as UFS, MDSS, LPASS, PMIC SPMI, cpufreq-hw/OPPs and CPU idle
++ * states land in later slices of the same plan.
++ */
++
++#include <dt-bindings/clock/qcom,gcc-khaje.h>
++#include <dt-bindings/clock/qcom,rpmcc.h>
++#include <dt-bindings/interconnect/qcom,bengal.h>
++#include <dt-bindings/interrupt-controller/arm-gic.h>
++#include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
++
++/ {
++	interrupt-parent = <&intc>;
++
++	#address-cells = <2>;
++	#size-cells = <2>;
++
++	chosen { };
++
++	clocks {
++		xo_board: xo-board {
++			compatible = "fixed-clock";
++			#clock-cells = <0>;
++		};
++
++		sleep_clk: sleep-clk {
++			compatible = "fixed-clock";
++			#clock-cells = <0>;
++		};
++
++		/*
++		 * PHY symbol clock stubs, same values as the downstream
++		 * khaje.dtsi fixed-clocks. Replaced by real QMP PHY
++		 * clocks when the UFS (S2) and USB slices land.
++		 */
++		ufs_phy_rx_symbol_0_clk: ufs-phy-rx-symbol-0-clk {
++			compatible = "fixed-clock";
++			clock-frequency = <1000>;
++			#clock-cells = <0>;
++		};
++
++		ufs_phy_rx_symbol_1_clk: ufs-phy-rx-symbol-1-clk {
++			compatible = "fixed-clock";
++			clock-frequency = <1000>;
++			#clock-cells = <0>;
++		};
++
++		ufs_phy_tx_symbol_0_clk: ufs-phy-tx-symbol-0-clk {
++			compatible = "fixed-clock";
++			clock-frequency = <1000>;
++			#clock-cells = <0>;
++		};
++
++		usb3_phy_wrapper_gcc_usb30_pipe_clk: usb3-phy-pipe-clk {
++			compatible = "fixed-clock";
++			clock-frequency = <1000>;
++			#clock-cells = <0>;
++		};
++	};
++
++	cpus {
++		#address-cells = <2>;
++		#size-cells = <0>;
++
++		cpu0: cpu@0 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a53";
++			reg = <0x0 0x0>;
++			capacity-dmips-mhz = <1024>;
++			enable-method = "psci";
++			next-level-cache = <&l2_0>;
++
++			l2_0: l2-cache {
++				compatible = "cache";
++				cache-level = <2>;
++				cache-unified;
++			};
++		};
++
++		cpu1: cpu@1 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a53";
++			reg = <0x0 0x1>;
++			capacity-dmips-mhz = <1024>;
++			enable-method = "psci";
++			next-level-cache = <&l2_0>;
++		};
++
++		cpu2: cpu@2 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a53";
++			reg = <0x0 0x2>;
++			capacity-dmips-mhz = <1024>;
++			enable-method = "psci";
++			next-level-cache = <&l2_0>;
++		};
++
++		cpu3: cpu@3 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a53";
++			reg = <0x0 0x3>;
++			capacity-dmips-mhz = <1024>;
++			enable-method = "psci";
++			next-level-cache = <&l2_0>;
++		};
++
++		cpu4: cpu@100 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a73";
++			reg = <0x0 0x100>;
++			capacity-dmips-mhz = <1638>;
++			enable-method = "psci";
++			next-level-cache = <&l2_1>;
++
++			l2_1: l2-cache {
++				compatible = "cache";
++				cache-level = <2>;
++				cache-unified;
++			};
++		};
++
++		cpu5: cpu@101 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a73";
++			reg = <0x0 0x101>;
++			capacity-dmips-mhz = <1638>;
++			enable-method = "psci";
++			next-level-cache = <&l2_1>;
++		};
++
++		cpu6: cpu@102 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a73";
++			reg = <0x0 0x102>;
++			capacity-dmips-mhz = <1638>;
++			enable-method = "psci";
++			next-level-cache = <&l2_1>;
++		};
++
++		cpu7: cpu@103 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a73";
++			reg = <0x0 0x103>;
++			capacity-dmips-mhz = <1638>;
++			enable-method = "psci";
++			next-level-cache = <&l2_1>;
++		};
++
++		cpu-map {
++			cluster0 {
++				core0 {
++					cpu = <&cpu0>;
++				};
++
++				core1 {
++					cpu = <&cpu1>;
++				};
++
++				core2 {
++					cpu = <&cpu2>;
++				};
++
++				core3 {
++					cpu = <&cpu3>;
++				};
++			};
++
++			cluster1 {
++				core0 {
++					cpu = <&cpu4>;
++				};
++
++				core1 {
++					cpu = <&cpu5>;
++				};
++
++				core2 {
++					cpu = <&cpu6>;
++				};
++
++				core3 {
++					cpu = <&cpu7>;
++				};
++			};
++		};
++	};
++
++	psci {
++		compatible = "arm,psci-1.0";
++		method = "smc";
++	};
++
++	timer {
++		compatible = "arm,armv8-timer";
++		interrupts = <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
++			     <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
++			     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
++			     <GIC_PPI 0 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
++	};
++
++	smem: smem {
++		compatible = "qcom,smem";
++		memory-region = <&smem_mem>;
++		hwlocks = <&tcsr_mutex 3>;
++	};
++
++	/*
++	 * RPM over glink. Only the CX (PM6125 S3) and MX (PM6125 S5)
++	 * voltage-level votes consumed by the clock controllers are
++	 * described in this slice; the physical PM6125 rails land with
++	 * the board slice of the plan. Resource names/ids, level
++	 * bounds and qcom,set values come from the downstream
++	 * pm6125-rpm-regulator.dtsi and bengal-regulator.dtsi.
++	 */
++	rpm: remoteproc {
++		compatible = "qcom,sm6225-rpm-proc", "qcom,rpm-proc";
++
++		glink-edge {
++			compatible = "qcom,glink-rpm";
++
++			interrupts = <GIC_SPI 194 IRQ_TYPE_EDGE_RISING>;
++			qcom,rpm-msg-ram = <&rpm_msg_ram>;
++			mboxes = <&apcs_glb 0>;
++
++			rpm_requests: rpm-requests {
++				compatible = "qcom,rpm-sm6225", "qcom,glink-smd-rpm";
++				qcom,glink-channels = "rpm_requests";
++
++				rpmcc: clock-controller {
++					compatible = "qcom,rpmcc-khaje", "qcom,rpmcc";
++					clocks = <&xo_board>;
++					clock-names = "xo";
++					#clock-cells = <1>;
++				};
++
++				rpm-regulator-smpa3 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "rwcx";
++					qcom,resource-id = <0>;
++					qcom,regulator-type = <1>;
++					qcom,hpm-min-load = <100000>;
++
++					pm6125_s3_level: regulator-s3-level {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_s3_level";
++						qcom,set = <3>;
++						regulator-min-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_RETENTION>;
++						regulator-max-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_BINNING>;
++						qcom,use-voltage-level;
++					};
++
++					regulator-s3-floor-level {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_s3_floor_level";
++						qcom,set = <3>;
++						regulator-min-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_RETENTION>;
++						regulator-max-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_BINNING>;
++						qcom,use-voltage-floor-level;
++						qcom,always-send-voltage;
++					};
++
++					regulator-s3-level-ao {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_s3_level_ao";
++						qcom,set = <1>;
++						regulator-min-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_RETENTION>;
++						regulator-max-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_BINNING>;
++						qcom,use-voltage-level;
++					};
++				};
++
++				rpm-regulator-smpa5 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "rwmx";
++					qcom,resource-id = <0>;
++					qcom,regulator-type = <1>;
++					qcom,hpm-min-load = <100000>;
++
++					pm6125_s5_level: regulator-s5-level {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_s5_level";
++						qcom,set = <3>;
++						regulator-min-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_RETENTION>;
++						regulator-max-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_BINNING>;
++						qcom,use-voltage-level;
++					};
++
++					regulator-s5-floor-level {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_s5_floor_level";
++						qcom,set = <3>;
++						regulator-min-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_RETENTION>;
++						regulator-max-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_BINNING>;
++						qcom,use-voltage-floor-level;
++						qcom,always-send-voltage;
++					};
++
++					regulator-s5-level-ao {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_s5_level_ao";
++						qcom,set = <1>;
++						regulator-min-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_RETENTION>;
++						regulator-max-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_BINNING>;
++						qcom,use-voltage-level;
++					};
++				};
++			};
++		};
++	};
++
++	soc: soc@0 {
++		compatible = "simple-bus";
++		#address-cells = <2>;
++		#size-cells = <2>;
++		ranges = <0 0 0 0 0x10 0>;
++		dma-ranges = <0 0 0 0 0x10 0>;
++
++		tcsr_mutex: hwlock@340000 {
++			compatible = "qcom,tcsr-mutex";
++			reg = <0x0 0x00340000 0x0 0x20000>;
++			#hwlock-cells = <1>;
++		};
++
++		tlmm: pinctrl@400000 {
++			compatible = "qcom,khaje-pinctrl";
++			reg = <0x0 0x00400000 0x0 0xc00000>;
++			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
++			gpio-controller;
++			gpio-ranges = <&tlmm 0 0 114>;
++			#gpio-cells = <2>;
++			interrupt-controller;
++			#interrupt-cells = <2>;
++
++			qup_uart4_default: qup-uart4-default-state {
++				pins = "gpio12", "gpio13";
++				function = "qup4";
++				drive-strength = <2>;
++				bias-disable;
++			};
++
++			qup_uart4_sleep: qup-uart4-sleep-state {
++				pins = "gpio12", "gpio13";
++				function = "gpio";
++				drive-strength = <2>;
++				bias-pull-down;
++			};
++		};
++
++		gcc: clock-controller@1400000 {
++			compatible = "qcom,khaje-gcc", "syscon";
++			reg = <0x0 0x01400000 0x0 0x1f0000>;
++			reg-names = "cc_base";
++			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
++				 <&rpmcc RPM_SMD_XO_A_CLK_SRC>,
++				 <&sleep_clk>,
++				 <&ufs_phy_rx_symbol_0_clk>,
++				 <&ufs_phy_rx_symbol_1_clk>,
++				 <&ufs_phy_tx_symbol_0_clk>,
++				 <&usb3_phy_wrapper_gcc_usb30_pipe_clk>;
++			clock-names = "bi_tcxo",
++				      "bi_tcxo_ao",
++				      "sleep_clk",
++				      "ufs_phy_rx_symbol_0_clk",
++				      "ufs_phy_rx_symbol_1_clk",
++				      "ufs_phy_tx_symbol_0_clk",
++				      "usb3_phy_wrapper_gcc_usb30_pipe_clk";
++			vdd_cx-supply = <&pm6125_s3_level>;
++			vdd_mx-supply = <&pm6125_s5_level>;
++			#clock-cells = <1>;
++			#reset-cells = <1>;
++			#power-domain-cells = <1>;
++		};
++
++		system_noc: interconnect@1880000 {
++			compatible = "qcom,bengal-system_noc";
++			reg = <0x0 0x01880000 0x0 0x5f080>;
++			clocks = <&rpmcc RPM_SMD_SNOC_CLK>,
++				 <&rpmcc RPM_SMD_SNOC_A_CLK>,
++				 <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
++				 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>;
++			clock-names = "bus", "bus_a", "cfg_axi", "sys_axi";
++			#interconnect-cells = <1>;
++
++			clk_virt: interconnect-clk {
++				compatible = "qcom,bengal-clk_virt";
++				clocks = <&rpmcc RPM_SMD_SNOC_CLK>,
++					 <&rpmcc RPM_SMD_SNOC_A_CLK>;
++				clock-names = "bus", "bus_a";
++				#interconnect-cells = <1>;
++			};
++
++			mmnrt_virt: interconnect-mmnrt {
++				compatible = "qcom,bengal-mmnrt_virt";
++				clocks = <&rpmcc RPM_SMD_MMNRT_CLK>,
++					 <&rpmcc RPM_SMD_MMNRT_A_CLK>,
++					 <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
++					 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>;
++				clock-names = "bus", "bus_a", "cfg_axi", "sys_axi";
++				#interconnect-cells = <1>;
++			};
++
++			mmrt_virt: interconnect-mmrt {
++				compatible = "qcom,bengal-mmrt_virt";
++				clocks = <&rpmcc RPM_SMD_MMRT_CLK>,
++					 <&rpmcc RPM_SMD_MMRT_A_CLK>,
++					 <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
++					 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>;
++				clock-names = "bus", "bus_a", "cfg_axi", "sys_axi";
++				#interconnect-cells = <1>;
++			};
++		};
++
++		config_noc: interconnect@1900000 {
++			compatible = "qcom,bengal-config_noc";
++			reg = <0x0 0x01900000 0x0 0x6200>;
++			clocks = <&rpmcc RPM_SMD_CNOC_CLK>,
++				 <&rpmcc RPM_SMD_CNOC_A_CLK>;
++			clock-names = "bus", "bus_a";
++			#interconnect-cells = <1>;
++		};
++
++		bimc: interconnect@4480000 {
++			compatible = "qcom,bengal-bimc";
++			reg = <0x0 0x04480000 0x0 0x80000>;
++			clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
++				 <&rpmcc RPM_SMD_BIMC_A_CLK>;
++			clock-names = "bus", "bus_a";
++			#interconnect-cells = <1>;
++		};
++
++		rpm_msg_ram: sram@45f0000 {
++			compatible = "qcom,rpm-msg-ram";
++			reg = <0x0 0x045f0000 0x0 0x7000>;
++		};
++
++		qupv3_id_0: geniqup@4ac0000 {
++			compatible = "qcom,geni-se-qup";
++			reg = <0x0 0x04ac0000 0x0 0x2000>;
++			clock-names = "m-ahb", "s-ahb";
++			clocks = <&gcc GCC_QUPV3_WRAP_0_M_AHB_CLK>,
++				 <&gcc GCC_QUPV3_WRAP_0_S_AHB_CLK>;
++			#address-cells = <2>;
++			#size-cells = <2>;
++			ranges;
++			status = "disabled";
++
++			uart4: serial@4a90000 {
++				compatible = "qcom,geni-debug-uart";
++				reg = <0x0 0x04a90000 0x0 0x4000>;
++				interrupts = <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>;
++				clocks = <&gcc GCC_QUPV3_WRAP0_S4_CLK>;
++				clock-names = "se";
++				pinctrl-names = "default";
++				pinctrl-0 = <&qup_uart4_default>;
++				interconnects = <&clk_virt MASTER_QUP_CORE_0
++						 &clk_virt SLAVE_QUP_CORE_0>,
++						<&bimc MASTER_AMPSS_M0
++						 &config_noc SLAVE_QUP_0>;
++				interconnect-names = "qup-core", "qup-config";
++				status = "disabled";
++			};
++		};
++
++		apcs_glb: mailbox@f111000 {
++			compatible = "qcom,sm6225-apcs-hmss-global",
++				     "qcom,msm8994-apcs-kpss-global";
++			reg = <0x0 0x0f111000 0x0 0x1000>;
++			#mbox-cells = <1>;
++		};
++
++		intc: interrupt-controller@f200000 {
++			compatible = "arm,gic-v3";
++			reg = <0x0 0x0f200000 0x0 0x10000>,
++			      <0x0 0x0f300000 0x0 0x100000>;
++			#interrupt-cells = <3>;
++			interrupt-controller;
++			interrupt-parent = <&intc>;
++			#redistributor-regions = <1>;
++			redistributor-stride = <0x0 0x20000>;
++			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
++		};
++	};
++};
+diff --git a/drivers/soc/qcom/smd-rpm.c b/drivers/soc/qcom/smd-rpm.c
+index f2b3e02ab..f7a967c51 100644
+--- a/drivers/soc/qcom/smd-rpm.c
++++ b/drivers/soc/qcom/smd-rpm.c
+@@ -238,6 +238,7 @@ static const struct of_device_id qcom_smd_rpm_of_match[] = {
+ 	{ .compatible = "qcom,rpm-sdm660" },
+ 	{ .compatible = "qcom,rpm-sm6115" },
+ 	{ .compatible = "qcom,rpm-sm6125" },
++	{ .compatible = "qcom,rpm-sm6225" },
+ 	{ .compatible = "qcom,rpm-sm6375" },
+ 	{ .compatible = "qcom,rpm-qcm2290" },
+ 	{ .compatible = "qcom,rpm-qcs404" },
+diff --git a/drivers/soc/qcom/ubwc_config.c b/drivers/soc/qcom/ubwc_config.c
+index 680e8d904..0ca962c17 100644
+--- a/drivers/soc/qcom/ubwc_config.c
++++ b/drivers/soc/qcom/ubwc_config.c
+@@ -236,6 +236,7 @@ static const struct of_device_id qcom_ubwc_configs[] __maybe_unused = {
+ 	{ .compatible = "qcom,apq8074", .data = &no_ubwc_data },
+ 	{ .compatible = "qcom,apq8096", .data = &msm8998_data },
+ 	{ .compatible = "qcom,khaje", .data = &khaje_data },
++	{ .compatible = "qcom,sm6225", .data = &khaje_data },
+ 	{ .compatible = "qcom,msm8226", .data = &no_ubwc_data },
+ 	{ .compatible = "qcom,msm8916", .data = &no_ubwc_data },
+ 	{ .compatible = "qcom,msm8917", .data = &no_ubwc_data },
+-- 
+2.39.5
+

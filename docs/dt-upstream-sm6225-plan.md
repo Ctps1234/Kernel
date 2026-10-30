@@ -91,7 +91,9 @@ Da placa topaz:
 
 Numeração continua a partir de 0034 em `patches-6.18/`.
 
-- **S1 – SoC mínimo com console UART descrito**: `sm6225.dtsi`
+- **S1 – SoC mínimo com console UART descrito** *(escrita em
+  30/out/2026 como patch 0034; aguardando o veredito do gate
+  `dtbs_check` no CI para ser dada como pronta)*: `sm6225.dtsi`
   com CPUs/PSCI/timer/GIC, `gcc`, `rpmcc`, TLMM, QUP+UART do
   console, interconnect mínimo, `smd-rpm`/reguladores base;
   `sm6225-xiaomi-topaz.dts` só com `chosen` (stdout-path),
@@ -120,6 +122,11 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
 - **S6 – Câmeras**: só após decisão CAMSS vs Spectra.
 
 ## Gate de CI a adicionar (junto da S1)
+
+*Status: implementado junto do 0034 — passo "DTB + dtbs_check"
+no `kernel-build` roda `make CHECK_DTBS=1
+qcom/sm6225-xiaomi-topaz.dtb` (validação contra todos os schemas,
+só para o DTB novo) e publica o log na issue `ci-report`.*
 
 No job `kernel-build` do `google-mainline.yml`, após o `Image`:
 `make ARCH=arm64 ... dtbs` (ao menos o DTB novo) e
