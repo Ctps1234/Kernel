@@ -1,0 +1,161 @@
+From d92cf54a8ad67d48601f44cf0032ec05452ca979 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 30 Oct 2026 00:07:19 +0000
+Subject: [PATCH 17/25] drm/msm: read Khaje UBWC decoder version at runtime
+
+Add Khaje-specific MDSS data with the Topaz UBWC encoder revision,
+swizzle, static value, bank bit and register-bus vote. Creek identifies
+the decoder revision by reading UBWC_DEC_HW_VERSION at MDSS + 0x58;
+read and normalize the hardware major/minor in runtime resume instead of
+borrowing the static SM6115/SM6375 decoder setting.
+
+Pass the detected version through the existing decoder-specific setup
+paths and retain the Creek UBWC 3.0 static-register fields. The new
+qcom,khaje-mdss compatible is not enabled by a DTS change in this patch;
+parent resource, clock, IRQ and ICC integration still needs validation.
+---
+ drivers/gpu/drm/msm/msm_mdss.c | 22 +++++++++++++++++-----
+ drivers/soc/qcom/ubwc_config.c | 13 +++++++++++++
+ include/linux/soc/qcom/ubwc.h  | 11 +++++++++++
+ 3 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/gpu/drm/msm/msm_mdss.c b/drivers/gpu/drm/msm/msm_mdss.c
+index 2d0e3e784..66398368f 100644
+--- a/drivers/gpu/drm/msm/msm_mdss.c
++++ b/drivers/gpu/drm/msm/msm_mdss.c
+@@ -196,10 +196,13 @@ static void msm_mdss_setup_ubwc_dec_30(struct msm_mdss *msm_mdss)
+ 	if (data->ubwc_enc_version == UBWC_1_0)
+ 		value |= MDSS_UBWC_STATIC_UBWC_MIN_ACC_LEN(1);
+ 
++	value |= data->ubwc_static;
++
+ 	writel_relaxed(value, msm_mdss->mmio + REG_MDSS_UBWC_STATIC);
+ }
+ 
+-static void msm_mdss_setup_ubwc_dec_40(struct msm_mdss *msm_mdss)
++static void msm_mdss_setup_ubwc_dec_40(struct msm_mdss *msm_mdss,
++				       u32 ubwc_dec_version)
+ {
+ 	const struct qcom_ubwc_cfg_data *data = msm_mdss->mdss_data;
+ 	u32 value = MDSS_UBWC_STATIC_UBWC_SWIZZLE(data->ubwc_swizzle) |
+@@ -217,7 +220,7 @@ static void msm_mdss_setup_ubwc_dec_40(struct msm_mdss *msm_mdss)
+ 		writel_relaxed(1, msm_mdss->mmio + REG_MDSS_UBWC_CTRL_2);
+ 		writel_relaxed(0, msm_mdss->mmio + REG_MDSS_UBWC_PREDICTION_MODE);
+ 	} else {
+-		if (data->ubwc_dec_version == UBWC_4_3)
++		if (ubwc_dec_version == UBWC_4_3)
+ 			writel_relaxed(3, msm_mdss->mmio + REG_MDSS_UBWC_CTRL_2);
+ 		else
+ 			writel_relaxed(2, msm_mdss->mmio + REG_MDSS_UBWC_CTRL_2);
+@@ -245,6 +248,7 @@ static void msm_mdss_setup_ubwc_dec_50(struct msm_mdss *msm_mdss)
+ 
+ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
+ {
++	u32 ubwc_dec_version;
+ 	int ret, i;
+ 
+ 	/*
+@@ -278,7 +282,14 @@ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
+ 	 * Decoder version can be read from the UBWC_DEC_HW_VERSION reg,
+ 	 * UBWC_n and the rest of params comes from hw data.
+ 	 */
+-	switch (msm_mdss->mdss_data->ubwc_dec_version) {
++	ubwc_dec_version = msm_mdss->mdss_data->ubwc_dec_version;
++	if (msm_mdss->mdss_data->ubwc_dec_version_from_reg) {
++		ubwc_dec_version = readl_relaxed(msm_mdss->mmio +
++						 REG_MDSS_UBWC_DEC_HW_VERSION);
++		ubwc_dec_version &= GENMASK(31, 16);
++	}
++
++	switch (ubwc_dec_version) {
+ 	case 0: /* no UBWC */
+ 	case UBWC_1_0:
+ 		/* do nothing */
+@@ -291,14 +302,14 @@ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
+ 		break;
+ 	case UBWC_4_0:
+ 	case UBWC_4_3:
+-		msm_mdss_setup_ubwc_dec_40(msm_mdss);
++		msm_mdss_setup_ubwc_dec_40(msm_mdss, ubwc_dec_version);
+ 		break;
+ 	case UBWC_5_0:
+ 		msm_mdss_setup_ubwc_dec_50(msm_mdss);
+ 		break;
+ 	default:
+ 		dev_err(msm_mdss->dev, "Unsupported UBWC decoder version %x\n",
+-			msm_mdss->mdss_data->ubwc_dec_version);
++			ubwc_dec_version);
+ 		dev_err(msm_mdss->dev, "HW_REV: 0x%x\n",
+ 			readl_relaxed(msm_mdss->mmio + REG_MDSS_HW_VERSION));
+ 		dev_err(msm_mdss->dev, "UBWC_DEC_HW_VERSION: 0x%x\n",
+@@ -555,6 +566,7 @@ static const struct of_device_id mdss_dt_match[] = {
+ 	{ .compatible = "qcom,mdss", .data = &data_153k6 },
+ 	{ .compatible = "qcom,msm8998-mdss", .data = &data_76k8 },
+ 	{ .compatible = "qcom,qcm2290-mdss", .data = &data_76k8 },
++	{ .compatible = "qcom,khaje-mdss", .data = &data_76k8 },
+ 	{ .compatible = "qcom,sa8775p-mdss", .data = &data_74k },
+ 	{ .compatible = "qcom,sar2130p-mdss", .data = &data_74k },
+ 	{ .compatible = "qcom,sdm670-mdss", .data = &data_76k8 },
+diff --git a/drivers/soc/qcom/ubwc_config.c b/drivers/soc/qcom/ubwc_config.c
+index 15d373bff..680e8d904 100644
+--- a/drivers/soc/qcom/ubwc_config.c
++++ b/drivers/soc/qcom/ubwc_config.c
+@@ -16,6 +16,18 @@ static const struct qcom_ubwc_cfg_data no_ubwc_data = {
+ 	/* no UBWC, no HBB */
+ };
+ 
++/* SM6225 (Khaje): decoder version is read from hardware at runtime */
++static const struct qcom_ubwc_cfg_data khaje_data = {
++	.ubwc_enc_version = UBWC_1_0,
++	.ubwc_dec_version_from_reg = true,
++	.ubwc_swizzle = UBWC_SWIZZLE_ENABLE_LVL1 |
++			UBWC_SWIZZLE_ENABLE_LVL2 |
++			UBWC_SWIZZLE_ENABLE_LVL3,
++	.ubwc_bank_spread = true,
++	.ubwc_static = 0x11f,
++	.highest_bank_bit = 14,
++};
++
+ static const struct qcom_ubwc_cfg_data msm8937_data = {
+ 	.ubwc_enc_version = UBWC_1_0,
+ 	.ubwc_dec_version = UBWC_1_0,
+@@ -223,6 +235,7 @@ static const struct of_device_id qcom_ubwc_configs[] __maybe_unused = {
+ 	{ .compatible = "qcom,apq8026", .data = &no_ubwc_data },
+ 	{ .compatible = "qcom,apq8074", .data = &no_ubwc_data },
+ 	{ .compatible = "qcom,apq8096", .data = &msm8998_data },
++	{ .compatible = "qcom,khaje", .data = &khaje_data },
+ 	{ .compatible = "qcom,msm8226", .data = &no_ubwc_data },
+ 	{ .compatible = "qcom,msm8916", .data = &no_ubwc_data },
+ 	{ .compatible = "qcom,msm8917", .data = &no_ubwc_data },
+diff --git a/include/linux/soc/qcom/ubwc.h b/include/linux/soc/qcom/ubwc.h
+index 1ed8b1b16..7163973a9 100644
+--- a/include/linux/soc/qcom/ubwc.h
++++ b/include/linux/soc/qcom/ubwc.h
+@@ -14,6 +14,8 @@ struct qcom_ubwc_cfg_data {
+ 	u32 ubwc_enc_version;
+ 	/* Can be read from MDSS_BASE + 0x58 */
+ 	u32 ubwc_dec_version;
++	/* Read ubwc_dec_version from MDSS_BASE + 0x58 at runtime */
++	bool ubwc_dec_version_from_reg;
+ 
+ 	/**
+ 	 * @ubwc_swizzle: Whether to enable level 1, 2 & 3 bank swizzling.
+@@ -36,6 +38,15 @@ struct qcom_ubwc_cfg_data {
+ 	int highest_bank_bit;
+ 	bool ubwc_bank_spread;
+ 
++	/**
++	 * @ubwc_static: Raw UBWC_STATIC bits to OR into the value
++	 * programmed by the UBWC 3.0 decoder setup. Zero for platforms
++	 * fully described by the fields above; Khaje needs the full
++	 * vendor-programmed value (swizzle levels and bank spread are
++	 * not expressible through the 3.0 field path alone).
++	 */
++	u32 ubwc_static;
++
+ 	/**
+ 	 * @macrotile_mode: Macrotile Mode
+ 	 *
+-- 
+2.39.5
+

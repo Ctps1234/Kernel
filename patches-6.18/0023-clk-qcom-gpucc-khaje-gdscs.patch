@@ -1,0 +1,158 @@
+From d9ddbeb6675ef60055aa54f43b3c7ad6b19372dd Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 30 Oct 2026 00:09:04 +0000
+Subject: [PATCH 23/25] clk: qcom: gpucc-khaje: register the CX and GX GDSCs
+
+The Khaje GPUCC driver registers clocks and resets but no power
+domains, so consumers modelled after the upstream SM6115
+GPU/SMMU/GMU-wrapper nodes have nothing to reference for the
+graphics power domains.
+
+Register the CX and GX GDSCs with the offsets from the shipping
+SM6225 device tree: CX GDSCR at gpucc+0x106c with the HW control
+register at +0x1540, GX GDSCR at +0x100c, its SW reset (GX BCR) at
++0x1008 and the clamp/IO control register at +0x1508. The values
+and the GX-on-top-of-CX parenting match the upstream SM6115 GPUCC.
+The vendor nodes additionally carry no-status-check-on-disable, a
+500-unit GDS timeout and a clk-dis wait on CX, which the upstream
+GDSC driver does not model; waits and flags are copied from the
+SM6115 driver and are not hardware-validated here.
+
+Add GPU_CX_GDSC/GPU_GX_GDSC to the binding header, require
+#power-domain-cells in the GPUCC binding, and select QCOM_GDSC
+from SM_GPUCC_6225 so the domains are linked when only the Khaje
+clock drivers are enabled (SM_GCC_6225 does not select it).
+
+Compile-tested only; not verified on hardware. The vendor
+qcom,gdsc nodes remain the production description.
+
+Signed-off-by: Port <port@local>
+---
+ .../bindings/clock/qcom,khaje-gpucc.yaml      |  6 ++--
+ drivers/clk/qcom/Kconfig                      |  1 +
+ drivers/clk/qcom/gpucc-khaje.c                | 31 +++++++++++++++++++
+ include/dt-bindings/clock/qcom,gpucc-khaje.h  |  4 +++
+ 4 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml
+index ca2e5645d..359033199 100644
+--- a/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml
++++ b/Documentation/devicetree/bindings/clock/qcom,khaje-gpucc.yaml
+@@ -10,8 +10,8 @@ maintainers:
+   - Taniya Das <quic_tdas@quicinc.com>
+ 
+ description: |
+-  Qualcomm Khaje graphics clock controller provides clocks, resets, and
+-  voltage-corner votes for the SM6225 GPU subsystem.
++  Qualcomm Khaje graphics clock controller provides clocks, resets,
++  power domains and voltage-corner votes for the SM6225 GPU subsystem.
+ 
+   See also: include/dt-bindings/clock/qcom,gpucc-khaje.h
+ 
+@@ -55,6 +55,7 @@ required:
+   - clocks
+   - clock-names
+   - '#clock-cells'
++  - '#power-domain-cells'
+   - '#reset-cells'
+   - vdd_cx-supply
+   - vdd_mx-supply
+@@ -79,6 +80,7 @@ examples:
+       vdd_cx-supply = <&vdd_cx>;
+       vdd_mx-supply = <&vdd_mx>;
+       #clock-cells = <1>;
++      #power-domain-cells = <1>;
+       #reset-cells = <1>;
+     };
+ ...
+diff --git a/drivers/clk/qcom/Kconfig b/drivers/clk/qcom/Kconfig
+index 9a29497e7..6fd7d9295 100644
+--- a/drivers/clk/qcom/Kconfig
++++ b/drivers/clk/qcom/Kconfig
+@@ -1582,6 +1582,7 @@ config SM_GPUCC_6225
+ 	tristate "SM6225 Khaje Graphics Clock Controller"
+ 	depends on ARM64 || COMPILE_TEST
+ 	select SM_GCC_6225
++	select QCOM_GDSC
+ 	help
+ 	  Support the graphics clock controller on Qualcomm Technologies, Inc.
+ 	  SM6225 (Khaje) devices.
+diff --git a/drivers/clk/qcom/gpucc-khaje.c b/drivers/clk/qcom/gpucc-khaje.c
+index 6f972e2bb..2c436ec84 100644
+--- a/drivers/clk/qcom/gpucc-khaje.c
++++ b/drivers/clk/qcom/gpucc-khaje.c
+@@ -24,6 +24,7 @@
+ #include "clk-regmap-divider.h"
+ #include "clk-regmap-mux.h"
+ #include "common.h"
++#include "gdsc.h"
+ #include "reset.h"
+ #include "vdd-level-bengal.h"
+ 
+@@ -425,6 +426,29 @@ static struct clk_regmap *gpu_cc_khaje_clocks[] = {
+ 	[GPU_CC_SLEEP_CLK] = &gpu_cc_sleep_clk.clkr,
+ };
+ 
++static struct gdsc gpu_cx_gdsc = {
++	.gdscr = 0x106c,
++	.gds_hw_ctrl = 0x1540,
++	.pd = {
++		.name = "gpu_cx_gdsc",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++	.flags = VOTABLE,
++};
++
++static struct gdsc gpu_gx_gdsc = {
++	.gdscr = 0x100c,
++	.clamp_io_ctrl = 0x1508,
++	.resets = (unsigned int []){ GPUCC_GPU_CC_GX_BCR },
++	.reset_count = 1,
++	.pd = {
++		.name = "gpu_gx_gdsc",
++	},
++	.parent = &gpu_cx_gdsc.pd,
++	.pwrsts = PWRSTS_OFF_ON,
++	.flags = CLAMP_IO | SW_RESET | VOTABLE,
++};
++
+ static const struct qcom_reset_map gpu_cc_khaje_resets[] = {
+ 	[GPUCC_GPU_CC_CX_BCR] = { 0x1068 },
+ 	[GPUCC_GPU_CC_GFX3D_AON_BCR] = { 0x10a0 },
+@@ -433,6 +457,11 @@ static const struct qcom_reset_map gpu_cc_khaje_resets[] = {
+ 	[GPUCC_GPU_CC_XO_BCR] = { 0x1000 },
+ };
+ 
++static struct gdsc *gpu_cc_khaje_gdscs[] = {
++	[GPU_CX_GDSC] = &gpu_cx_gdsc,
++	[GPU_GX_GDSC] = &gpu_gx_gdsc,
++};
++
+ static const struct regmap_config gpu_cc_khaje_regmap_config = {
+ 	.reg_bits = 32,
+ 	.reg_stride = 4,
+@@ -482,6 +511,8 @@ static const struct qcom_cc_desc gpu_cc_khaje_desc = {
+ 	.num_clks = ARRAY_SIZE(gpu_cc_khaje_clocks),
+ 	.resets = gpu_cc_khaje_resets,
+ 	.num_resets = ARRAY_SIZE(gpu_cc_khaje_resets),
++	.gdscs = gpu_cc_khaje_gdscs,
++	.num_gdscs = ARRAY_SIZE(gpu_cc_khaje_gdscs),
+ 	.clk_regulators = gpu_cc_khaje_regulators,
+ 	.num_clk_regulators = ARRAY_SIZE(gpu_cc_khaje_regulators),
+ 	.pre_probe = gpu_cc_khaje_pre_probe,
+diff --git a/include/dt-bindings/clock/qcom,gpucc-khaje.h b/include/dt-bindings/clock/qcom,gpucc-khaje.h
+index f9c9f5c28..5ed234853 100644
+--- a/include/dt-bindings/clock/qcom,gpucc-khaje.h
++++ b/include/dt-bindings/clock/qcom,gpucc-khaje.h
+@@ -32,4 +32,8 @@
+ #define GPUCC_GPU_CC_GX_BCR					3
+ #define GPUCC_GPU_CC_XO_BCR					4
+ 
++/* GPU_CC power domains */
++#define GPU_CX_GDSC						0
++#define GPU_GX_GDSC						1
++
+ #endif
+-- 
+2.39.5
+

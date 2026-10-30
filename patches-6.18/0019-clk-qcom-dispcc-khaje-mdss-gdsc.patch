@@ -1,0 +1,145 @@
+From 7ec67137fc5c37b18d91ed1c40f9046e7bf0fabc Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 30 Oct 2026 00:07:28 +0000
+Subject: [PATCH 19/25] clk: qcom: dispcc-khaje: register the MDSS GDSC
+
+The upstream MDSS binding requires a power-domains provider, but the
+Khaje dispcc driver did not register any GDSC: the vendor tree models
+the MDSS core GDSC as a standalone qcom,gdsc regulator-style node
+(mdss_core_gdsc). The live Topaz FDT places that GDSC at 0x5f01004
+(dispcc base 0x5f00000 + 0x1004, matching the khaje.dtsi override of
+bengal-gdsc.dtsi) and marks it qcom,support-hw-trigger.
+
+Register the GDSC from the dispcc driver instead, mirroring the
+SM6375 dispcc entry which uses the same GDSCR offset: gdscr 0x1004,
+OFF_ON power states, HW_CTRL and the same enable/clock-disable wait
+values. Wait values are compile-time data only and still need
+hardware validation.
+
+Also export the MDSS_GDSC index in the dispcc dt-bindings header,
+require #power-domain-cells in the dispcc binding and switch the
+Khaje MDSS/DPU binding examples from the placeholder index 0 to
+<&dispcc MDSS_GDSC>. No production DTS node is activated yet.
+---
+ .../bindings/clock/qcom,khaje-dispcc.yaml     |  2 ++
+ .../bindings/display/msm/qcom,khaje-dpu.yaml  |  2 +-
+ .../bindings/display/msm/qcom,khaje-mdss.yaml |  5 ++---
+ drivers/clk/qcom/dispcc-khaje.c               | 19 +++++++++++++++++++
+ include/dt-bindings/clock/qcom,dispcc-khaje.h |  3 +++
+ 5 files changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml b/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml
+index 85c085002..16937ea18 100644
+--- a/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml
++++ b/Documentation/devicetree/bindings/clock/qcom,khaje-dispcc.yaml
+@@ -54,6 +54,7 @@ required:
+   - clocks
+   - clock-names
+   - '#clock-cells'
++  - '#power-domain-cells'
+   - '#reset-cells'
+   - vdd_cx-supply
+ 
+@@ -76,6 +77,7 @@ examples:
+                     "gcc_disp_gpll0_clk";
+       vdd_cx-supply = <&vdd_cx>;
+       #clock-cells = <1>;
++      #power-domain-cells = <1>;
+       #reset-cells = <1>;
+     };
+ ...
+diff --git a/Documentation/devicetree/bindings/display/msm/qcom,khaje-dpu.yaml b/Documentation/devicetree/bindings/display/msm/qcom,khaje-dpu.yaml
+index 1b9920726..bbf8cbce8 100644
+--- a/Documentation/devicetree/bindings/display/msm/qcom,khaje-dpu.yaml
++++ b/Documentation/devicetree/bindings/display/msm/qcom,khaje-dpu.yaml
+@@ -73,7 +73,7 @@ examples:
+         clock-names = "bus", "iface", "core", "lut", "rot", "vsync";
+ 
+         operating-points-v2 = <&mdp_opp_table>;
+-        power-domains = <&dispcc 0>;
++        power-domains = <&dispcc MDSS_GDSC>;
+ 
+         interrupt-parent = <&mdss>;
+         interrupts = <0>;
+diff --git a/Documentation/devicetree/bindings/display/msm/qcom,khaje-mdss.yaml b/Documentation/devicetree/bindings/display/msm/qcom,khaje-mdss.yaml
+index badd43b66..efb3691fd 100644
+--- a/Documentation/devicetree/bindings/display/msm/qcom,khaje-mdss.yaml
++++ b/Documentation/devicetree/bindings/display/msm/qcom,khaje-mdss.yaml
+@@ -68,8 +68,7 @@ examples:
+         reg = <0x05e00000 0x1000>;
+         reg-names = "mdss";
+ 
+-        /* MDSS GDSC, to be provided by the dispcc driver */
+-        power-domains = <&dispcc 0>;
++        power-domains = <&dispcc MDSS_GDSC>;
+ 
+         clocks = <&gcc GCC_DISP_AHB_CLK>,
+                  <&gcc GCC_DISP_HF_AXI_CLK>,
+@@ -103,7 +102,7 @@ examples:
+             clock-names = "bus", "iface", "core", "lut", "rot", "vsync";
+ 
+             operating-points-v2 = <&mdp_opp_table>;
+-            power-domains = <&dispcc 0>;
++            power-domains = <&dispcc MDSS_GDSC>;
+ 
+             interrupt-parent = <&mdss>;
+             interrupts = <0>;
+diff --git a/drivers/clk/qcom/dispcc-khaje.c b/drivers/clk/qcom/dispcc-khaje.c
+index 323e228e0..d20923646 100644
+--- a/drivers/clk/qcom/dispcc-khaje.c
++++ b/drivers/clk/qcom/dispcc-khaje.c
+@@ -24,6 +24,7 @@
+ #include "clk-regmap-divider.h"
+ #include "clk-regmap-mux.h"
+ #include "common.h"
++#include "gdsc.h"
+ #include "reset.h"
+ #include "vdd-level-bengal.h"
+ 
+@@ -585,6 +586,22 @@ static struct clk_regmap *disp_cc_khaje_clocks[] = {
+ 	[DISP_CC_PLL0] = &disp_cc_pll0.clkr,
+ };
+ 
++static struct gdsc mdss_gdsc = {
++	.gdscr = 0x1004,
++	.en_rest_wait_val = 0x2,
++	.en_few_wait_val = 0x2,
++	.clk_dis_wait_val = 0xf,
++	.pd = {
++		.name = "mdss_gdsc",
++	},
++	.pwrsts = PWRSTS_OFF_ON,
++	.flags = HW_CTRL,
++};
++
++static struct gdsc *disp_cc_khaje_gdscs[] = {
++	[MDSS_GDSC] = &mdss_gdsc,
++};
++
+ static const struct qcom_reset_map disp_cc_khaje_resets[] = {
+ 	[DISP_CC_MDSS_CORE_BCR] = { 0x1000 },
+ 	[DISP_CC_MDSS_RSCC_BCR] = { 0x2000 },
+@@ -621,6 +638,8 @@ static const struct qcom_cc_desc disp_cc_khaje_desc = {
+ 	.num_clks = ARRAY_SIZE(disp_cc_khaje_clocks),
+ 	.resets = disp_cc_khaje_resets,
+ 	.num_resets = ARRAY_SIZE(disp_cc_khaje_resets),
++	.gdscs = disp_cc_khaje_gdscs,
++	.num_gdscs = ARRAY_SIZE(disp_cc_khaje_gdscs),
+ 	.clk_regulators = disp_cc_khaje_regulators,
+ 	.num_clk_regulators = ARRAY_SIZE(disp_cc_khaje_regulators),
+ 	.pre_probe = disp_cc_khaje_pre_probe,
+diff --git a/include/dt-bindings/clock/qcom,dispcc-khaje.h b/include/dt-bindings/clock/qcom,dispcc-khaje.h
+index fcb3e2874..2d68eda2c 100644
+--- a/include/dt-bindings/clock/qcom,dispcc-khaje.h
++++ b/include/dt-bindings/clock/qcom,dispcc-khaje.h
+@@ -35,4 +35,7 @@
+ #define DISP_CC_MDSS_CORE_BCR					0
+ #define DISP_CC_MDSS_RSCC_BCR					1
+ 
++/* DISP_CC power domains */
++#define MDSS_GDSC						0
++
+ #endif
+-- 
+2.39.5
+

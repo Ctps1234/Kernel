@@ -1,0 +1,107 @@
+From 2ce2fefe40897416af21e3d3c038a38be3b39006 Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 30 Oct 2026 00:08:08 +0000
+Subject: [PATCH 20/25] drm/msm/dsi: add SM6225 (Khaje) controller/PHY
+ compatibles
+
+The upstream DSI host needs no code change for Khaje: the generic
+qcom,mdss-dsi-ctrl match plus the version-keyed v2.4 config already
+cover it (sdm845_dsi_cfg io_start lists 0x5e94000 for
+QCM2290/SM6115/SM6125/SM6375, and its vdda/refgen regulators match the
+vendor Khaje supplies). Enumerate qcom,sm6225-dsi-ctrl in the DSI
+controller binding, in the 6-clock group shared with SDM845/SM6115/
+SM6375, and allow dsi@/phy@ children in the Khaje MDSS binding.
+
+For the PHY, the live FDT reports qcom,dsi-phy-v4.1 at 0x5e94400
+(pll_base 0x5e94900), which is exactly the upstream 7nm V4.1 quirk
+configuration used for SM6375 (dsi_phy_7nm_6375_cfgs: same io_start,
+min/max PLL rates and 36 mA vdds load). Add qcom,sm6225-dsi-phy-7nm
+to the 7nm PHY binding and match it to that config.
+
+This is binding/compatible plumbing only: no production DTS node is
+activated, PLL/timing behaviour on hardware is unvalidated, and the
+vendor qcom,dsi-display wrapper and M7 panel are still not ported.
+---
+ .../display/msm/dsi-controller-main.yaml       |  2 ++
+ .../bindings/display/msm/dsi-phy-7nm.yaml      |  1 +
+ .../bindings/display/msm/qcom,khaje-mdss.yaml  | 18 ++++++++++++++++++
+ drivers/gpu/drm/msm/dsi/phy/dsi_phy.c          |  2 ++
+ 4 files changed, 23 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/display/msm/dsi-controller-main.yaml b/Documentation/devicetree/bindings/display/msm/dsi-controller-main.yaml
+index 4400d4cce..397f244c3 100644
+--- a/Documentation/devicetree/bindings/display/msm/dsi-controller-main.yaml
++++ b/Documentation/devicetree/bindings/display/msm/dsi-controller-main.yaml
+@@ -33,6 +33,7 @@ properties:
+               - qcom,sdm845-dsi-ctrl
+               - qcom,sm6115-dsi-ctrl
+               - qcom,sm6125-dsi-ctrl
++              - qcom,sm6225-dsi-ctrl
+               - qcom,sm6150-dsi-ctrl
+               - qcom,sm6350-dsi-ctrl
+               - qcom,sm6375-dsi-ctrl
+@@ -337,6 +338,7 @@ allOf:
+               - qcom,sdm845-dsi-ctrl
+               - qcom,sm6115-dsi-ctrl
+               - qcom,sm6125-dsi-ctrl
++              - qcom,sm6225-dsi-ctrl
+               - qcom,sm6350-dsi-ctrl
+               - qcom,sm6375-dsi-ctrl
+               - qcom,sm6150-dsi-ctrl
+diff --git a/Documentation/devicetree/bindings/display/msm/dsi-phy-7nm.yaml b/Documentation/devicetree/bindings/display/msm/dsi-phy-7nm.yaml
+index 1ca820a50..d364129dc 100644
+--- a/Documentation/devicetree/bindings/display/msm/dsi-phy-7nm.yaml
++++ b/Documentation/devicetree/bindings/display/msm/dsi-phy-7nm.yaml
+@@ -20,6 +20,7 @@ properties:
+       - qcom,sa8775p-dsi-phy-5nm
+       - qcom,sar2130p-dsi-phy-5nm
+       - qcom,sc7280-dsi-phy-7nm
++      - qcom,sm6225-dsi-phy-7nm
+       - qcom,sm6375-dsi-phy-7nm
+       - qcom,sm8350-dsi-phy-5nm
+       - qcom,sm8450-dsi-phy-5nm
+diff --git a/Documentation/devicetree/bindings/display/msm/qcom,khaje-mdss.yaml b/Documentation/devicetree/bindings/display/msm/qcom,khaje-mdss.yaml
+index efb3691fd..b5168d318 100644
+--- a/Documentation/devicetree/bindings/display/msm/qcom,khaje-mdss.yaml
++++ b/Documentation/devicetree/bindings/display/msm/qcom,khaje-mdss.yaml
+@@ -49,6 +49,24 @@ patternProperties:
+       compatible:
+         const: qcom,khaje-dpu
+ 
++  "^dsi@[0-9a-f]+$":
++    type: object
++    additionalProperties: true
++
++    properties:
++      compatible:
++        items:
++          - const: qcom,sm6225-dsi-ctrl
++          - const: qcom,mdss-dsi-ctrl
++
++  "^phy@[0-9a-f]+$":
++    type: object
++    additionalProperties: true
++
++    properties:
++      compatible:
++        const: qcom,sm6225-dsi-phy-7nm
++
+ required:
+   - compatible
+ 
+diff --git a/drivers/gpu/drm/msm/dsi/phy/dsi_phy.c b/drivers/gpu/drm/msm/dsi/phy/dsi_phy.c
+index 4ea681130..c339a55fa 100644
+--- a/drivers/gpu/drm/msm/dsi/phy/dsi_phy.c
++++ b/drivers/gpu/drm/msm/dsi/phy/dsi_phy.c
+@@ -565,6 +565,8 @@ static const struct of_device_id dsi_phy_dt_match[] = {
+ 	  .data = &dsi_phy_5nm_sar2130p_cfgs },
+ 	{ .compatible = "qcom,sc7280-dsi-phy-7nm",
+ 	  .data = &dsi_phy_7nm_7280_cfgs },
++	{ .compatible = "qcom,sm6225-dsi-phy-7nm",
++	  .data = &dsi_phy_7nm_6375_cfgs },
+ 	{ .compatible = "qcom,sm6375-dsi-phy-7nm",
+ 	  .data = &dsi_phy_7nm_6375_cfgs },
+ 	{ .compatible = "qcom,sm8350-dsi-phy-5nm",
+-- 
+2.39.5
+

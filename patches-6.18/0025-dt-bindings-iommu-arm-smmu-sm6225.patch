@@ -1,0 +1,58 @@
+From 6bf2d72db2ca3165cf9cfe6bcd183cf0faaf5bba Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 30 Oct 2026 00:09:23 +0000
+Subject: [PATCH 25/25] dt-bindings: iommu: arm,smmu: add SM6225 Adreno SMMU
+
+Add qcom,sm6225-smmu-500 to the SMMU-500 compatible lists (the
+generic list and the Adreno list) and to the Adreno clock-name
+constraint shared with QCM2290, SM6115 and SM6125
+("mem", "hlos", "iface").
+
+The Khaje Adreno SMMU matches the SM6115 one in the shipping
+device tree: same base address (0x59a0000), same interrupt
+layout (global SPI 163, contexts 167-174) and the same three
+clocks. No driver change is needed: the generic qcom,smmu-500
+match entry already selects the impl0 data, and the driver
+explicitly asks not to grow the per-SoC match list for parts
+covered by it. This only gives the node a SoC-specific
+compatible to describe the hardware, instead of describing
+Khaje silicon as another SoC.
+
+Compile-tested only (schema); not verified on hardware.
+
+Signed-off-by: Port <port@local>
+---
+ Documentation/devicetree/bindings/iommu/arm,smmu.yaml | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/iommu/arm,smmu.yaml b/Documentation/devicetree/bindings/iommu/arm,smmu.yaml
+index 89495f094..73eed8a61 100644
+--- a/Documentation/devicetree/bindings/iommu/arm,smmu.yaml
++++ b/Documentation/devicetree/bindings/iommu/arm,smmu.yaml
+@@ -54,6 +54,7 @@ properties:
+               - qcom,sdx75-smmu-500
+               - qcom,sm6115-smmu-500
+               - qcom,sm6125-smmu-500
++              - qcom,sm6225-smmu-500
+               - qcom,sm6350-smmu-500
+               - qcom,sm6375-smmu-500
+               - qcom,sm8150-smmu-500
+@@ -101,6 +102,7 @@ properties:
+               - qcom,sc8280xp-smmu-500
+               - qcom,sm6115-smmu-500
+               - qcom,sm6125-smmu-500
++              - qcom,sm6225-smmu-500
+               - qcom,sm8150-smmu-500
+               - qcom,sm8250-smmu-500
+               - qcom,sm8350-smmu-500
+@@ -481,6 +483,7 @@ allOf:
+                 - qcom,qcs615-smmu-500
+                 - qcom,sm6115-smmu-500
+                 - qcom,sm6125-smmu-500
++                - qcom,sm6225-smmu-500
+             - const: qcom,adreno-smmu
+             - const: qcom,smmu-500
+             - const: arm,mmu-500
+-- 
+2.39.5
+

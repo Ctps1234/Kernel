@@ -70,21 +70,39 @@ existe upstream e ficou de fora — e seis entradas foram reinseridas à
 mão nas posições alfabéticas atuais (fpc, nopmi, pd, signal, sm,
 tcpc-dual), com o YAML validado e cada prefixo presente exatamente
 uma vez. Série exportada reaplicada do zero: 15/15 limpos, árvore
-idêntica à branch de trabalho.
+idêntica à branch de trabalho. Gate verde na run `40977113902`.
 
-## Pendentes (0016–0033)
+Terceira fatia (2026-10-29): **0016–0025** (display/GPU/touch). O
+0016 só precisou da linha de match no `dpu_kms.c`. O 0017 foi
+re-desenhado para a arquitetura 6.18: a config UBWC saiu do
+`msm_mdss.c` para a estrutura compartilhada `qcom_ubwc_cfg_data`
+(`drivers/soc/qcom/ubwc_config.c`, chaveada pelo compatible da raiz),
+então o `khaje_data` mora lá (match `qcom,khaje`), com dois campos
+novos na estrutura — `ubwc_dec_version_from_reg` e `ubwc_static`. O
+valor vendor `0x11f` foi decodificado contra os bitfields de
+`UBWC_STATIC` (swizzle 7, bank spread, HBB 1, MIN_ACC_LEN 1): o
+caminho por campos do dec_30 produziria `0x111`, perdendo os bits
+1–3, por isso o valor cru continua sendo OR-ed no dec_30 (zero para
+todas as plataformas upstream, sem mudança de comportamento);
+`highest_bank_bit` convertido de 1 para 14 na nova codificação
+absoluta, como nos irmãos SM6115/SM6125. No `msm_mdss.c` sobraram o
+match `qcom,khaje-mdss` (reusando `data_76k8`, os mesmos 76800 de
+`reg_bus_bw`), a leitura runtime da versão do decoder e a passagem
+dela ao dec_40. 0018/0019/0023 entraram limpos (cascatas do 0011
+resolvidas), 0020 ganhou as entradas nos grupos atuais dos bindings,
+0021 só contexto de Kconfig/Makefile (driver já usa a API `_multi`,
+todos os símbolos presentes no 6.18), 0022/0024 limpos, 0025 com a
+terceira lista do binding reinserida à mão. Verificação do zero:
+25/25 limpos, árvore idêntica.
 
-Disposição medida no plano; resumo:
+## Pendentes (0026–0033)
 
-- aplicar limpos na medição original, só reexportar no fluxo:
-  0018, 0022, 0024, 0027, 0031;
-- rebase trivial (contexto de Makefile/Kconfig/binding): 0020, 0021,
-  0025, 0033;
-- rebase com revisão: 0014 (recortar prefixo a prefixo), 0016/0017
-  (refatoração DPU/MDSS), 0026/0028 (tabela PAS), 0030 (recortar: TX
+- limpos na medição original: 0027, 0031;
+- rebase trivial (contexto de Makefile): 0033;
+- rebase com revisão: 0026/0028 (tabela PAS), 0030 (recortar: TX
   SM6115 já upstream), 0032 (máquina de áudio);
-- cascata do 0011, reavaliar agora que ele entrou: 0019, 0023;
-- **descartar**: 0029 (resets LPASSCC SM6115 já upstream no 6.18).
+- **descartar**: 0029 (resets LPASSCC SM6115 já upstream no 6.18) —
+  a numeração fica com um buraco intencional.
 
 ## Método (para repetir nas próximas fatias)
 
