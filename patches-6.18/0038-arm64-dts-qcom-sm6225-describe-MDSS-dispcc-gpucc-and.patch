@@ -1,0 +1,347 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Arena <arena@local>
+Date: Fri, 30 Oct 2026 23:48:07 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: describe MDSS, dispcc/gpucc and the
+ topaz panel
+
+S3 slice of docs/dt-upstream-sm6225-plan.md.
+
+SoC:
+- gpucc@5990000 and dispcc@5f00000 (qcom,khaje-gpucc/-dispcc),
+  parents per their bindings: XO, GCC GPLL0 sources, dispcc also
+  sleep clk and GCC_DISP_AHB_CLK; vdd_cx/vdd_mx to the CX/MX
+  RPM level regulators (pm6125_s3_level/s5_level).
+- MDSS@5e00000 with DPU@5e01000 (vbif@5eb0000), DSI@5e94000
+  (qcom,sm6225-dsi-ctrl) and 7nm DSI PHY@5e94400
+  (qcom,sm6225-dsi-phy-7nm, windows 0x200/0x280/0x264).
+  Addresses, SPI 186 and the mdss irq indexes (dpu 0, dsi 4)
+  come from downstream khaje-sde-common.dtsi; clocks follow the
+  in-tree khaje-mdss/khaje-dpu bindings. The DPU->DSI graph and
+  assigned-clock-parents to the PHY PLL outputs mirror upstream
+  sm6115. interconnects: MASTER_MDP_PORT0/slave_ebi_ch0 and
+  MASTER_AMPSS_M0/SLAVE_DISPLAY_CFG.
+- rpm ldoa9 resource (pm6125_l9, 1.504-2.0V @1.8V), the panel
+  vddio rail.
+
+Board (topaz): mdss+disp okay via &mdss, DSI vdda=l18 (downstream
+vdda-1p2), DSI PHY vdds=l4 (downstream vdda-0p9), panel
+xiaomi,m7-38-0c-0a (default panel of topaz-sde-display-idp-nopmi)
+with reset gpio82, LCM 1.8V enable gpio54, TE gpio81
+(mdp_vsync), vddio=l9, four data lanes.
+
+Debts (documented, not invented): no iommus (apps_smmu node does
+not exist yet - same state as UFS), no MDP OPP table, no GPU
+device (gpucc only; adreno node is a later slice), no PCLK/byte
+rates beyond the panel driver's own mode. DT-only change;
+nothing here is boot-tested.
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  67 ++++++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 201 +++++++++++++++++-
+ 2 files changed, 265 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 3634c7859..823420e46 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -242,3 +242,70 @@ &ufs_mem_phy {
+ 	vdda-pll-supply = <&pm6125_l18>;
+ 	status = "okay";
+ };
++
++&mdss {
++	status = "okay";
++};
++
++&mdss_dsi0 {
++	/* Downstream vdda-1p2: DSI controller core supply. */
++	vdda-supply = <&pm6125_l18>;
++
++	/*
++	 * Panel fitted on the reference unit (downstream default panel,
++	 * "m7 38 0c 0a" DSI cmd/vid-id string and qcom,dsi-default-panel
++	 * in topaz-sde-display-idp-nopmi.dtsi). The 0b variant is known
++	 * to exist but has no driver in this series yet.
++	 */
++	panel: panel@0 {
++		compatible = "xiaomi,m7-38-0c-0a";
++		reg = <0>;
++
++		reset-gpios = <&tlmm 82 GPIO_ACTIVE_LOW>;
++		/* LCM 1.8 V load-switch enable (downstream lcm1p8en). */
++		enable-gpios = <&tlmm 54 GPIO_ACTIVE_HIGH>;
++		vddio-supply = <&pm6125_l9>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&lcd_reset_active &te_active &lcd_enable_active>;
++
++		port {
++			panel_in: endpoint {
++				remote-endpoint = <&mdss_dsi0_out>;
++			};
++		};
++	};
++};
++
++&mdss_dsi0_out {
++	data-lanes = <0 1 2 3>;
++	remote-endpoint = <&panel_in>;
++};
++
++&mdss_dsi0_phy {
++	/* Downstream vdda-0p9: DSI PHY/PLL 0.88 V supply. */
++	vdds-supply = <&pm6125_l4>;
++};
++
++&tlmm {
++	lcd_reset_active: lcd-reset-active-state {
++		pins = "gpio82";
++		function = "gpio";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
++	lcd_enable_active: lcd-enable-active-state {
++		pins = "gpio54";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++	};
++
++	te_active: te-active-state {
++		pins = "gpio81";
++		function = "mdp_vsync";
++		drive-strength = <2>;
++		bias-pull-down;
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index bb280ac54..a65afadd8 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -6,11 +6,13 @@
+  * UART described. Every address, IRQ and resource here was lifted
+  * from the live FDT of a topaz unit and/or the downstream
+  * khaje/bengal DTS import of this project, then translated to the
+- * upstream bindings (model: sm6115.dtsi from this tree). Nodes such
+- * as UFS, MDSS, LPASS, PMIC SPMI, cpufreq-hw/OPPs and CPU idle
+- * states land in later slices of the same plan.
++ * upstream bindings (model: sm6115.dtsi from this tree). UFS (S2)
++ * and MDSS/display (S3) have landed; LPASS, PMIC SPMI,
++ * cpufreq-hw/OPPs and CPU idle states land in later slices.
+  */
+ 
++#include <dt-bindings/clock/qcom,dispcc-khaje.h>
++#include <dt-bindings/clock/qcom,dsi-phy-28nm.h>
+ #include <dt-bindings/clock/qcom,gcc-khaje.h>
+ #include <dt-bindings/clock/qcom,rpmcc.h>
+ #include <dt-bindings/interconnect/qcom,bengal.h>
+@@ -351,6 +353,28 @@ pm6125_l4: regulator-l4 {
+ 					};
+ 				};
+ 
++				/*
++				 * L9 @ 1.8 V: panel vddio rail on topaz
++				 * (downstream vddio -> pm6125_l9).
++				 */
++				rpm-regulator-ldoa9 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "ldoa";
++					qcom,resource-id = <9>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l9: regulator-l9 {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l9";
++						qcom,set = <3>;
++						regulator-min-microvolt = <1504000>;
++						regulator-max-microvolt = <2000000>;
++						qcom,init-voltage = <1800000>;
++					};
++				};
++
+ 				rpm-regulator-ldoa11 {
+ 					compatible = "qcom,rpm-smd-regulator-resource";
+ 					qcom,resource-name = "ldoa";
+@@ -657,6 +681,177 @@ &clk_virt SLAVE_QUP_CORE_0>,
+ 			};
+ 		};
+ 
++		gpucc: clock-controller@5990000 {
++			compatible = "qcom,khaje-gpucc", "syscon";
++			reg = <0x0 0x05990000 0x0 0x9000>;
++			reg-names = "cc_base";
++
++			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
++				 <&gcc GCC_GPU_GPLL0_CLK_SRC>,
++				 <&gcc GCC_GPU_GPLL0_DIV_CLK_SRC>;
++			clock-names = "bi_tcxo", "gpll0_out_main",
++				      "gpll0_out_main_div";
++
++			vdd_cx-supply = <&pm6125_s3_level>;
++			vdd_mx-supply = <&pm6125_s5_level>;
++
++			#clock-cells = <1>;
++			#reset-cells = <1>;
++			#power-domain-cells = <1>;
++		};
++
++		/*
++		 * MDSS (DPU 6.10 + single DSI). Addresses/IRQs from the
++		 * downstream khaje-sde-common.dtsi and the live FDT; shape
++		 * and clocks follow the in-tree qcom,khaje-mdss /
++		 * qcom,khaje-dpu bindings (whose examples are written for
++		 * this SoC). No iommus yet (no apps_smmu node; same debt as
++		 * UFS) and no MDP OPP table yet.
++		 */
++		mdss: display-subsystem@5e00000 {
++			compatible = "qcom,khaje-mdss";
++			reg = <0x0 0x05e00000 0x0 0x1000>;
++			reg-names = "mdss";
++
++			power-domains = <&dispcc MDSS_GDSC>;
++
++			clocks = <&gcc GCC_DISP_AHB_CLK>,
++				 <&gcc GCC_DISP_HF_AXI_CLK>,
++				 <&dispcc DISP_CC_MDSS_MDP_CLK>;
++			clock-names = "iface", "bus", "core";
++
++			interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
++			interrupt-controller;
++			#interrupt-cells = <1>;
++
++			interconnects = <&mmrt_virt MASTER_MDP_PORT0
++					 &bimc SLAVE_EBI_CH0>,
++					<&bimc MASTER_AMPSS_M0
++					 &config_noc SLAVE_DISPLAY_CFG>;
++			interconnect-names = "mdp0-mem", "cpu-cfg";
++
++			#address-cells = <2>;
++			#size-cells = <2>;
++			ranges;
++
++			status = "disabled";
++
++			mdss_mdp: display-controller@5e01000 {
++				compatible = "qcom,khaje-dpu";
++				reg = <0x0 0x05e01000 0x0 0x8f000>,
++				      <0x0 0x05eb0000 0x0 0x2008>;
++				reg-names = "mdp", "vbif";
++
++				clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
++					 <&dispcc DISP_CC_MDSS_AHB_CLK>,
++					 <&dispcc DISP_CC_MDSS_MDP_CLK>,
++					 <&dispcc DISP_CC_MDSS_MDP_LUT_CLK>,
++					 <&dispcc DISP_CC_MDSS_ROT_CLK>,
++					 <&dispcc DISP_CC_MDSS_VSYNC_CLK>;
++				clock-names = "bus", "iface", "core", "lut",
++					      "rot", "vsync";
++
++				power-domains = <&dispcc MDSS_GDSC>;
++
++				interrupt-parent = <&mdss>;
++				interrupts = <0>;
++
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++
++					port@0 {
++						reg = <0>;
++						dpu_intf1_out: endpoint {
++							remote-endpoint = <&mdss_dsi0_in>;
++						};
++					};
++				};
++			};
++
++			mdss_dsi0: dsi@5e94000 {
++				compatible = "qcom,sm6225-dsi-ctrl",
++					     "qcom,mdss-dsi-ctrl";
++				reg = <0x0 0x05e94000 0x0 0x400>;
++				reg-names = "dsi_ctrl";
++
++				interrupt-parent = <&mdss>;
++				interrupts = <4>;
++
++				clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK>,
++					 <&dispcc DISP_CC_MDSS_BYTE0_INTF_CLK>,
++					 <&dispcc DISP_CC_MDSS_PCLK0_CLK>,
++					 <&dispcc DISP_CC_MDSS_MDP_CLK>,
++					 <&dispcc DISP_CC_MDSS_AHB_CLK>,
++					 <&gcc GCC_DISP_HF_AXI_CLK>;
++				clock-names = "byte", "byte_intf", "pixel",
++					      "core", "iface", "bus";
++
++				assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK_SRC>,
++						  <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
++				assigned-clock-parents = <&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
++							 <&mdss_dsi0_phy DSI_PIXEL_PLL_CLK>;
++
++				phys = <&mdss_dsi0_phy>;
++				phy-names = "dsi";
++
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++
++					port@0 {
++						reg = <0>;
++						mdss_dsi0_in: endpoint {
++							remote-endpoint = <&dpu_intf1_out>;
++						};
++					};
++
++					port@1 {
++						reg = <1>;
++						mdss_dsi0_out: endpoint {
++						};
++					};
++				};
++			};
++
++			mdss_dsi0_phy: phy@5e94400 {
++				compatible = "qcom,sm6225-dsi-phy-7nm";
++				reg = <0x0 0x05e94400 0x0 0x200>,
++				      <0x0 0x05e94600 0x0 0x280>,
++				      <0x0 0x05e94900 0x0 0x264>;
++				reg-names = "dsi_phy", "dsi_phy_lane", "dsi_pll";
++
++				#clock-cells = <1>;
++				#phy-cells = <0>;
++
++				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
++					 <&rpmcc RPM_SMD_XO_CLK_SRC>;
++				clock-names = "iface", "ref";
++			};
++		};
++
++		dispcc: clock-controller@5f00000 {
++			compatible = "qcom,khaje-dispcc", "syscon";
++			reg = <0x0 0x05f00000 0x0 0x20000>;
++			reg-names = "cc_base";
++
++			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
++				 <&sleep_clk>,
++				 <&gcc GCC_DISP_AHB_CLK>,
++				 <&gcc GCC_DISP_GPLL0_CLK_SRC>;
++			clock-names = "bi_tcxo", "sleep_clk", "iface",
++				      "gcc_disp_gpll0_clk";
++
++			vdd_cx-supply = <&pm6125_s3_level>;
++
++			#clock-cells = <1>;
++			#reset-cells = <1>;
++			#power-domain-cells = <1>;
++		};
++
+ 		apcs_glb: mailbox@f111000 {
+ 			compatible = "qcom,sm6225-apcs-hmss-global",
+ 				     "qcom,msm8994-apcs-kpss-global";
+-- 
+2.39.5
+

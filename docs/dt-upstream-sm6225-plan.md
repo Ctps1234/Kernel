@@ -131,9 +131,15 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   (c) os stubs de clock-símbolo da PHY como parents do GCC
   continuam (como downstream); trocar pelos clocks reais da PHY
   é limpeza posterior.
-- **S3 – Display**: MDSS/DPU/DSI/PHY + painel M7 + dispcc/gpucc;
-  validar também o comportamento de TE/modo-comando anotado no
-  0016 quando houver hardware.
+- **S3 – Display**: ESCRITA (2026-10-30) como **0038**, aguardando
+  CI. gpucc@5990000 + dispcc@5f00000 (parents e `vdd_cx`/`vdd_mx`
+  dos bindings khaje), MDSS@5e00000/DPU@5e01000/DSI@5e94000/
+  PHY-7nm@5e94400 (endereços/IRQ 186 do `khaje-sde-common.dtsi`;
+  clocks dos bindings khaje-mdss/dpu), painel M7 0a na placa
+  (`vddio`=l9, recurso RPM `ldoa9`; reset gpio82; enable LCM
+  gpio54; TE gpio81) e supplies DSI/PHY (l18/l4). **Dívidas**:
+  `iommus` (SMMU), OPP do MDP, nó da GPU (só gpucc), validar
+  TE/modo-comando do 0016 quando houver hardware.
 - **S4 – Áudio/ADSP**: LPASS (macros, LPI pinctrl, SoundWire),
   sndcard e ADSP PAS com firmware-name do 0026.
 - **S5 – Placa**: I2C/GPIO expanders, WL2866D, leds/teclas, PMIC

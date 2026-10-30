@@ -66,6 +66,13 @@ verde — serie aplica 36/36, `Image` linka com os GDSCs e o DTB
 (S1+S2) passa `dtbs_check` sem reportes. S2 concluida no sentido
 CI; boot continua sem evidencia.
 
+Atualizacao (2026-10-30, fatia S3): entra o **0038** — MDSS
+(DPU/DSI/PHY-7nm), dispcc/gpucc no SoC e o painel M7
+(`xiaomi,m7-38-0c-0a`) com reset/enable/TE e o trilho
+`pm6125_l9` na placa. Serie com **37 patches** (0001-0038 sem o
+0029). Dividas pendentes (`iommus`/SMMU, OPP do MDP, no da GPU),
+documentadas no plano de DT. Aguardando veredito do CI.
+
 ## Estado (2026-10-29)
 
 Rebaseados e verificados aplicando limpos, em ordem, sobre o commit
