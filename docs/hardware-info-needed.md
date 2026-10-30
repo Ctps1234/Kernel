@@ -115,7 +115,35 @@ COLLECT_RECOVERY=1 tools/collect_topaz_info.sh ./topaz-info
 Revise a pasta antes de subir ao Drive (o `dmesg` pode conter
 MACs). A saída local `topaz-info/` na raiz deste repositório
 também está no `.gitignore`, para não entrar no Git por acidente.
-Manualmente, os comandos equivalentes são:
+
+### Alternativa: direto pelo celular (Termux + root, sem PC)
+
+Baixe [`tools/collect_ondevice_topaz.sh`](../tools/collect_ondevice_topaz.sh)
+para a pasta Download do aparelho (no GitHub: abra o arquivo e
+use a opção de baixar o conteúdo original/raw). Depois, num
+terminal com root concedido no Magisk — o Termux serve:
+
+```sh
+su
+sh /sdcard/Download/collect_ondevice_topaz.sh
+```
+
+Com o dump de leitura da `recovery` do slot ativo:
+
+```sh
+su
+COLLECT_RECOVERY=1 sh /sdcard/Download/collect_ondevice_topaz.sh
+```
+
+O resultado fica em `/sdcard/Download/topaz-info` (pasta
+Download, visível no gerenciador de arquivos). Compacte e
+compartilhe a pasta depois de revisar — principalmente o
+`dmesg-stock.txt`. A imagem da `recovery` pode ficar só com
+você/no Drive; para o projeto basta o hash dela. O script
+exige uid 0 e avisa se o root não estiver ativo; ele não faz
+reboot, não usa fastboot e não escreve em nenhuma partição.
+
+Manualmente, os comandos equivalentes via adb são:
 
 ```sh
 adb shell getprop ro.product.model
@@ -189,7 +217,8 @@ As respostas principais do item 1 já chegaram; elas retiram o
 flash experimental dos planos de curto prazo neste aparelho.
 O que destrava trabalho útil agora, sem nenhum risco ao
 sistema atual, é a coleta somente-leitura do item 2 (de
-preferência com root, via `tools/collect_topaz_info.sh`),
+preferência com root, via `tools/collect_topaz_info.sh` no PC
+ou `tools/collect_ondevice_topaz.sh` no próprio celular),
 incluindo hash do FDT ativo, `dmesg` stock e `lpdump`, mais o
 dump de leitura da `recovery` (`COLLECT_RECOVERY=1`). Com isso
 eu: (a) confirmo se o FDT e os dumps de referência continuam
