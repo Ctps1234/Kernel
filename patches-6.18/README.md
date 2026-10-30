@@ -37,8 +37,12 @@ erro do dt-validate; o passo agora grepa o log e falha. Correcao
 do binding no **0035** (molde do `qcom,sm6115-tlmm` upstream).
 Serie agora com **34 patches** (0001-0035 sem o 0029). Escopo,
 fontes de cada dado e o que ficou para as fatias S2-S6:
-`docs/dt-upstream-sm6225-plan.md`. Continua sendo so CI: nada
-disto e evidencia de boot.
+`docs/dt-upstream-sm6225-plan.md`. Veredito: run
+[`41056142520`](https://github.com/Ctps1234/Kernel/actions/runs/41056142520)
+verde nos dois jobs — serie aplica, `Image` linka e o DTB do
+topaz passa `dtbs_check` sem nenhum reporte do `dt-validate`
+(S1 concluida no sentido CI). Continua sendo so CI: nada disto e
+evidencia de boot.
 
 ## Estado (2026-10-29)
 
