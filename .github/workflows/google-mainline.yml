@@ -116,11 +116,14 @@ jobs:
           set -o pipefail
           sh tools/configure_kernel.sh basegoogle 2>&1 | tee basegoogle/configure.log
 
+      # -k (keep going): while the series is being made to compile, one
+      # CI round should surface every broken translation unit, not
+      # only the first. Drop -k once the build is green.
       - name: Build kernel image
         run: |
           set -o pipefail
           cd basegoogle
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image \
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" -k Image \
             2>&1 | tee kernel-build-618.log
 
       - name: Archive build logs
@@ -142,8 +145,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -o pipefail
-          grep -hE 'FALTANDO|^ERRO|error:|Error ' basegoogle/configure.log \
-              basegoogle/kernel-build-618.log > basegoogle/falhas.txt 2>/dev/null \
+          grep -hE 'FALTANDO|^ERRO|error:|undefined|multiple definition' \
+              basegoogle/configure.log basegoogle/kernel-build-618.log \
+              | sort -u > basegoogle/falhas.txt 2>/dev/null \
+              || echo "(nenhuma falha grepada)" > basegoogle/falhas.txt
+          [ -s basegoogle/falhas.txt ] \
               || echo "(nenhuma falha grepada)" > basegoogle/falhas.txt
           bash tools/ci_publish_report.sh \
             "CI: relatorio de build do kernel 6.18 (port Khaje)" ci-report \

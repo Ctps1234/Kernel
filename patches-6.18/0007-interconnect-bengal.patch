@@ -1,7 +1,7 @@
-From 30030c08f98e5b762d7b1d10ba3d317e82dbff04 Mon Sep 17 00:00:00 2001
+From e143201c520f517891ae8b19dcfa9849ee076bd6 Mon Sep 17 00:00:00 2001
 From: Port <port@local>
 Date: Thu, 29 Oct 2026 23:00:47 +0000
-Subject: [PATCH 07/11] interconnect: qcom: add Bengal NoC support
+Subject: [PATCH] interconnect: qcom: add Bengal NoC support
 
 Port the Khaje/Bengal interconnect graph to the Android Common 6.12 RPM
 interconnect framework. Preserve node IDs, RPM IDs, links, bus geometry,
@@ -277,7 +277,7 @@ index cf8cba73e..cf6c1a013 100644
  obj-$(CONFIG_INTERCONNECT_QCOM_SM8150) += qnoc-sm8150.o
 diff --git a/drivers/interconnect/qcom/bengal.c b/drivers/interconnect/qcom/bengal.c
 new file mode 100644
-index 000000000..519d0d4e5
+index 000000000..2858b1b27
 --- /dev/null
 +++ b/drivers/interconnect/qcom/bengal.c
 @@ -0,0 +1,1555 @@
@@ -1814,7 +1814,7 @@ index 000000000..519d0d4e5
 +
 +static struct platform_driver qnoc_driver = {
 +	.probe = qnoc_probe,
-+	.remove_new = qnoc_remove,
++	.remove = qnoc_remove,
 +	.driver = {
 +		.name = "qnoc-bengal",
 +		.of_match_table = qnoc_of_match,

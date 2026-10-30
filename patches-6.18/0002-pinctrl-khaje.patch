@@ -1,7 +1,7 @@
-From e2cb69d8f4f5979a6a1772a4fa51cb0ad135a10e Mon Sep 17 00:00:00 2001
+From 76dbf239fa76757668111727524e4de68f69e3fa Mon Sep 17 00:00:00 2001
 From: Port <port@local>
 Date: Thu, 29 Oct 2026 23:00:45 +0000
-Subject: [PATCH 02/11] pinctrl: qcom: add Khaje TLMM driver
+Subject: [PATCH] pinctrl: qcom: add Khaje TLMM driver
 
 Add Khaje TLMM pin/function data and wire it into the Qualcomm pinctrl
 Kconfig and Makefile. The data originates from Xiaomi topaz-t-oss and is
@@ -16,8 +16,8 @@ fields and msm_gpio_mpm_wake_set() are not part of this patch.
 ---
  drivers/pinctrl/qcom/Kconfig.msm     |    9 +
  drivers/pinctrl/qcom/Makefile        |    1 +
- drivers/pinctrl/qcom/pinctrl-khaje.c | 1735 ++++++++++++++++++++++++++
- 3 files changed, 1745 insertions(+)
+ drivers/pinctrl/qcom/pinctrl-khaje.c | 1734 ++++++++++++++++++++++++++
+ 3 files changed, 1744 insertions(+)
  create mode 100644 drivers/pinctrl/qcom/pinctrl-khaje.c
 
 diff --git a/drivers/pinctrl/qcom/Kconfig.msm b/drivers/pinctrl/qcom/Kconfig.msm
@@ -54,10 +54,10 @@ index 567d3051e..b1c3d6868 100644
  obj-$(CONFIG_PINCTRL_SM6115_LPASS_LPI) += pinctrl-sm6115-lpass-lpi.o
 diff --git a/drivers/pinctrl/qcom/pinctrl-khaje.c b/drivers/pinctrl/qcom/pinctrl-khaje.c
 new file mode 100644
-index 000000000..fd9612ce2
+index 000000000..4663a14a3
 --- /dev/null
 +++ b/drivers/pinctrl/qcom/pinctrl-khaje.c
-@@ -0,0 +1,1735 @@
+@@ -0,0 +1,1734 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) 2021, The Linux Foundation. All rights reserved.
@@ -1775,7 +1775,6 @@ index 000000000..fd9612ce2
 +		.of_match_table = khaje_pinctrl_of_match,
 +	},
 +	.probe = khaje_pinctrl_probe,
-+	.remove_new = msm_pinctrl_remove,
 +};
 +
 +static int __init khaje_pinctrl_init(void)

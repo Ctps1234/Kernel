@@ -141,6 +141,14 @@ mclk/dcodec/npl); 0031 limpo; 0032 só a linha de match; 0033 só o
   preencher quando houver dado de FDT/downstream confiavel. Relatorio
   de cada rodada fica na issue rotulada `ci-report` ("build do kernel
   6.18").
+- Run 40980614978: proximo erro em `pinctrl-khaje.c` (0002):
+  `.remove_new = msm_pinctrl_remove` — no 6.18 o membro voltou a se
+  chamar `remove` e o helper `msm_pinctrl_remove` nao existe mais
+  (drivers TLMM upstream nao declaram remove). 0002 exportado sem a
+  linha; mesma limpeza preventiva no 0007 (`bengal.c`:
+  `.remove_new` -> `.remove`, `qnoc_remove` continua existindo). O
+  job de build passou a usar `make -k` para reportar todas as
+  unidades quebradas por rodada.
 
 ## Método (para repetir nas próximas fatias)
 
