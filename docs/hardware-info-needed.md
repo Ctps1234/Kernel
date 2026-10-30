@@ -6,6 +6,51 @@ hardware** da trilha 6.18. Para continuar *escrevendo código*
 desta lista** — ela fecha os furos que só o aparelho físico
 resolve e prepara o primeiro boot com segurança.
 
+## Respostas recebidas do dono (e o que elas impõem)
+
+- **Aparelho principal, funcionando, NÃO pode parar.** Isto é a
+  restrição dominante: **nenhum flash experimental neste
+  aparelho** até existir (a) backup completo e verificado
+  incluindo `recovery` do slot ativo, (b) caminho de volta ao
+  sistema atual ensaiado/documentado passo a passo, e
+  (c) um método de teste que não deixe o telefone inutilizável
+  se o kernel novo travar no primeiro segundo. Enquanto isso,
+  todo o avanço é via CI (config + build + `dtbs_check`) e
+  evidências coletadas do sistema atual em somente leitura.
+- **Bootloader desbloqueado.** Bom: remove o bloqueio/wipe do
+  unlock de qualquer plano futuro. Não autoriza nada por si só
+  (AVB/`vbmeta` e fallback continuam a desenhar antes).
+- **Mesma ROM da captura, com root (Magisk).** Ótimo: os dumps
+  de `boot`/`vendor_boot`/`init_boot`/`dtbo` provavelmente
+  continuam válidos (confirmar pelo hash do FDT e fingerprint
+  na coleta abaixo) e a coleta com root está liberada —
+  `dmesg` stock, `/sys/firmware/fdt`, `regulator_summary` e o
+  dump de leitura da `recovery` podem ser feitos sem risco.
+- **Sem conversor UART.** O marco "prompt no console serial"
+  (B2a) não é o primeiro teste possível. Alternativas a
+  desenhar nesta ordem:
+  1. **ramoops/pstore**: o FDT vivo já reserva
+     `ramoops@5d000000` (2 MiB; record 256 KiB, console
+     512 KiB, pmsg 1 MiB) — a mesma região que o kernel stock
+     lê. Para ela servir desde o boot inicial, a S1 precisa
+     incluir o nó `ramoops` na DT nova **e** o fragmento subir
+     `CONFIG_PSTORE_RAM=y` + `CONFIG_PSTORE_CONSOLE=y` (hoje a
+     ACK traz `PSTORE_RAM=m`, inútil para panic/hang cedo e
+     para o initramfs mínimo, que não carrega módulos). Leitura
+     seria via reboot de volta ao sistema atual
+     (`/sys/fs/pstore`) — formato ramoops é compatível entre
+     kernels, mas a sobrevivência da RAM no reboot forçado
+     deste bootloader ainda é hipótese a validar, não fato.
+  2. **Splash contínuo** (`cont_splash_region@5c000000` no
+     FDT): no mínimo um sinal de 1 bit — se travar antes do
+     display, a tela fica no logo; útil só como diagnóstico
+     grosseiro.
+  3. **ADB no initramfs**: só depois que USB (DWC3/PHY) e um
+     `adbd` entrarem no caminho — fase B2b, posterior.
+- Ainda em aberto (menor): SKU exata (NFC/RAM/storage), tela
+  original vs. trocada, recovery custom instalada ou não, e
+  SO do PC. São coletáveis junto do item 2.
+
 ## Já temos — não precisa enviar de novo
 
 Da captura anterior (ver `docs/device-tree-inventory.md` e
@@ -25,6 +70,10 @@ Da captura anterior (ver `docs/device-tree-inventory.md` e
   máximos 85700/18300 µA (do próprio FDT).
 
 ## 1) Respostas rápidas (5 min, sem ferramenta)
+
+*Status: itens 1, 3, 4 e 6 respondidos (ver "Respostas
+recebidas" acima). Restam 2 (SKU/tela) e 5 (PC/SO), não
+bloqueantes.*
 
 1. O aparelho está **funcionando hoje**, bootando normal? É
    aparelho **principal ou de bancada** (pode ficar dias fora do
@@ -48,8 +97,25 @@ Da captura anterior (ver `docs/device-tree-inventory.md` e
 
 ## 2) Coleta somente-leitura via adb (quando puder)
 
-Nada aqui escreve no aparelho. Cole a saída (ou suba os `.txt`
-no Drive como das outras vezes):
+A coleta padrão é somente leitura e não toca nenhuma partição.
+A única exceção é o modo opcional `COLLECT_RECOVERY=1`, que lê a
+partição `recovery` e grava a imagem temporária em
+`/sdcard/Download` para depois baixá-la ao PC. O jeito curto é o script
+[`tools/collect_topaz_info.sh`](../tools/collect_topaz_info.sh),
+rodado no seu PC com o aparelho autorizado no adb — ele faz
+exatamente os comandos abaixo (usa o root se houver, filtra
+seriais de cmdline/bootconfig e gera `SHA256SUMS`):
+
+```sh
+tools/collect_topaz_info.sh ./topaz-info
+# opcional, com root: tambem despeja recovery_<slot>.img
+COLLECT_RECOVERY=1 tools/collect_topaz_info.sh ./topaz-info
+```
+
+Revise a pasta antes de subir ao Drive (o `dmesg` pode conter
+MACs). A saída local `topaz-info/` na raiz deste repositório
+também está no `.gitignore`, para não entrar no Git por acidente.
+Manualmente, os comandos equivalentes são:
 
 ```sh
 adb shell getprop ro.product.model
@@ -119,10 +185,15 @@ sensíveis.
 
 ## Prioridade mínima que destrava a próxima etapa
 
-As respostas do item 1 (sobretudo **bootloader**, **principal
-vs. bancada** e **serial sim/não**) + o bloco adb sem root do
-item 2. Com isso eu: (a) fecho o desenho do primeiro teste de
-boot (serial × sem-serial, slot de teste, AVB), (b) confirmo se
-o FDT de referência continua válido para escrever a DT S1, e
-(c) deixo o pacote de recuperação pronto antes de qualquer
-imagem sair do CI em direção ao aparelho.
+As respostas principais do item 1 já chegaram; elas retiram o
+flash experimental dos planos de curto prazo neste aparelho.
+O que destrava trabalho útil agora, sem nenhum risco ao
+sistema atual, é a coleta somente-leitura do item 2 (de
+preferência com root, via `tools/collect_topaz_info.sh`),
+incluindo hash do FDT ativo, `dmesg` stock e `lpdump`, mais o
+dump de leitura da `recovery` (`COLLECT_RECOVERY=1`). Com isso
+eu: (a) confirmo se o FDT e os dumps de referência continuam
+válidos para escrever a DT S1, (b) desenho a S1 já com o canal
+de log sem UART (`ramoops`/`pstore`) e (c) deixo o pacote de
+recuperação um passo mais completo. Nenhuma imagem sai do CI
+em direção ao aparelho nesta fase.

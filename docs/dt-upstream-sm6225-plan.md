@@ -91,13 +91,22 @@ Da placa topaz:
 
 Numeração continua a partir de 0034 em `patches-6.18/`.
 
-- **S1 – SoC mínimo serial**: `sm6225.dtsi` com CPUs/PSCI/timer/GIC,
-  `gcc`, `rpmcc`, TLMM, QUP+UART do console, interconnect mínimo,
-  `smd-rpm`/reguladores base; `sm6225-xiaomi-topaz.dts` só com
-  `chosen` (stdout-path), `memory`, reserved-memory e o UART.
+- **S1 – SoC mínimo com console UART descrito**: `sm6225.dtsi`
+  com CPUs/PSCI/timer/GIC, `gcc`, `rpmcc`, TLMM, QUP+UART do
+  console, interconnect mínimo, `smd-rpm`/reguladores base;
+  `sm6225-xiaomi-topaz.dts` só com `chosen` (stdout-path),
+  `memory`, reserved-memory e o UART. Incluir também o nó
+  `ramoops@5d000000` do FDT vivo e, no fragmento, subir
+  `CONFIG_PSTORE_RAM=y` + `CONFIG_PSTORE_CONSOLE=y` — hoje o dono
+  não tem conversor UART, então `pstore` é o canal de log
+  desenhado para um eventual primeiro teste físico, não o prompt
+  serial.
   Gate: `dtbs` compila + `dtbs_check` dos arquivos novos no CI.
-  Objetivo: paridade com o marco B2a da 6.12 (prompt no serial),
-  quando houver aparelho para testar.
+  Este marco é **somente CI** por enquanto: o único topaz
+  disponível é o aparelho principal e não pode parar; qualquer
+  teste nele continua bloqueado pelos pré-requisitos de backup,
+  fallback e método reversível em
+  `docs/hardware-info-needed.md`.
 - **S2 – Storage**: UFS host+PHY com supplies/ICC reais; gate
   `dtbs_check`. (Cargas `vdda-*` comprovadas no FDT vivo:
   85700/18300 µA sobre `pm6125_l4`/`pm6125_l18` — ver 0006.)

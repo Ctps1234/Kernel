@@ -1,5 +1,7 @@
 # blobs privados do aparelho (imagens de boot, dumps e Derivados):
 # ficam fora do Git por serem grandes e confidenciais.
 /google_drive/
+# saida local de tools/collect_topaz_info.sh (pode conter dmesg/MACs)
+/topaz-info/
 __pycache__/
 *.py[cod]
