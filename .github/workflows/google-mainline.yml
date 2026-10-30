@@ -81,6 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: write
     steps:
       - name: Checkout Kernel project
         uses: actions/checkout@v4
@@ -130,3 +131,21 @@ jobs:
           path: |
             basegoogle/kernel-build-618.log
             basegoogle/configure.log
+            basegoogle/.config
+
+      # Same reporting channel as the 6.12 track: the log tails land in a
+      # GitHub issue, readable from environments that cannot download
+      # Actions logs/artifacts.
+      - name: Publish build summary as issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          grep -hE 'FALTANDO|^ERRO|error:|Error ' basegoogle/configure.log \
+              basegoogle/kernel-build-618.log > basegoogle/falhas.txt 2>/dev/null \
+              || echo "(nenhuma falha grepada)" > basegoogle/falhas.txt
+          bash tools/ci_publish_report.sh \
+            "CI: relatorio de build do kernel 6.18 (port Khaje)" ci-report \
+            basegoogle/falhas.txt basegoogle/configure.log \
+            basegoogle/kernel-build-618.log || true
