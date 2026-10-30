@@ -125,6 +125,23 @@ mclk/dcodec/npl); 0031 limpo; 0032 só a linha de match; 0033 só o
 4. Só depois de build verde: discutir aposentar a trilha 6.12 e
    promover esta série a `patches/` principal.
 
+## Rodadas de build (CI)
+
+- Run 40979345152: `configure` verde apos `CONFIG_SOUND=y` no
+  fragmento (o defconfig arm64 da ACK traz `SOUND=m`, o que limitava
+  `SND` e toda a arvore ASoC a modulo; na base 6.12 o defconfig ja
+  trazia `SOUND=y` e a lacuna estava mascarada). O `configure_kernel.sh`
+  passou a exigir `SOUND` no REQUIRED.
+- Mesma run, build: primeiro erro de compilacao em
+  `phy-qcom-qmp-ufs.c` — o 0006 referenciava a lista compartilhada
+  `qmp_phy_vreg_l`, removida no split por-SoC do driver 6.18. O 0006
+  exportado agora define `sm6225_ufsphy_vreg_l` sem `init_load_uA`
+  (mesmo comportamento da lista compartilhada antiga) porque os
+  maximos `vdda-phy`/`vdda-pll` do Khaje ainda nao foram comprovados;
+  preencher quando houver dado de FDT/downstream confiavel. Relatorio
+  de cada rodada fica na issue rotulada `ci-report` ("build do kernel
+  6.18").
+
 ## Método (para repetir nas próximas fatias)
 
 1. Clone raso da base fixada; branch de trabalho local.

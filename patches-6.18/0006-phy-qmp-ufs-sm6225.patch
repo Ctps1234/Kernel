@@ -1,18 +1,18 @@
-From ac4d096ab80d087a8d2e44a86efd95328bbbea63 Mon Sep 17 00:00:00 2001
+From aa31c0afeb9b0075dd54610a7938f8d43e79820b Mon Sep 17 00:00:00 2001
 From: Port <port@local>
 Date: Thu, 29 Oct 2026 23:00:47 +0000
-Subject: [PATCH 06/11] phy: qcom: qmp-ufs: add SM6225 Khaje configuration
+Subject: [PATCH] phy: qcom: qmp-ufs: add SM6225 Khaje configuration
 
 Add the SM6225 Khaje QMP UFS calibration tables and compatible match to the
 upstream QMP UFS PHY driver, using the target framework instead of the vendor
 ufs_qcom_phy implementation. This patch has not been compiled or hardware
 validated.
 ---
- drivers/phy/qualcomm/phy-qcom-qmp-ufs.c | 101 ++++++++++++++++++++++++
- 1 file changed, 101 insertions(+)
+ drivers/phy/qualcomm/phy-qcom-qmp-ufs.c | 112 ++++++++++++++++++++++++
+ 1 file changed, 112 insertions(+)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-qmp-ufs.c b/drivers/phy/qualcomm/phy-qcom-qmp-ufs.c
-index 8a280433a..d8f915db5 100644
+index 8a280433a..a24042bb9 100644
 --- a/drivers/phy/qualcomm/phy-qcom-qmp-ufs.c
 +++ b/drivers/phy/qualcomm/phy-qcom-qmp-ufs.c
 @@ -199,6 +199,65 @@ static const struct qmp_phy_init_tbl sc7280_ufsphy_rx[] = {
@@ -81,7 +81,25 @@ index 8a280433a..d8f915db5 100644
  static const struct qmp_phy_init_tbl sc7280_ufsphy_pcs[] = {
  	QMP_PHY_INIT_CFG(QPHY_V4_PCS_UFS_RX_SIGDET_CTRL2, 0x6d),
  	QMP_PHY_INIT_CFG(QPHY_V4_PCS_UFS_TX_LARGE_AMP_DRV_LVL, 0x0a),
-@@ -1349,6 +1408,45 @@ static const struct qmp_phy_cfg sc7280_ufsphy_cfg = {
+@@ -1195,6 +1254,17 @@ static const struct regulator_bulk_data sm6115_ufsphy_vreg_l[] = {
+ 	{ .supply = "vdda-pll", .init_load_uA = 14200 },
+ };
+ 
++/*
++ * No proven downstream load values for Khaje are available yet, so do
++ * not vote an initial load (same behaviour as the shared supply list
++ * this SoC used before the per-SoC split). Fill in init_load_uA once
++ * vdda-phy/vdda-pll maxima are confirmed from device data.
++ */
++static const struct regulator_bulk_data sm6225_ufsphy_vreg_l[] = {
++	{ .supply = "vdda-phy" },
++	{ .supply = "vdda-pll" },
++};
++
+ static const struct regulator_bulk_data sm7150_ufsphy_vreg_l[] = {
+ 	{ .supply = "vdda-phy", .init_load_uA = 62900 },
+ 	{ .supply = "vdda-pll", .init_load_uA = 18300 },
+@@ -1349,6 +1419,45 @@ static const struct qmp_phy_cfg sc7280_ufsphy_cfg = {
  	.regs                   = ufsphy_v4_regs_layout,
  };
  
@@ -119,15 +137,15 @@ index 8a280433a..d8f915db5 100644
 +		.pcs_num	= ARRAY_SIZE(sm8150_ufsphy_hs_g4_pcs),
 +		.max_gear	= UFS_HS_G4,
 +	},
-+	.vreg_list		= qmp_phy_vreg_l,
-+	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
++	.vreg_list		= sm6225_ufsphy_vreg_l,
++	.num_vregs		= ARRAY_SIZE(sm6225_ufsphy_vreg_l),
 +	.regs			= ufsphy_v4_regs_layout,
 +};
 +
  static const struct qmp_phy_cfg sc8280xp_ufsphy_cfg = {
  	.lanes			= 2,
  
-@@ -2180,6 +2278,9 @@ static const struct of_device_id qmp_ufs_of_match_table[] = {
+@@ -2180,6 +2289,9 @@ static const struct of_device_id qmp_ufs_of_match_table[] = {
  	}, {
  		.compatible = "qcom,sc7280-qmp-ufs-phy",
  		.data = &sc7280_ufsphy_cfg,
