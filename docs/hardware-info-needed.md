@@ -48,10 +48,20 @@ resolve e prepara o primeiro boot com segurança.
      grosseiro.
   3. **ADB no initramfs**: só depois que USB (DWC3/PHY) e um
      `adbd` entrarem no caminho — fase B2b, posterior.
-- Ainda em aberto (menor): NFC sim/não, RAM exata, tela
-  original vs. trocada, recovery custom instalada ou não, e
-  SO do PC. Storage a coleta já fechou: **128 GB** (SK hynix
-  `HN8T062EHKX039`), com microSD de 32 GB presente.
+- **SKU e tela (respondido 30/out/2026)**: **tem NFC** (o FDT
+  confirma: controlador `st,st21nfc` em I2C @0x08 — ST21NFC,
+  para a fatia de placa S5); **4 GB de RAM** nesta unidade
+  (o dono observa que existem SKUs de 6/8 GB — o nó `memory`
+  da DT S1 traz os bancos de 4 GB desta unidade e o bootloader
+  reescreve por SKU); storage **128 GB** (SK hynix
+  `HN8T062EHKX039`, da coleta), com microSD de 32 GB presente;
+  **tela já trocada, funcionando perfeitamente** com o painel
+  forçado `m7 38 0c 0a` (cmdline + `dmesg` da coleta) — ou seja,
+  a reposição aceita o mesmo init/timing; para a fatia de
+  display (S3) vale o mesmo painel, sem presumir que seja o
+  componente OEM original.
+- Ainda em aberto (menor, não bloqueante): recovery custom
+  instalada ou não, e SO do PC.
 
 ## Já temos — não precisa enviar de novo
 
@@ -118,9 +128,9 @@ foi transcrito para este repositório:
 
 ## 1) Respostas rápidas (5 min, sem ferramenta)
 
-*Status: itens 1, 3, 4 e 6 respondidos (ver "Respostas
-recebidas" acima). Restam 2 (SKU/tela) e 5 (PC/SO), não
-bloqueantes.*
+*Status: itens 1, 2, 3, 4 e 6 respondidos (ver "Respostas
+recebidas" acima). Resta só o 5 (PC/SO) e a sub-pergunta da
+recovery custom no item 4 — ambos não bloqueantes.*
 
 1. O aparelho está **funcionando hoje**, bootando normal? É
    aparelho **principal ou de bancada** (pode ficar dias fora do
