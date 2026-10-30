@@ -65,11 +65,11 @@ id > "$OUT/root.txt" 2>&1 || true
 
 uname -a > "$OUT/uname.txt" 2>&1 || true
 cat /proc/cmdline 2>/dev/null \
-    | sed -e 's/[^ ]*serial[^ ]*/REDACTED/g' > "$OUT/cmdline.txt" || true
+    | sed -e 's/[^ ]*serial[^ ]*/REDACTED/g' -e 's/[^ ]*cpuid[^ ]*/REDACTED/g' > "$OUT/cmdline.txt" || true
 if [ -f /proc/bootconfig ]; then
     # bootconfig usa uma atribuicao por linha; remover a linha inteira
     # evita sobrar 'androidboot.serialno = "valor"' so com chave ocultada.
-    grep -Evi 'serial|imei|macaddr' /proc/bootconfig \
+    grep -Evi 'serial|imei|macaddr|cpuid' /proc/bootconfig \
         > "$OUT/bootconfig.txt" || true
 else
     : > "$OUT/bootconfig.txt"

@@ -48,11 +48,11 @@ echo "coletando em $OUT ..."
 
 adb shell uname -a > "$OUT/uname.txt" 2>&1 || true
 adb shell cat /proc/cmdline 2>/dev/null \
-    | sed -e 's/[^ ]*serial[^ ]*/REDACTED/g' > "$OUT/cmdline.txt" || true
+    | sed -e 's/[^ ]*serial[^ ]*/REDACTED/g' -e 's/[^ ]*cpuid[^ ]*/REDACTED/g' > "$OUT/cmdline.txt" || true
 # bootconfig usa uma atribuicao por linha; remover a linha inteira
 # evita sobrar "androidboot.serialno = \"valor\"" so com chave ocultada.
 adb shell cat /proc/bootconfig 2>/dev/null \
-    | grep -Evi 'serial|imei|macaddr' > "$OUT/bootconfig.txt" || true
+    | grep -Evi 'serial|imei|macaddr|cpuid' > "$OUT/bootconfig.txt" || true
 
 # --- particoes / storage ---
 {

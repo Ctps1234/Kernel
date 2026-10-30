@@ -20,12 +20,13 @@ resolve e prepara o primeiro boot com segurança.
 - **Bootloader desbloqueado.** Bom: remove o bloqueio/wipe do
   unlock de qualquer plano futuro. Não autoriza nada por si só
   (AVB/`vbmeta` e fallback continuam a desenhar antes).
-- **Mesma ROM da captura, com root (Magisk).** Ótimo: os dumps
-  de `boot`/`vendor_boot`/`init_boot`/`dtbo` provavelmente
-  continuam válidos (confirmar pelo hash do FDT e fingerprint
-  na coleta abaixo) e a coleta com root está liberada —
-  `dmesg` stock, `/sys/firmware/fdt`, `regulator_summary` e o
-  dump de leitura da `recovery` podem ser feitos sem risco.
+- **Mesma ROM da captura, com root.** A coleta de runtime
+  (30/out/2026) mostrou contexto SELinux `u:r:ksu:s0`, ou
+  seja, **KernelSU** (não Magisk) — o tanto faz para a
+  coleta, mas fica registrado. Os dumps de
+  `boot`/`vendor_boot`/`init_boot`/`dtbo` continuam válidos:
+  fingerprint e `dtb_idx=1`/`dtbo_idx=51` batem com a coleta
+  (detalhes em "Coleta recebida" abaixo).
 - **Sem conversor UART.** O marco "prompt no console serial"
   (B2a) não é o primeiro teste possível. Alternativas a
   desenhar nesta ordem:
@@ -47,9 +48,10 @@ resolve e prepara o primeiro boot com segurança.
      grosseiro.
   3. **ADB no initramfs**: só depois que USB (DWC3/PHY) e um
      `adbd` entrarem no caminho — fase B2b, posterior.
-- Ainda em aberto (menor): SKU exata (NFC/RAM/storage), tela
+- Ainda em aberto (menor): NFC sim/não, RAM exata, tela
   original vs. trocada, recovery custom instalada ou não, e
-  SO do PC. São coletáveis junto do item 2.
+  SO do PC. Storage a coleta já fechou: **128 GB** (SK hynix
+  `HN8T062EHKX039`), com microSD de 32 GB presente.
 
 ## Já temos — não precisa enviar de novo
 
@@ -68,6 +70,51 @@ Da captura anterior (ver `docs/device-tree-inventory.md` e
 - UFS: PHY em `0x4807000`, host em `0x4804000` limitado a Gear 3,
   supplies `vdda-phy=pm6125_l4` / `vdda-pll=pm6125_l18` com
   máximos 85700/18300 µA (do próprio FDT).
+
+## Coleta recebida (30/out/2026, pasta "Topaz info" no Drive)
+
+Rodada via `collect_ondevice_topaz.sh` com `COLLECT_RECOVERY=1`
+(18 arquivos, hashes conferidos no `SHA256SUMS` do pacote).
+Resumo do que ela confirma — nenhum identificador do aparelho
+foi transcrito para este repositório:
+
+- **Sistema idêntico à captura**: fingerprint
+  `Redmi/topaz_global/topaz:15/AQ3A.240829.003/OS2.0.204.0.VMGMIXM`,
+  sistema Android 17 (SDK 37), slot `_b`, `dtb_idx=1`,
+  `dtbo_idx=51`, SKU de hardware `m7n`, `hwversion 2.39.0`.
+  Os dumps de referência continuam válidos para a DT S1.
+- **FDT vivo**: 357122 bytes — mesmo tamanho do
+  `topaz-live.dtb` guardado; o sha256 difere, como esperado:
+  `/sys/firmware/fdt` carrega campos voláteis por boot
+  (kaslr/rng seed etc.). Com fingerprint e índices de DTB/DTBO
+  iguais, a referência em `device-tree/reference/` segue válida.
+- **Bootloader/AVB**: o bootconfig diz
+  `verifiedbootstate=orange` (desbloqueado, como informado),
+  enquanto as props `ro.boot.*` reportam `green`/`locked` —
+  spoof de integridade da ROM/KSU. Para decisões de AVB vale
+  o bootconfig, não as props.
+- **Cmdline real** (filtrada): `console=ttyMSM0,115200n8`,
+  `log_buf_len=2M`, painel forçado
+  `qcom,mdss_dsi_panel_m7_38_0c_0a_fhdp_video`, touch
+  `focaltech_ts`, fingerprint Goodix, `buildvariant=userdebug`.
+- **Root**: KernelSU (`u:r:ksu:s0`), não Magisk.
+- **Storage**: UFS SK hynix `HN8T062EHKX039` (128 GB);
+  microSD de 32 GB presente (`mmcblk1`) — mídia externa útil
+  para cópias de backup.
+- **Partições**: A/B virtual, `super` de ~7,0 GiB com grupo
+  `xiaomi_dynamic_partitions_b` (odm/product/system/
+  system_dlkm/system_ext/vendor/vendor_dlkm); mapa `by-name`
+  confere com o inventário anterior.
+- **`recovery_b` extraída por leitura**: 100 MiB, sha256
+  registrado no pacote e imagem guardada na pasta do Drive
+  (fora do Git). Fecha o maior furo do item 3.
+- **Entrada**: touch `fts_ts` (1080×2400, I2C) + `gpio-keys` +
+  `qpnp_pon`; áudio `bengal-idp-snd-card`.
+- Limites desta rodada: `dmesg` cobre só as últimas ~9 min de
+  runtime (uptime de ~6 dias; sem log de boot), e o
+  `regulator_summary` não veio (debugfs desmontado — opcional:
+  montar com `mount -t debugfs debugfs /sys/kernel/debug`
+  como root e reler; os valores do FDT já bastam por ora).
 
 ## 1) Respostas rápidas (5 min, sem ferramenta)
 
@@ -190,17 +237,17 @@ fastboot getvar secure
 
 ## 3) Backups — bloqueante antes de QUALQUER flash
 
-Ainda faltam, da análise de `docs/boot-dependency-analysis.md`:
+Da análise de `docs/boot-dependency-analysis.md`:
 
-- **`recovery_b` nunca foi extraída** — é o fallback se um boot
-  de teste falhar. Extrair + `sha256` + cópia **fora do
-  aparelho**, junto das demais imagens.
-- **`vbmeta_system`** do slot ativo, idem.
-- Confirmar que os dumps já guardados ainda são os do sistema
-  atual; se houve OTA/troca de ROM depois da captura, recapturar
-  `boot`/`init_boot`/`vendor_boot`/`dtbo`/`vbmeta` do slot
-  ativo (só os hashes/tamanhos precisam ser *reportados*; as
-  imagens ficam no Drive, como hoje).
+- **`recovery_b`: FEITO (30/out/2026).** Extraída por leitura
+  com hash registrado; cópia fora do aparelho na pasta
+  "Topaz info" do Drive. Manter também uma segunda cópia
+  (PC ou o microSD) é recomendado.
+- **`vbmeta_system_b`** do slot ativo: ainda falta (64 KiB; o
+  `vbmeta_b` já temos). Leitura idêntica à da recovery.
+- Dumps guardados confirmados como sendo do sistema atual
+  pela coleta (fingerprint/índices iguais) — sem necessidade
+  de recaptura enquanto não houver OTA/troca de ROM.
 - `persist`, `modemst1/2`, `fsg`: vale ter cópia **offline sua**
   por segurança, mas **não enviar** — contêm calibração/IMEI.
 
