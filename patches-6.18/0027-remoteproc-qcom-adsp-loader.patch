@@ -1,0 +1,659 @@
+From d882b931bf423f5472f83e59b22eaab8236e6dba Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 30 Oct 2026 00:11:33 +0000
+Subject: [PATCH 27/32] remoteproc: qcom: add ADSP loader compatibility driver
+
+Qualcomm Android userspace on SM6225 starts the ADSP by writing to
+/sys/kernel/boot_adsp/boot rather than the generic remoteproc state
+file. The shipping PAS resource keeps auto_boot disabled, so an
+upstream PAS node alone leaves that init contract unserved.
+
+Add a small qcom,adsp-loader platform driver that resolves the
+remoteproc from qcom,rproc-handle, exposes the vendor boot/ssr
+write-only files, and delegates lifecycle to
+rproc_boot()/rproc_shutdown(). The loader owns exactly one
+remoteproc power reference, avoiding repeated boot writes changing
+the core refcount.
+
+Carry the optional adsp_variant firmware selection. Apply a selected
+name with rproc_set_firmware() only when it is a complete .mdt/.mbn
+file name. Bare stems such as Khaje adsp2 keep the remoteproc
+default, matching the effective downstream behaviour and avoiding
+an invented firmware file name.
+
+This does not implement the vendor SPF readiness check; Q6APM/Q6PRM
+clients use the normal AudioReach/PDR path. Add the binding and ABI
+documentation. Compile-tested only; not verified on hardware.
+
+Signed-off-by: Port <port@local>
+---
+ .../ABI/testing/sysfs-kernel-boot_adsp        |  31 ++
+ .../bindings/remoteproc/qcom,adsp-loader.yaml |  94 ++++
+ drivers/remoteproc/Kconfig                    |  13 +
+ drivers/remoteproc/Makefile                   |   1 +
+ drivers/remoteproc/qcom_adsp_loader.c         | 438 ++++++++++++++++++
+ 5 files changed, 577 insertions(+)
+ create mode 100644 Documentation/ABI/testing/sysfs-kernel-boot_adsp
+ create mode 100644 Documentation/devicetree/bindings/remoteproc/qcom,adsp-loader.yaml
+ create mode 100644 drivers/remoteproc/qcom_adsp_loader.c
+
+diff --git a/Documentation/ABI/testing/sysfs-kernel-boot_adsp b/Documentation/ABI/testing/sysfs-kernel-boot_adsp
+new file mode 100644
+index 000000000..13bf0e69a
+--- /dev/null
++++ b/Documentation/ABI/testing/sysfs-kernel-boot_adsp
+@@ -0,0 +1,31 @@
++What:		/sys/kernel/boot_adsp
++Date:		Oct 2026
++KernelVersion:	6.12
++Contact:	linux-remoteproc@vger.kernel.org
++Description:
++		Compatibility interface created by the Qualcomm ADSP
++		loader driver for userspaces that do not use the generic
++		remoteproc state file. It is present only when the
++		qcom,adsp-loader device has probed and controls the
++		remoteproc referenced by that device.
++
++What:		/sys/kernel/boot_adsp/boot
++Date:		Oct 2026
++KernelVersion:	6.12
++Contact:	linux-remoteproc@vger.kernel.org
++Description:
++		Write-only ADSP boot control. Writing "1" schedules
++		rproc_boot() for the ADSP remoteproc. Writing "0"
++		releases the loader's boot reference through
++		rproc_shutdown(). New userspace should prefer the
++		generic /sys/class/remoteproc/remoteprocN/state
++		interface.
++
++What:		/sys/kernel/boot_adsp/ssr
++Date:		Oct 2026
++KernelVersion:	6.12
++Contact:	linux-remoteproc@vger.kernel.org
++Description:
++		Write-only subsystem restart control. Writing "1"
++		shuts the ADSP remoteproc down and then schedules it
++		to boot again.
+diff --git a/Documentation/devicetree/bindings/remoteproc/qcom,adsp-loader.yaml b/Documentation/devicetree/bindings/remoteproc/qcom,adsp-loader.yaml
+new file mode 100644
+index 000000000..b6e57e1e2
+--- /dev/null
++++ b/Documentation/devicetree/bindings/remoteproc/qcom,adsp-loader.yaml
+@@ -0,0 +1,94 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/remoteproc/qcom,adsp-loader.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Qualcomm ADSP loader
++
++maintainers:
++  - Bjorn Andersson <andersson@kernel.org>
++  - Mathieu Poirier <mathieu.poirier@linaro.org>
++
++description: |
++  The Qualcomm ADSP loader is a small compatibility node used by
++  Qualcomm Android platforms to control boot and subsystem restart of
++  the ADSP remoteproc from userspace. It refers to the ADSP remoteproc
++  node and can carry the firmware variant selection data read from
++  the adsp_variant NVMEM cell.
++
++properties:
++  compatible:
++    const: qcom,adsp-loader
++
++  qcom,rproc-handle:
++    $ref: /schemas/types.yaml#/definitions/phandle
++    description: Phandle to the ADSP remoteproc node.
++
++  qcom,adsp-state:
++    $ref: /schemas/types.yaml#/definitions/uint32
++    description:
++      Initial ADSP state hint recorded in the vendor device tree. The
++      generic remoteproc state remains authoritative.
++
++  nvmem-cells:
++    maxItems: 1
++    description:
++      Reference to the adsp_variant NVMEM cell used to select an
++      entry from adsp-fw-names.
++
++  nvmem-cell-names:
++    items:
++      - const: adsp_variant
++
++  adsp-fw-names:
++    $ref: /schemas/types.yaml#/definitions/string-array
++    minItems: 1
++    maxItems: 4
++    description:
++      Firmware image names indexed through adsp-fw-bit-values. A name
++      is applied to the remoteproc only when it is a complete
++      firmware file name; bare image stems keep the remoteproc
++      driver's default firmware name.
++
++  adsp-fw-bit-values:
++    $ref: /schemas/types.yaml#/definitions/uint32-array
++    minItems: 1
++    maxItems: 4
++    description:
++      adsp_variant values corresponding to each adsp-fw-names entry.
++
++  adsp-fuse-not-supported:
++    $ref: /schemas/types.yaml#/definitions/uint32
++    description:
++      When non-zero, firmware selection does not use the ADSP variant
++      fuse and adsp-fw-name is used instead.
++
++  adsp-fw-name:
++    $ref: /schemas/types.yaml#/definitions/string
++    description:
++      Firmware image name used when adsp-fuse-not-supported is
++      non-zero.
++
++required:
++  - compatible
++  - qcom,rproc-handle
++
++dependencies:
++  adsp-fw-names: [ adsp-fw-bit-values, nvmem-cells, nvmem-cell-names ]
++  adsp-fw-bit-values: [ adsp-fw-names ]
++  adsp-fw-name: [ adsp-fuse-not-supported ]
++
++additionalProperties: false
++
++examples:
++  - |
++    remoteproc_adsp: remoteproc@ab00000 {
++        reg = <0x0ab00000 0x100>;
++    };
++
++    adsp-loader {
++        compatible = "qcom,adsp-loader";
++        qcom,rproc-handle = <&remoteproc_adsp>;
++        qcom,adsp-state = <0>;
++    };
+diff --git a/drivers/remoteproc/Kconfig b/drivers/remoteproc/Kconfig
+index 48a0d3a69..36ef9c240 100644
+--- a/drivers/remoteproc/Kconfig
++++ b/drivers/remoteproc/Kconfig
+@@ -193,6 +193,19 @@ config QCOM_Q6V5_ADSP
+ 	  remote processors. The TrustZone part is handled by QCOM_Q6V5_PAS
+ 	  driver.
+ 
++config QCOM_ADSP_LOADER
++	tristate "Qualcomm ADSP loader compatibility driver"
++	depends on OF && ARCH_QCOM
++	select NVMEM
++	help
++	  Say y here to preserve the Qualcomm Android ADSP loader ABI
++	  (/sys/kernel/boot_adsp/boot and /sys/kernel/boot_adsp/ssr) on
++	  top of the generic remoteproc core. The driver binds to
++	  qcom,adsp-loader, resolves the ADSP through qcom,rproc-handle
++	  and boots or restarts it with rproc_boot()/rproc_shutdown().
++	  It also carries the optional adsp_variant firmware selection
++	  from the vendor device tree.
++
+ config QCOM_Q6V5_MSS
+ 	tristate "Qualcomm Hexagon V5 self-authenticating modem subsystem support"
+ 	depends on OF && ARCH_QCOM
+diff --git a/drivers/remoteproc/Makefile b/drivers/remoteproc/Makefile
+index 1c7598b84..c5cf25242 100644
+--- a/drivers/remoteproc/Makefile
++++ b/drivers/remoteproc/Makefile
+@@ -25,6 +25,7 @@ obj-$(CONFIG_QCOM_PIL_INFO)		+= qcom_pil_info.o
+ obj-$(CONFIG_QCOM_RPROC_COMMON)		+= qcom_common.o
+ obj-$(CONFIG_QCOM_Q6V5_COMMON)		+= qcom_q6v5.o
+ obj-$(CONFIG_QCOM_Q6V5_ADSP)		+= qcom_q6v5_adsp.o
++obj-$(CONFIG_QCOM_ADSP_LOADER)		+= qcom_adsp_loader.o
+ obj-$(CONFIG_QCOM_Q6V5_MSS)		+= qcom_q6v5_mss.o
+ obj-$(CONFIG_QCOM_Q6V5_PAS)		+= qcom_q6v5_pas.o
+ obj-$(CONFIG_QCOM_Q6V5_WCSS)		+= qcom_q6v5_wcss.o
+diff --git a/drivers/remoteproc/qcom_adsp_loader.c b/drivers/remoteproc/qcom_adsp_loader.c
+new file mode 100644
+index 000000000..526b024ab
+--- /dev/null
++++ b/drivers/remoteproc/qcom_adsp_loader.c
+@@ -0,0 +1,438 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Qualcomm ADSP loader compatibility driver
++ *
++ * The generic remoteproc sysfs interface is the preferred way to boot a
++ * remote processor from userspace. Some Qualcomm Android userspaces,
++ * however, still start the ADSP by writing to the vendor interface at
++ * /sys/kernel/boot_adsp/boot (and request a subsystem restart through
++ * /sys/kernel/boot_adsp/ssr). For example, the SM6225 (Khaje/Bengal)
++ * vendor init scripts write "1" to the boot file during early-boot.
++ *
++ * This driver keeps that small ABI working on top of the generic
++ * remoteproc core. It binds to the vendor qcom,adsp-loader node,
++ * resolves the remoteproc through qcom,rproc-handle and delegates the
++ * actual firmware loading to rproc_boot()/rproc_shutdown(). It does
++ * not implement the vendor AudioReach/SPF readiness check: protection
++ * domain clients observe the audio PD through the normal PDR path.
++ *
++ * The optional NVMEM adsp_variant selection from the vendor node is
++ * carried over. A selected name is applied with rproc_set_firmware()
++ * only when it already names a complete firmware file (.mdt/.mbn).
++ * Bare image stems, such as "adsp2" on Khaje, keep the remoteproc
++ * driver's default firmware name; this matches the effective vendor
++ * behaviour where the selected stem was never applied to the PAS
++ * remoteproc, and avoids inventing a firmware file name in the kernel.
++ */
++
++#include <linux/err.h>
++#include <linux/kernel.h>
++#include <linux/kobject.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/nvmem-consumer.h>
++#include <linux/of.h>
++#include <linux/platform_device.h>
++#include <linux/remoteproc.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/sysfs.h>
++#include <linux/workqueue.h>
++
++#define QCOM_ADSP_LOADER_MAX_FW_IMAGES	4
++
++struct qcom_adsp_loader {
++	struct device *dev;
++	struct rproc *rproc;
++	struct kobject *kobj;
++	struct work_struct boot_work;
++	struct mutex lock;	/* protects booted and fw_name_warned */
++	const char *fw_name;
++	bool booted;
++	bool fw_name_warned;
++};
++
++static DEFINE_MUTEX(qcom_adsp_loader_lock);
++static struct qcom_adsp_loader *qcom_adsp_loader_dev;
++
++static struct qcom_adsp_loader *qcom_adsp_loader_get(void)
++{
++	struct qcom_adsp_loader *loader;
++
++	mutex_lock(&qcom_adsp_loader_lock);
++	loader = qcom_adsp_loader_dev;
++	mutex_unlock(&qcom_adsp_loader_lock);
++
++	return loader;
++}
++
++static bool qcom_adsp_loader_str_has_suffix(const char *str, const char *suffix)
++{
++	size_t len = strlen(str);
++	size_t suffix_len = strlen(suffix);
++
++	return len >= suffix_len && !strcmp(str + len - suffix_len, suffix);
++}
++
++/* Called with loader->lock held, before rproc_boot(). */
++static int qcom_adsp_loader_apply_fw_name(struct qcom_adsp_loader *loader)
++{
++	int ret;
++
++	if (!loader->fw_name)
++		return 0;
++
++	if (!qcom_adsp_loader_str_has_suffix(loader->fw_name, ".mdt") &&
++	    !qcom_adsp_loader_str_has_suffix(loader->fw_name, ".mbn")) {
++		if (!loader->fw_name_warned) {
++			loader->fw_name_warned = true;
++			dev_warn(loader->dev,
++				 "selected firmware \"%s\" is not a file name, keeping %s\n",
++				 loader->fw_name,
++				 loader->rproc->firmware ?
++					loader->rproc->firmware : "default");
++		}
++		return 0;
++	}
++
++	if (loader->rproc->firmware &&
++	    !strcmp(loader->rproc->firmware, loader->fw_name))
++		return 0;
++
++	ret = rproc_set_firmware(loader->rproc, loader->fw_name);
++	if (ret)
++		dev_err(loader->dev, "failed to set firmware \"%s\": %d\n",
++			loader->fw_name, ret);
++
++	return ret;
++}
++
++/* Called with loader->lock held. */
++static int qcom_adsp_loader_boot_locked(struct qcom_adsp_loader *loader)
++{
++	int ret;
++
++	if (loader->booted)
++		return 0;
++
++	ret = qcom_adsp_loader_apply_fw_name(loader);
++	if (ret)
++		return ret;
++
++	ret = rproc_boot(loader->rproc);
++	if (!ret)
++		loader->booted = true;
++
++	return ret;
++}
++
++/* Called with loader->lock held. */
++static int qcom_adsp_loader_shutdown_locked(struct qcom_adsp_loader *loader)
++{
++	int ret;
++
++	if (!loader->booted)
++		return 0;
++
++	ret = rproc_shutdown(loader->rproc);
++	if (!ret)
++		loader->booted = false;
++
++	return ret;
++}
++
++static void qcom_adsp_loader_boot_work(struct work_struct *work)
++{
++	struct qcom_adsp_loader *loader;
++	int ret;
++
++	loader = container_of(work, struct qcom_adsp_loader, boot_work);
++
++	mutex_lock(&loader->lock);
++	ret = qcom_adsp_loader_boot_locked(loader);
++	mutex_unlock(&loader->lock);
++
++	if (ret)
++		dev_err(loader->dev, "failed to boot %s: %d\n",
++			loader->rproc->name, ret);
++}
++
++static int qcom_adsp_loader_unload(struct qcom_adsp_loader *loader)
++{
++	int ret;
++
++	cancel_work_sync(&loader->boot_work);
++
++	mutex_lock(&loader->lock);
++	ret = qcom_adsp_loader_shutdown_locked(loader);
++	mutex_unlock(&loader->lock);
++
++	if (ret)
++		dev_err(loader->dev, "failed to shut down %s: %d\n",
++			loader->rproc->name, ret);
++
++	return ret;
++}
++
++static ssize_t boot_store(struct kobject *kobj, struct kobj_attribute *attr,
++			  const char *buf, size_t count)
++{
++	struct qcom_adsp_loader *loader;
++	int command;
++	int ret;
++
++	loader = qcom_adsp_loader_get();
++	if (!loader)
++		return -ENODEV;
++
++	ret = kstrtoint(buf, 10, &command);
++	if (ret)
++		return ret;
++
++	switch (command) {
++	case 1:
++		schedule_work(&loader->boot_work);
++		return count;
++	case 0:
++		ret = qcom_adsp_loader_unload(loader);
++		return ret ? ret : count;
++	default:
++		return -EINVAL;
++	}
++}
++
++static ssize_t ssr_store(struct kobject *kobj, struct kobj_attribute *attr,
++			 const char *buf, size_t count)
++{
++	struct qcom_adsp_loader *loader;
++	int command;
++	int ret;
++
++	loader = qcom_adsp_loader_get();
++	if (!loader)
++		return -ENODEV;
++
++	ret = kstrtoint(buf, 10, &command);
++	if (ret)
++		return ret;
++
++	if (command != 1)
++		return -EINVAL;
++
++	ret = qcom_adsp_loader_unload(loader);
++	if (ret)
++		return ret;
++
++	schedule_work(&loader->boot_work);
++
++	return count;
++}
++
++static struct kobj_attribute boot_attribute =
++	__ATTR(boot, 0220, NULL, boot_store);
++static struct kobj_attribute ssr_attribute =
++	__ATTR(ssr, 0220, NULL, ssr_store);
++
++static struct attribute *qcom_adsp_loader_attrs[] = {
++	&boot_attribute.attr,
++	&ssr_attribute.attr,
++	NULL,
++};
++
++static const struct attribute_group qcom_adsp_loader_group = {
++	.attrs = qcom_adsp_loader_attrs,
++};
++
++static int qcom_adsp_loader_select_fw_name(struct qcom_adsp_loader *loader)
++{
++	struct device *dev = loader->dev;
++	struct device_node *np = dev->of_node;
++	u32 bit_values[QCOM_ADSP_LOADER_MAX_FW_IMAGES];
++	u32 fuse_not_supported = 0;
++	u32 variant;
++	int count;
++	int ret;
++	int i;
++
++	/* Boards without fuse support name the image directly. */
++	if (!of_property_read_u32(np, "adsp-fuse-not-supported",
++				  &fuse_not_supported) && fuse_not_supported) {
++		ret = of_property_read_string(np, "adsp-fw-name",
++					      &loader->fw_name);
++		if (ret && ret != -EINVAL)
++			dev_warn(dev, "failed to read adsp-fw-name: %d\n", ret);
++		return 0;
++	}
++
++	if (!of_property_present(np, "nvmem-cells"))
++		return 0;
++
++	ret = nvmem_cell_read_variable_le_u32(dev, "adsp_variant", &variant);
++	if (ret == -EPROBE_DEFER)
++		return ret;
++	if (ret) {
++		dev_warn(dev,
++			 "failed to read adsp_variant (%d), keeping default firmware\n",
++			 ret);
++		return 0;
++	}
++
++	count = of_property_count_strings(np, "adsp-fw-names");
++	if (count <= 0)
++		return 0;
++	if (count > QCOM_ADSP_LOADER_MAX_FW_IMAGES) {
++		dev_warn(dev, "too many adsp-fw-names (%d), keeping default firmware\n",
++			 count);
++		return 0;
++	}
++
++	if (of_property_count_u32_elems(np, "adsp-fw-bit-values") < count) {
++		dev_warn(dev, "missing adsp-fw-bit-values, keeping default firmware\n");
++		return 0;
++	}
++
++	ret = of_property_read_u32_array(np, "adsp-fw-bit-values",
++					 bit_values, count);
++	if (ret) {
++		dev_warn(dev,
++			 "failed to read adsp-fw-bit-values (%d), keeping default firmware\n",
++			 ret);
++		return 0;
++	}
++
++	for (i = 0; i < count; i++) {
++		if (bit_values[i] != variant)
++			continue;
++
++		ret = of_property_read_string_index(np, "adsp-fw-names", i,
++						    &loader->fw_name);
++		if (!ret)
++			dev_info(dev, "ADSP variant %u selects firmware \"%s\"\n",
++				 variant, loader->fw_name);
++		return 0;
++	}
++
++	dev_info(dev, "no firmware listed for ADSP variant %u, keeping default\n",
++		 variant);
++
++	return 0;
++}
++
++static int qcom_adsp_loader_probe(struct platform_device *pdev)
++{
++	struct qcom_adsp_loader *loader;
++	u32 adsp_state = 0;
++	phandle rproc_phandle;
++	int ret;
++
++	loader = devm_kzalloc(&pdev->dev, sizeof(*loader), GFP_KERNEL);
++	if (!loader)
++		return -ENOMEM;
++
++	loader->dev = &pdev->dev;
++	mutex_init(&loader->lock);
++	INIT_WORK(&loader->boot_work, qcom_adsp_loader_boot_work);
++
++	ret = of_property_read_u32(pdev->dev.of_node, "qcom,rproc-handle",
++				   &rproc_phandle);
++	if (ret)
++		return dev_err_probe(&pdev->dev, ret,
++				     "missing qcom,rproc-handle\n");
++
++	loader->rproc = rproc_get_by_phandle(rproc_phandle);
++	if (!loader->rproc)
++		return dev_err_probe(&pdev->dev, -EPROBE_DEFER,
++				     "remoteproc not registered yet\n");
++
++	of_property_read_u32(pdev->dev.of_node, "qcom,adsp-state",
++			     &adsp_state);
++	if (adsp_state)
++		dev_dbg(&pdev->dev, "vendor ADSP state hint is %u\n",
++			adsp_state);
++
++	ret = qcom_adsp_loader_select_fw_name(loader);
++	if (ret)
++		goto err_put_rproc;
++
++	mutex_lock(&qcom_adsp_loader_lock);
++	if (qcom_adsp_loader_dev) {
++		mutex_unlock(&qcom_adsp_loader_lock);
++		ret = dev_err_probe(&pdev->dev, -EEXIST,
++				    "/sys/kernel/boot_adsp already registered\n");
++		goto err_put_rproc;
++	}
++	qcom_adsp_loader_dev = loader;
++	mutex_unlock(&qcom_adsp_loader_lock);
++
++	loader->kobj = kobject_create_and_add("boot_adsp", kernel_kobj);
++	if (!loader->kobj) {
++		ret = -ENOMEM;
++		goto err_clear_loader;
++	}
++
++	ret = sysfs_create_group(loader->kobj, &qcom_adsp_loader_group);
++	if (ret)
++		goto err_put_kobj;
++
++	platform_set_drvdata(pdev, loader);
++
++	dev_info(&pdev->dev, "boot control for %s ready\n",
++		 loader->rproc->name);
++
++	return 0;
++
++err_put_kobj:
++	kobject_put(loader->kobj);
++err_clear_loader:
++	mutex_lock(&qcom_adsp_loader_lock);
++	if (qcom_adsp_loader_dev == loader)
++		qcom_adsp_loader_dev = NULL;
++	mutex_unlock(&qcom_adsp_loader_lock);
++err_put_rproc:
++	rproc_put(loader->rproc);
++
++	return ret;
++}
++
++static void qcom_adsp_loader_remove(struct platform_device *pdev)
++{
++	struct qcom_adsp_loader *loader = platform_get_drvdata(pdev);
++	int ret;
++
++	if (!loader)
++		return;
++
++	mutex_lock(&qcom_adsp_loader_lock);
++	if (qcom_adsp_loader_dev == loader)
++		qcom_adsp_loader_dev = NULL;
++	mutex_unlock(&qcom_adsp_loader_lock);
++
++	sysfs_remove_group(loader->kobj, &qcom_adsp_loader_group);
++	kobject_put(loader->kobj);
++
++	ret = qcom_adsp_loader_unload(loader);
++	if (ret)
++		dev_err(&pdev->dev, "failed to shut down %s on remove: %d\n",
++			loader->rproc->name, ret);
++
++	rproc_put(loader->rproc);
++}
++
++static const struct of_device_id qcom_adsp_loader_dt_match[] = {
++	{ .compatible = "qcom,adsp-loader" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, qcom_adsp_loader_dt_match);
++
++static struct platform_driver qcom_adsp_loader_driver = {
++	.probe = qcom_adsp_loader_probe,
++	.remove = qcom_adsp_loader_remove,
++	.driver = {
++		.name = "qcom_adsp_loader",
++		.of_match_table = qcom_adsp_loader_dt_match,
++	},
++};
++module_platform_driver(qcom_adsp_loader_driver);
++
++MODULE_DESCRIPTION("Qualcomm ADSP loader compatibility driver");
++MODULE_LICENSE("GPL");
+-- 
+2.39.5
+

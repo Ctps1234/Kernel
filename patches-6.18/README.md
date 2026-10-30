@@ -93,16 +93,37 @@ resolvidas), 0020 ganhou as entradas nos grupos atuais dos bindings,
 0021 só contexto de Kconfig/Makefile (driver já usa a API `_multi`,
 todos os símbolos presentes no 6.18), 0022/0024 limpos, 0025 com a
 terceira lista do binding reinserida à mão. Verificação do zero:
-25/25 limpos, árvore idêntica.
+25/25 limpos, árvore idêntica. Gate verde na run `40978017904`.
 
-## Pendentes (0026–0033)
+Quarta fatia (2026-10-29): **0026–0033 — série completa**
+(32 patches; o 0029 foi descartado de propósito). 0026 adaptado ao
+driver renomeado (`qcom_pas_data`, `qcom_pas_init_regulator`),
+incluindo o fallback de supply "mx"; 0027 limpo; 0028 com o helper
+de tensão mínima portado e os campos `cx/px_supply_min_uV` sobre o
+recurso novo; 0030 recortado (TX SM6115 já upstream — ficou só o
+grupo fallback SM6225; VA/RX SM6115 + fallbacks SM6225 adicionados,
+com o bloco de clocks do VA mantendo os `items` explícitos
+mclk/dcodec/npl); 0031 limpo; 0032 só a linha de match; 0033 só o
+`Makefile`. Verificação do zero: 32/32 limpos, árvore idêntica.
 
-- limpos na medição original: 0027, 0031;
-- rebase trivial (contexto de Makefile): 0033;
-- rebase com revisão: 0026/0028 (tabela PAS), 0030 (recortar: TX
-  SM6115 já upstream), 0032 (máquina de áudio);
-- **descartar**: 0029 (resets LPASSCC SM6115 já upstream no 6.18) —
-  a numeração fica com um buraco intencional.
+## Próximos passos (rebase concluído)
+
+1. **Build de imagem nesta base**: adicionar ao
+   `google-mainline.yml` um job de build (defconfig GKI 6.18 +
+   fragmento), análogo ao job de kernel da trilha 6.12. Aplicação
+   limpa não pega quebra de API — foi exatamente a classe do erro da
+   primeira exportação do 0010.
+2. Fragmento de config próprio para o 6.18 (o atual é do 6.12):
+   conferir símbolos renomeados/removidos e ligar os drivers da série
+   (`SM_GCC_6225`, `DRM_PANEL_XIAOMI_M7`, `WL2866D`, macros etc.).
+3. Itens novos já identificados e ainda não endereçados: auditoria do
+   `PLL_FSM_LEGACY_MODE` no caminho Trion/Lucid (GPLL10/11), GENI I2C
+   upstream, decisão CAMSS vs Spectra (SM6225/S5KJN1 ausentes no ACK;
+   `sm6225-mainline`/`pmos-tapas` como referência), e o match UBWC
+   `qcom,sm6225` quando existir DTS upstream-style (hoje só
+   `qcom,khaje`, que é o que o FDT vendor declara).
+4. Só depois de build verde: discutir aposentar a trilha 6.12 e
+   promover esta série a `patches/` principal.
 
 ## Método (para repetir nas próximas fatias)
 

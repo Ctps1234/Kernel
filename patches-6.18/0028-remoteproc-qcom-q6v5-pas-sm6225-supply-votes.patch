@@ -1,0 +1,115 @@
+From 22e1d19598ccb2c796d7c9587d33d8191868e56b Mon Sep 17 00:00:00 2001
+From: Port <port@local>
+Date: Fri, 30 Oct 2026 00:12:12 +0000
+Subject: [PATCH 28/32] remoteproc: qcom: q6v5_pas: vote SM6225 ADSP supplies
+ at
+
+The Khaje ADSP PAS node feeds the upstream cx/px supplies from the
+RPM-SMD level regulators L3A_LEVEL and L2A_LEVEL. The downstream PAS
+resource requests the TURBO corner for both rails through the cx/mx
+uV properties. Upstream qcom_q6v5_pas only sets the CX load and
+enables the regulators, leaving their level vote at the provider
+default.
+
+Carry optional per-resource minimum voltages in adsp_data and stage
+them with regulator_set_voltage() during probe before rproc start
+enables the rails. The level-regulator provider stores a vote made
+while disabled and publishes the enable and level together, so the
+ADSP sees the requested corner when powered.
+
+Set both values only for the SM6225 ADSP resource. Other resources
+keep the existing behaviour. Compile-tested only; the ADSP has not
+been booted on hardware.
+
+Signed-off-by: Port <port@local>
+---
+ drivers/remoteproc/qcom_q6v5_pas.c | 30 +++++++++++++++++++++++++++---
+ 1 file changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/remoteproc/qcom_q6v5_pas.c b/drivers/remoteproc/qcom_q6v5_pas.c
+index 763eb6c67..24648c82f 100644
+--- a/drivers/remoteproc/qcom_q6v5_pas.c
++++ b/drivers/remoteproc/qcom_q6v5_pas.c
+@@ -26,6 +26,8 @@
+ #include <linux/soc/qcom/smem.h>
+ #include <linux/soc/qcom/smem_state.h>
+ 
++#include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
++
+ #include "qcom_common.h"
+ #include "qcom_pil_info.h"
+ #include "qcom_q6v5.h"
+@@ -46,6 +48,8 @@ struct qcom_pas_data {
+ 	unsigned int minidump_id;
+ 	bool auto_boot;
+ 	bool decrypt_shutdown;
++	unsigned int cx_supply_min_uV;
++	unsigned int px_supply_min_uV;
+ 
+ 	char **proxy_pd_names;
+ 
+@@ -470,8 +474,20 @@ static int qcom_pas_init_clock(struct qcom_pas *pas)
+ 	return 0;
+ }
+ 
+-static int qcom_pas_init_regulator(struct qcom_pas *pas)
++static int qcom_pas_set_supply_min_voltage(struct regulator *supply,
++					   unsigned int min_uV)
++{
++	if (!supply || !min_uV)
++		return 0;
++
++	return regulator_set_voltage(supply, min_uV, INT_MAX);
++}
++
++static int qcom_pas_init_regulator(struct qcom_pas *pas,
++				   const struct qcom_pas_data *desc)
+ {
++	int ret;
++
+ 	pas->cx_supply = devm_regulator_get_optional(pas->dev, "cx");
+ 	if (IS_ERR(pas->cx_supply)) {
+ 		if (PTR_ERR(pas->cx_supply) == -ENODEV)
+@@ -483,6 +499,11 @@ static int qcom_pas_init_regulator(struct qcom_pas *pas)
+ 	if (pas->cx_supply)
+ 		regulator_set_load(pas->cx_supply, 100000);
+ 
++	ret = qcom_pas_set_supply_min_voltage(pas->cx_supply,
++					      desc->cx_supply_min_uV);
++	if (ret)
++		return ret;
++
+ 	pas->px_supply = devm_regulator_get_optional(pas->dev, "px");
+ 	if (IS_ERR(pas->px_supply)) {
+ 		if (PTR_ERR(pas->px_supply) == -ENODEV)
+@@ -502,7 +523,8 @@ static int qcom_pas_init_regulator(struct qcom_pas *pas)
+ 		}
+ 	}
+ 
+-	return 0;
++	return qcom_pas_set_supply_min_voltage(pas->px_supply,
++					       desc->px_supply_min_uV);
+ }
+ 
+ static int qcom_pas_pds_attach(struct device *dev, struct device **devs, char **pd_names)
+@@ -766,7 +788,7 @@ static int qcom_pas_probe(struct platform_device *pdev)
+ 	if (ret)
+ 		goto unassign_mem;
+ 
+-	ret = qcom_pas_init_regulator(pas);
++	ret = qcom_pas_init_regulator(pas, desc);
+ 	if (ret)
+ 		goto unassign_mem;
+ 
+@@ -875,6 +897,8 @@ static const struct qcom_pas_data sm6225_adsp_resource = {
+ 	.pas_id = 1,
+ 	.minidump_id = 5,
+ 	.auto_boot = false,
++	.cx_supply_min_uV = RPM_SMD_REGULATOR_LEVEL_TURBO,
++	.px_supply_min_uV = RPM_SMD_REGULATOR_LEVEL_TURBO,
+ 	.ssr_name = "lpass",
+ 	.sysmon_name = "adsp",
+ 	.ssctl_id = 0x14,
+-- 
+2.39.5
+
