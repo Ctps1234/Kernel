@@ -1,0 +1,62 @@
+From 66245cc4d3653763b6f3278b09f0e06d9260c493 Mon Sep 17 00:00:00 2001
+From: Arena <arena@local>
+Date: Fri, 30 Oct 2026 12:32:21 +0000
+Subject: [PATCH] dt-bindings: pinctrl: qcom,khaje: fix pin state node pattern
+
+The catch-all patternProperties regexps also matched the
+controller's own properties, so dtschema evaluated e.g. compatible
+and reg against the pin-node object schema and every TLMM property
+failed validation as soon as a DTS used the binding (found by the
+S1 dtbs_check gate). Mirror the upstream qcom,sm6115-tlmm shape:
+"-state$" nodes, optionally with "-pins$" subnodes, and drop the
+phandle/linux,phandle/name property stubs that made the schema
+compiler warn about missing type definitions.
+---
+ .../bindings/pinctrl/qcom,khaje-pinctrl.yaml  | 20 +++++--------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml b/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml
+index cf88977b1..9f4325722 100644
+--- a/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml
++++ b/Documentation/devicetree/bindings/pinctrl/qcom,khaje-pinctrl.yaml
+@@ -27,23 +27,15 @@ properties:
+   gpio-reserved-ranges: true
+ 
+ patternProperties:
+-  "^[A-Za-z0-9,_-]+$":
+-    $ref: "#/$defs/qcom-khaje-pin-node"
+-
+-$defs:
+-  qcom-khaje-pin-node:
++  "-state$":
+     oneOf:
+       - $ref: "#/$defs/qcom-khaje-tlmm-state"
+-      - type: object
+-        properties:
+-          phandle: true
+-          linux,phandle: true
+-          name: true
+-        patternProperties:
+-          "^[A-Za-z0-9,_-]+$":
+-            $ref: "#/$defs/qcom-khaje-pin-node"
++      - patternProperties:
++          "-pins$":
++            $ref: "#/$defs/qcom-khaje-tlmm-state"
+         additionalProperties: false
+ 
++$defs:
+   qcom-khaje-tlmm-state:
+     type: object
+     description:
+@@ -53,8 +45,6 @@ $defs:
+     unevaluatedProperties: false
+ 
+     properties:
+-      phandle: true
+-      linux,phandle: true
+       pins:
+         description:
+           List of GPIO or dedicated pins affected by the properties in this
+-- 
+2.39.5
+

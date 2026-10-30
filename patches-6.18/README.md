@@ -29,10 +29,16 @@ compatibles de suporte (`qcom,sm6225` em qcom.yaml/UBWC,
 `qcom,sm6225-apcs-hmss-global`). O fragmento de config sobe
 `PSTORE`/`PSTORE_RAM`/`PSTORE_CONSOLE` para built-in e o job de
 build ganha o gate `CHECK_DTBS=1` (dtbs_check) sobre o DTB novo.
-Serie agora com **33 patches** (0001-0034 sem o 0029),
-reverificada aplicando 33/33 do pin. Escopo, fontes de cada dado e
-o que ficou para as fatias S2-S6: `docs/dt-upstream-sm6225-plan.md`.
-Continua sendo so CI: nada disto e evidencia de boot.
+Primeira run do gate (41052634674, verde em Image) achou 7 erros
+de schema reais no binding TLMM do 0001 (patternProperties
+pega-tudo avaliava ate `compatible`/`reg` contra o schema de
+pin-node) — e ensinou que `make CHECK_DTBS=1` retorna 0 mesmo com
+erro do dt-validate; o passo agora grepa o log e falha. Correcao
+do binding no **0035** (molde do `qcom,sm6115-tlmm` upstream).
+Serie agora com **34 patches** (0001-0035 sem o 0029). Escopo,
+fontes de cada dado e o que ficou para as fatias S2-S6:
+`docs/dt-upstream-sm6225-plan.md`. Continua sendo so CI: nada
+disto e evidencia de boot.
 
 ## Estado (2026-10-29)
 

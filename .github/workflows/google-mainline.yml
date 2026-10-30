@@ -128,7 +128,10 @@ jobs:
       # Gate das fatias de DT (docs/dt-upstream-sm6225-plan.md):
       # compila o DTB do topaz e valida contra todos os schemas
       # (CHECK_DTBS=1 num alvo .dtb unico). dtc limpa != schema
-      # limpo, e nenhum dos dois e evidencia de boot.
+      # limpo, e nenhum dos dois e evidencia de boot. NOTA: o make
+      # retorna 0 mesmo com erro do dt-validate (visto na run
+      # 41052634674), entao o gate grepa o log pelas linhas de
+      # reporte do dt-validate para o nosso DTB e falha se houver.
       - name: DTB + dtbs_check (sm6225-xiaomi-topaz)
         run: |
           set -o pipefail
@@ -136,6 +139,11 @@ jobs:
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" \
             CHECK_DTBS=1 qcom/sm6225-xiaomi-topaz.dtb \
             2>&1 | tee dtbs-check-618.log
+          if grep -E "sm6225-xiaomi-topaz\.dtb:" dtbs-check-618.log; then
+            echo "ERRO: dtbs_check reportou problemas de schema no DTB do topaz" >&2
+            exit 1
+          fi
+          echo "dtbs_check limpo para sm6225-xiaomi-topaz.dtb"
 
       - name: Archive Image + build logs
         if: always()
@@ -159,7 +167,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -o pipefail
-          grep -hE 'FALTANDO|^ERRO|error:|undefined|multiple definition|dt-validate|Warning|warning' \
+          grep -hE 'FALTANDO|^ERRO|error:|undefined|multiple definition|sm6225-xiaomi-topaz\.dtb:' \
               basegoogle/configure.log basegoogle/kernel-build-618.log \
               basegoogle/dtbs-check-618.log \
               | sort -u > basegoogle/falhas.txt 2>/dev/null \
