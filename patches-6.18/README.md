@@ -44,6 +44,16 @@ topaz passa `dtbs_check` sem nenhum reporte do `dt-validate`
 (S1 concluida no sentido CI). Continua sendo so CI: nada disto e
 evidencia de boot.
 
+Atualizacao (2026-10-30, fatia S2): entra o **0036** — UFS host
+(`qcom,sm6225-ufshc`, novo no binding no grupo de 9 clocks) +
+QMP PHY no formato do 0005, os trilhos fisicos PM6125
+L4/L11/L18/L24 como recursos RPM-SMD (janelas de tensao finais do
+FDT vivo) e a fiação de placa (vcc/vccq2 a 800 mA, supplies da
+PHY, reset no gpio113). Serie com **35 patches** (0001-0036 sem o
+0029). Sem `power-domains` (gcc-khaje nao registra GDSC) e sem
+`iommus` (apps_smmu ainda nao existe) — dividas documentadas no
+plano de DT.
+
 ## Estado (2026-10-29)
 
 Rebaseados e verificados aplicando limpos, em ordem, sobre o commit
