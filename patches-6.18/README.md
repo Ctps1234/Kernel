@@ -60,7 +60,11 @@ teto-base 3 (insatisfazivel) e o binding upstream exige
 Entra o **0037**: teto do binding corrigido, os 9 GDSCs do GCC
 registrados (offsets do bengal-gdsc.dtsi = upstream SM6115) e
 `power-domains`/`vdd-hba` ligados na DT. Serie com **36 patches**
-(0001-0037 sem o 0029).
+(0001-0037 sem o 0029). Veredito: run
+[`41106546373`](https://github.com/Ctps1234/Kernel/actions/runs/41106546373)
+verde — serie aplica 36/36, `Image` linka com os GDSCs e o DTB
+(S1+S2) passa `dtbs_check` sem reportes. S2 concluida no sentido
+CI; boot continua sem evidencia.
 
 ## Estado (2026-10-29)
 

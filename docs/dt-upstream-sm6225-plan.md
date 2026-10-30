@@ -111,8 +111,9 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   teste nele continua bloqueado pelos pré-requisitos de backup,
   fallback e método reversível em
   `docs/hardware-info-needed.md`.
-- **S2 – Storage** *(escrita em 30/out/2026 como patch 0036,
-  aguardando o veredito do gate)*: UFS host+PHY com supplies/ICC
+- **S2 – Storage** *(CONCLUÍDA em 30/out/2026: patches 0036 +
+  0037; run `41106546373` verde com `Image` e `dtbs_check` sem
+  reportes)*: UFS host+PHY com supplies/ICC
   reais; gate `dtbs_check`. (Cargas `vdda-*` comprovadas no FDT
   vivo: 85700/18300 µA sobre `pm6125_l4`/`pm6125_l18` — ver 0006.)
   Puxou da S5 os trilhos físicos L4/L11/L18/L24 do PM6125.
