@@ -12,9 +12,12 @@ Decisão e plano completos em
 Os nomes de arquivo são idênticos aos da série 6.12 para manter o mapa
 1:1 entre as duas. As mensagens de commit são as originais (mencionam a
 árvore 6.12); o conteúdo é o mesmo, com os ajustes de contexto abaixo.
-Nada aqui foi compilado ainda nesta base, muito menos testado em
-hardware: o gate atual é aplicação limpa em sequência
-(`.github/workflows/google-mainline.yml`).
+Atualizacao (2026-10-30): a serie completa (32 patches, 0001-0033
+sem o 0029) **compila e linka** nesta base — `Image` verde no CI
+(run 40983813425; detalhes em "Rodadas de build" abaixo). Boot e
+hardware seguem sem nenhuma evidencia: falta DT upstream-style do
+SM6225/topaz e teste no aparelho. O texto historico abaixo e
+mantido como registro das fatias do rebase.
 
 ## Estado (2026-10-29)
 
@@ -108,14 +111,18 @@ mclk/dcodec/npl); 0031 limpo; 0032 só a linha de match; 0033 só o
 
 ## Próximos passos (rebase concluído)
 
-1. **Build de imagem nesta base**: adicionar ao
-   `google-mainline.yml` um job de build (defconfig GKI 6.18 +
-   fragmento), análogo ao job de kernel da trilha 6.12. Aplicação
-   limpa não pega quebra de API — foi exatamente a classe do erro da
-   primeira exportação do 0010.
-2. Fragmento de config próprio para o 6.18 (o atual é do 6.12):
-   conferir símbolos renomeados/removidos e ligar os drivers da série
-   (`SM_GCC_6225`, `DRM_PANEL_XIAOMI_M7`, `WL2866D`, macros etc.).
+1. **Build de imagem nesta base — FEITO**: o job `kernel-build` do
+   `google-mainline.yml` produz `Image` verde (run 40983813425:
+   vmlinux linkado, `OBJCOPY arch/arm64/boot/Image`). Quatro rodadas
+   de correções de API/schema foram necessárias (ver "Rodadas de
+   build" abaixo) — aplicação limpa não pega quebra de API.
+   Compilar/linkar não é boot: ainda falta DT upstream-style do
+   SM6225/topaz nesta base e qualquer teste em hardware.
+2. ~~Fragmento de config próprio para o 6.18~~: resolvido mantendo o
+   fragmento compartilhado — a auditoria de símbolos passou nas duas
+   bases e a única lacuna real (`CONFIG_SOUND=y`) era do fragmento
+   em si. Criar fragmento 6.18-específico só se surgir divergência
+   real entre as trilhas.
 3. Itens novos já identificados e ainda não endereçados: auditoria do
    `PLL_FSM_LEGACY_MODE` no caminho Trion/Lucid (GPLL10/11), GENI I2C
    upstream, decisão CAMSS vs Spectra (SM6225/S5KJN1 ausentes no ACK;
@@ -161,6 +168,13 @@ mclk/dcodec/npl); 0031 limpo; 0032 só a linha de match; 0033 só o
   foram removidos e a semantica migrou para sblks/caps. Atenção em
   hardware: validar TE/modo comando (o sblk de pingpong upstream
   atual so declara dither) e PCC/DSC.
+- Run 40983813425: **verde** — vmlinux linkado e
+  `arch/arm64/boot/Image` gerada com a série completa (32 patches).
+  A run 40981633325 do workflow 6.12 também ficou verde com as
+  mudanças compartilhadas (fragmento com `SOUND=y`, REQUIRED com
+  `SOUND`), sem regressão na trilha antiga. Com o marco atingido, o
+  `make -k` saiu do job e a `Image` entrou no artefato
+  `google-kernel-build`.
 
 ## Método (para repetir nas próximas fatias)
 

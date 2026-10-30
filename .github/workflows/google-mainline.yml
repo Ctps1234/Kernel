@@ -116,22 +116,20 @@ jobs:
           set -o pipefail
           sh tools/configure_kernel.sh basegoogle 2>&1 | tee basegoogle/configure.log
 
-      # -k (keep going): while the series is being made to compile, one
-      # CI round should surface every broken translation unit, not
-      # only the first. Drop -k once the build is green.
       - name: Build kernel image
         run: |
           set -o pipefail
           cd basegoogle
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" -k Image \
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image \
             2>&1 | tee kernel-build-618.log
 
-      - name: Archive build logs
+      - name: Archive Image + build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: google-kernel-build-logs
+          name: google-kernel-build
           path: |
+            basegoogle/arch/arm64/boot/Image
             basegoogle/kernel-build-618.log
             basegoogle/configure.log
             basegoogle/.config

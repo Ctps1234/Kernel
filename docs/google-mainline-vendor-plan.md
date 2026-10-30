@@ -169,3 +169,15 @@ HEAD 6.18, continua nosso), 0024 (speed-bins A610),
   mesmo workflow (auditoria prévia: todos os 57 símbolos do fragmento
   e os símbolos obrigatórios do `configure_kernel.sh` ainda têm
   definição Kconfig na árvore 6.18+série).
+- **2026-10-30**: marco de build atingido — a série 6.18 completa
+  **compila e linka** a `Image` no job `kernel-build`
+  (run `40983813425`). Foram quatro rodadas: `SOUND=y` no fragmento
+  (defconfig ACK traz `SOUND=m`), `sm6225_ufsphy_vreg_l` no 0006,
+  fim do `.remove_new` no 0002/0007 e migração do catálogo DPU no
+  0016; detalhes em `patches-6.18/README.md`. A trilha 6.12 passou
+  verde com as mudanças compartilhadas (run `40981633325`), então a
+  paridade de aplicação+build da condição de troca (ver "Decisão")
+  está atingida — a promoção da série 6.18 a principal e o destino
+  da trilha 6.12 ficam para decisão do dono do projeto. Próxima
+  frente técnica: DT upstream-style do SM6225/topaz (hoje a imagem
+  compila sem DTB da placa; boot segue sem evidência).
