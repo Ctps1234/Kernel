@@ -149,6 +149,18 @@ mclk/dcodec/npl); 0031 limpo; 0032 só a linha de match; 0033 só o
   `.remove_new` -> `.remove`, `qnoc_remove` continua existindo). O
   job de build passou a usar `make -k` para reportar todas as
   unidades quebradas por rodada.
+- Run 40981633328 (com -k): todos os erros restantes num so arquivo,
+  o catalogo DPU do Khaje (0016), cujo schema foi refatorado. O
+  catalogo e quase identico ao do QCM2290/SM6115 upstream, o que da
+  a traducao direta: mascaras SSPP viram `VIG_SDM845_MASK_NO_SDMA` /
+  `DMA_SDM845_MASK_NO_SDMA` (SmartDMA continua nao anunciado, como
+  no cabecalho do catalogo), e somem os `features` de ctl/lm/dspp/pp/
+  dsc/intf — os enums correspondentes (`DPU_CTL_ACTIVE_CFG`,
+  `DPU_DIM_LAYER`, `DPU_MIXER_COMBINED_ALPHA`, `DPU_DSPP_PCC`,
+  `PINGPONG_SM8150_MASK`, `DPU_DSC_OUTPUT_CTRL`, `INTF_SC7180_MASK`)
+  foram removidos e a semantica migrou para sblks/caps. Atenção em
+  hardware: validar TE/modo comando (o sblk de pingpong upstream
+  atual so declara dither) e PCC/DSC.
 
 ## Método (para repetir nas próximas fatias)
 

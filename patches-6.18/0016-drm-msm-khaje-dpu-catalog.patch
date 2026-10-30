@@ -1,7 +1,7 @@
-From 8445cb0bb0f669b3ec8462a871339d154e34821e Mon Sep 17 00:00:00 2001
+From 19ee15a7c5bb7af59dbd1c124b89d3dab3192bc9 Mon Sep 17 00:00:00 2001
 From: Port <port@local>
 Date: Fri, 30 Oct 2026 00:04:02 +0000
-Subject: [PATCH 16/25] drm/msm/dpu: add Khaje 6.10 catalog
+Subject: [PATCH] drm/msm/dpu: add Khaje 6.10 catalog
 
 Add an independent Khaje catalog from the Topaz FDT and Creek Khaje
 revision data. Keep a dedicated compatible; do not alias SM6375 or
@@ -17,20 +17,20 @@ claim Smart DMA v2.5, per-pipe priorities, advanced DSPP, QSYNC, secure-UI,
 or full SDE feature parity. Hardware IRQ and resource integration remain
 unvalidated.
 ---
- .../msm/disp/dpu1/catalog/dpu_6_10_khaje.h    | 205 ++++++++++++++++++
+ .../msm/disp/dpu1/catalog/dpu_6_10_khaje.h    | 199 ++++++++++++++++++
  .../gpu/drm/msm/disp/dpu1/dpu_hw_catalog.c    |   1 +
  .../gpu/drm/msm/disp/dpu1/dpu_hw_catalog.h    |   3 +
  drivers/gpu/drm/msm/disp/dpu1/dpu_hw_vbif.c   |  27 ++-
  drivers/gpu/drm/msm/disp/dpu1/dpu_kms.c       |   1 +
- 5 files changed, 236 insertions(+), 1 deletion(-)
+ 5 files changed, 230 insertions(+), 1 deletion(-)
  create mode 100644 drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_10_khaje.h
 
 diff --git a/drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_10_khaje.h b/drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_10_khaje.h
 new file mode 100644
-index 000000000..3050f2005
+index 000000000..ae12c9e4c
 --- /dev/null
 +++ b/drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_10_khaje.h
-@@ -0,0 +1,205 @@
+@@ -0,0 +1,199 @@
 +/* SPDX-License-Identifier: GPL-2.0-only */
 +/* Khaje SDE 6.10 data transcribed from the Topaz FDT and Creek overrides.
 + * Unrepresented Smart DMA v2.5, per-pipe priority, advanced DSPP, QSYNC and
@@ -62,7 +62,6 @@ index 000000000..3050f2005
 +	{
 +		.name = "ctl_0", .id = CTL_0,
 +		.base = 0x1000, .len = 0x1dc,
-+		.features = BIT(DPU_CTL_ACTIVE_CFG),
 +		.intr_start = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR2, 9),
 +	},
 +};
@@ -72,7 +71,7 @@ index 000000000..3050f2005
 +	{
 +		.name = "sspp_0", .id = SSPP_VIG0,
 +		.base = 0x4000, .len = 0x1f8,
-+		.features = VIG_SDM845_MASK,
++		.features = VIG_SDM845_MASK_NO_SDMA,
 +		.sblk = &dpu_vig_sblk_qseed3_3_0,
 +		.xin_id = 0,
 +		.type = SSPP_TYPE_VIG,
@@ -80,7 +79,7 @@ index 000000000..3050f2005
 +	}, {
 +		.name = "sspp_8", .id = SSPP_DMA0,
 +		.base = 0x24000, .len = 0x1f8,
-+		.features = DMA_SDM845_MASK,
++		.features = DMA_SDM845_MASK_NO_SDMA,
 +		.sblk = &dpu_dma_sblk,
 +		.xin_id = 1,
 +		.type = SSPP_TYPE_DMA,
@@ -92,7 +91,6 @@ index 000000000..3050f2005
 +	{
 +		.name = "lm_0", .id = LM_0,
 +		.base = 0x44000, .len = 0x320,
-+		.features = BIT(DPU_DIM_LAYER) | BIT(DPU_MIXER_COMBINED_ALPHA),
 +		.sblk = &qcm2290_lm_sblk,
 +		.lm_pair = 0,
 +		.pingpong = PINGPONG_0,
@@ -105,7 +103,6 @@ index 000000000..3050f2005
 +	{
 +		.name = "dspp_0", .id = DSPP_0,
 +		.base = 0x54000, .len = 0x1800,
-+		.features = BIT(DPU_DSPP_PCC),
 +		.sblk = &sdm845_dspp_sblk,
 +	},
 +};
@@ -114,7 +111,6 @@ index 000000000..3050f2005
 +	{
 +		.name = "pingpong_0", .id = PINGPONG_0,
 +		.base = 0x70000, .len = 0xd4,
-+		.features = PINGPONG_SM8150_MASK,
 +		.sblk = &sdm845_pp_sblk,
 +		.merge_3d = 0,
 +		.intr_done = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 8),
@@ -125,7 +121,6 @@ index 000000000..3050f2005
 +	{
 +		.name = "dsc_0", .id = DSC_0,
 +		.base = 0x80000, .len = 0x140,
-+		.features = BIT(DPU_DSC_OUTPUT_CTRL),
 +	},
 +};
 +
@@ -133,7 +128,6 @@ index 000000000..3050f2005
 +	{
 +		.name = "intf_1", .id = INTF_1,
 +		.base = 0x6a800, .len = 0x2c0,
-+		.features = INTF_SC7180_MASK,
 +		.type = INTF_DSI,
 +		.controller_id = MSM_DSI_CONTROLLER_0,
 +		.prog_fetch_lines_worst_case = 24,
