@@ -64,13 +64,20 @@ comportamento contra o código 6.18:
 das contrapartes 6.12 (único ERROR pré-existente da série inteira:
 falta de `Signed-off-by`); nenhum achado novo introduzido pelo rebase.
 
-## Pendentes (0012–0033)
+Segunda fatia (2026-10-29): **0012–0015** rebaseados. 0012, 0013 e
+0015 limpos; o 0014 (vendor-prefixes) foi recortado — `synaptics` já
+existe upstream e ficou de fora — e seis entradas foram reinseridas à
+mão nas posições alfabéticas atuais (fpc, nopmi, pd, signal, sm,
+tcpc-dual), com o YAML validado e cada prefixo presente exatamente
+uma vez. Série exportada reaplicada do zero: 15/15 limpos, árvore
+idêntica à branch de trabalho.
+
+## Pendentes (0016–0033)
 
 Disposição medida no plano; resumo:
 
 - aplicar limpos na medição original, só reexportar no fluxo:
-  0012, 0013 (cuidado: sem separador `---`), 0015, 0018, 0022, 0024,
-  0027, 0031;
+  0018, 0022, 0024, 0027, 0031;
 - rebase trivial (contexto de Makefile/Kconfig/binding): 0020, 0021,
   0025, 0033;
 - rebase com revisão: 0014 (recortar prefixo a prefixo), 0016/0017
