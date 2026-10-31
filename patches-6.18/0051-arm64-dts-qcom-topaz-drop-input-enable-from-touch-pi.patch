@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 18:57:58 +0000
+Subject: [PATCH] arm64: dts: qcom: topaz: drop input-enable from touch pinctrl
+ states
+
+The khaje TLMM binding (via qcom,tlmm-common) does not
+allow input-enable in pin states - Qualcomm TLMM GPIOs
+are input-capable without it. CI run 41229713167 failed
+the dtbs_check gate on ts-int-active/suspend-state only.
+---
+ arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index abf2efd17..af6837db0 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -548,7 +548,6 @@ ts_int_active: ts-int-active-state {
+ 		function = "gpio";
+ 		drive-strength = <8>;
+ 		bias-pull-up;
+-		input-enable;
+ 	};
+ 
+ 	ts_int_suspend: ts-int-suspend-state {
+@@ -556,7 +555,6 @@ ts_int_suspend: ts-int-suspend-state {
+ 		function = "gpio";
+ 		drive-strength = <2>;
+ 		bias-pull-down;
+-		input-enable;
+ 	};
+ 
+ 	ts_reset_active: ts-reset-active-state {
+-- 
+2.39.5
+
