@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 07:35:39 +0000
+Subject: [PATCH] dt-bindings: sound: lpass-va-macro: drop positional
+ clock-names; sm6225 SWR port attrs
+
+Two CI fixes over the LPASS macros patch (8 dtbs_check
+reports), same failure family as the TLMM (0035) and UFS PHY
+(0037) latent-binding defects:
+
+- qcom,lpass-va-macro.yaml: the base clock-names definition
+  is a positional items list [mclk, macro, dcodec, npl] while
+  the sm6115/sm6225 branch prescribes [mclk, dcodec, npl];
+  the two intersect to unsatisfiable (index 1 must be both
+  "macro" and "dcodec"). Drop the positional list in favour
+  of min/max counts, mirroring qcom,lpass-rx-macro.yaml;
+  per-SoC branches keep prescribing names.
+- SoundWire controllers need qcom,ports-offset1/offset2 and
+  a sample-interval array (binding-required). Downstream
+  carries port mappings in a different encoding; fill with
+  0xff ("not applicable", the driver's default) per port:
+  5 out ports on RX, 3 in ports on VA.
+---
+ .../bindings/sound/qcom,lpass-va-macro.yaml        |  6 +-----
+ arch/arm64/boot/dts/qcom/sm6225.dtsi               | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/sound/qcom,lpass-va-macro.yaml b/Documentation/devicetree/bindings/sound/qcom,lpass-va-macro.yaml
+index 15c919115..0e50635d8 100644
+--- a/Documentation/devicetree/bindings/sound/qcom,lpass-va-macro.yaml
++++ b/Documentation/devicetree/bindings/sound/qcom,lpass-va-macro.yaml
+@@ -45,11 +45,7 @@ properties:
+ 
+   clock-names:
+     minItems: 1
+-    items:
+-      - const: mclk
+-      - const: macro
+-      - const: dcodec
+-      - const: npl
++    maxItems: 4
+ 
+   clock-output-names:
+     maxItems: 1
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 85cf89608..b53d9a108 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -1214,6 +1214,16 @@ swr1: soundwire@a610000 {
+ 			qcom,din-ports = <0>;
+ 			qcom,dout-ports = <5>;
+ 
++			/*
++			 * Port register values are not described
++			 * downstream in this encoding; 0xff marks a
++			 * port attribute as not applicable, as most
++			 * upstream controllers do.
++			 */
++			qcom,ports-sinterval-low = /bits/ 8 <0xff 0xff 0xff 0xff 0xff>;
++			qcom,ports-offset1 = /bits/ 8 <0xff 0xff 0xff 0xff 0xff>;
++			qcom,ports-offset2 = /bits/ 8 <0xff 0xff 0xff 0xff 0xff>;
++
+ 			#address-cells = <2>;
+ 			#size-cells = <0>;
+ 			#sound-dai-cells = <1>;
+@@ -1275,6 +1285,10 @@ swr0: soundwire@a740000 {
+ 			qcom,din-ports = <3>;
+ 			qcom,dout-ports = <0>;
+ 
++			qcom,ports-sinterval-low = /bits/ 8 <0xff 0xff 0xff>;
++			qcom,ports-offset1 = /bits/ 8 <0xff 0xff 0xff>;
++			qcom,ports-offset2 = /bits/ 8 <0xff 0xff 0xff>;
++
+ 			#address-cells = <2>;
+ 			#size-cells = <0>;
+ 			#sound-dai-cells = <1>;
+-- 
+2.39.5
+
