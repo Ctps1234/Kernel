@@ -1,0 +1,133 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sat, 31 Oct 2026 22:54:09 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225/topaz: add camera control interface
+ (CCI)
+
+First sub-slice of S6 (cameras), going the upstream
+CAMSS route (no vendor Spectra):
+
+- binding: qcom,sm6225-cci as a CCI v2 part.
+- cci@5c1b000 with two masters (pins gpio22/23 and
+  gpio29/30, function cci_i2c), IRQ 206, clocks and
+  CAMSS TOP GDSC from the GCC controller (bengal-class
+  parts have no separate camera clock controller; the
+  khaje GCC driver already defines every GCC_CAMSS_*
+  clock and the TOP GDSC). CCI clock pinned to 37.5 MHz
+  as downstream.
+- Board enables the bus; sensor devices, their power
+  sequencing (WL2866D rails) and CAMSS itself follow in
+  later sub-slices.
+---
+ .../devicetree/bindings/i2c/qcom,i2c-cci.yaml |  1 +
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  5 ++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 58 +++++++++++++++++++
+ 3 files changed, 64 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/i2c/qcom,i2c-cci.yaml b/Documentation/devicetree/bindings/i2c/qcom,i2c-cci.yaml
+index 9bc99d736343..ca99ae903ae9 100644
+--- a/Documentation/devicetree/bindings/i2c/qcom,i2c-cci.yaml
++++ b/Documentation/devicetree/bindings/i2c/qcom,i2c-cci.yaml
+@@ -31,6 +31,7 @@ properties:
+               - qcom,sc8280xp-cci
+               - qcom,sdm670-cci
+               - qcom,sdm845-cci
++              - qcom,sm6225-cci
+               - qcom,sm6350-cci
+               - qcom,sm8250-cci
+               - qcom,sm8450-cci
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index eb513cc680fa..8ba37d1cc04d 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -511,6 +511,11 @@ &uart3 {
+ 	status = "okay";
+ };
+ 
++/* Camera control bus; the sensor devices land later. */
++&cci {
++	status = "okay";
++};
++
+ &ufs_mem_hc {
+ 	reset-gpios = <&tlmm 113 GPIO_ACTIVE_LOW>;
+ 	/* Ref-clk pad supply; the downstream name is vddp-ref-clk. */
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 62b382877955..ec0929cd71ce 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -799,6 +799,20 @@ qup_uart4_sleep: qup-uart4-sleep-state {
+ 				bias-pull-down;
+ 			};
+ 
++			cci0_default: cci0-default-state {
++				pins = "gpio22", "gpio23";
++				function = "cci_i2c";
++				drive-strength = <2>;
++				bias-disable;
++			};
++
++			cci1_default: cci1-default-state {
++				pins = "gpio29", "gpio30";
++				function = "cci_i2c";
++				drive-strength = <2>;
++				bias-disable;
++			};
++
+ 			qup_i2c2_default: qup-i2c2-default-state {
+ 				pins = "gpio6", "gpio7";
+ 				function = "qup2";
+@@ -1307,6 +1321,50 @@ adreno_smmu: iommu@59a0000 {
+ 			power-domains = <&gpucc GPU_CX_GDSC>;
+ 		};
+ 
++		/*
++		 * CCI (camera control I2C), two masters. Register
++		 * window/IRQ/pins from downstream qcom,cci0; clocks
++		 * and TOP GDSC come from GCC (bengal has no
++		 * separate camera clock controller). Sensor
++		 * devices and their power sequencing land with
++		 * the board camera description.
++		 */
++		cci: cci@5c1b000 {
++			compatible = "qcom,sm6225-cci", "qcom,msm8996-cci";
++			reg = <0x0 0x05c1b000 0x0 0x1000>;
++
++			interrupts = <GIC_SPI 206 IRQ_TYPE_EDGE_RISING>;
++
++			clocks = <&gcc GCC_CAMSS_TOP_AHB_CLK>, <&gcc GCC_CAMSS_CCI_0_CLK>;
++			clock-names = "ahb", "cci";
++			assigned-clocks = <&gcc GCC_CAMSS_CCI_0_CLK>;
++			assigned-clock-rates = <37500000>;
++
++			power-domains = <&gcc GCC_CAMSS_TOP_GDSC>;
++
++			pinctrl-0 = <&cci0_default &cci1_default>;
++			pinctrl-names = "default";
++
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			status = "disabled";
++
++			cci_i2c0: i2c-bus@0 {
++				reg = <0>;
++				clock-frequency = <400000>;
++				#address-cells = <1>;
++				#size-cells = <0>;
++			};
++
++			cci_i2c1: i2c-bus@1 {
++				reg = <1>;
++				clock-frequency = <400000>;
++				#address-cells = <1>;
++				#size-cells = <0>;
++			};
++		};
++
+ 		/*
+ 		 * MDSS (DPU 6.10 + single DSI). Addresses/IRQs from the
+ 		 * downstream khaje-sde-common.dtsi and the live FDT; shape
+-- 
+2.39.5
+
