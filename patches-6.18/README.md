@@ -86,6 +86,20 @@ verde — apply 38/38, `Image` linka e o DTB (S1+S2+S3) passa
 continua sem evidencia. `required-opps` (rpmpd) e no da GPU
 seguem pendentes.
 
+Atualizacao (2026-10-30, pos-S3): entram o **0040** (rpmpd
+`qcom,sm6225-rpmpd` no driver/binding/header + no sob
+`rpm_requests` + `required-opps` do MDP com os corners do
+`dispcc-khaje`) e o **0041** (GPU Adreno 610.0 GMU-less +
+`gmu`-wrapper + `adreno_smmu` + `qfprom`/speed-bin, com a
+tabela de OPPs fundida das tabelas de pwrlevel por speed-bin
+do downstream). Serie com **40 patches** (0001-0041 sem o
+0029). Vereditos: runs
+[`41156489474`](https://github.com/Ctps1234/Kernel/actions/runs/41156489474)
+e
+[`41158774144`](https://github.com/Ctps1234/Kernel/actions/runs/41158774144)
+verdes — apply limpo, `Image` linka e `dtbs_check` sem
+reportes. Firmware zap fora da serie; boot sem evidencia.
+
 ## Estado (2026-10-29)
 
 Rebaseados e verificados aplicando limpos, em ordem, sobre o commit

@@ -146,9 +146,25 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   (dívida da S2 encerrada), tabela de OPPs do MDP (rates do
   dispcc-khaje) e os matches `qcom,sm6225-smmu-500`/
   `qcom,khaje-mdss` no arm-smmu-qcom. **Dívidas restantes**:
-  `required-opps`/corners de tensão (nó rpmpd ainda não existe),
-  nó da GPU (depende de rpmpd + adreno_smmu), validar
-  TE/modo-comando do 0016 quando houver hardware.
+  ~~`required-opps`/corners (rpmpd)~~ e ~~nó da GPU~~ — ambas
+  encerradas nas fatias intermediárias 0040/0041 abaixo; resta
+  validar TE/modo-comando do 0016 quando houver hardware.
+- **Fatias intermediárias (pós-S3, CI-verdes)**:
+  - **rpmpd (0040)**, run `41156489474`: `qcom,sm6225-rpmpd`
+    (driver/binding/header; conjunto de PDs do sm6115 sobre os
+    recursos rwcx/rwmx) + nó sob `rpm_requests` + `required-opps`
+    do MDP com o mapa de corners do próprio `dispcc-khaje`
+    (LOW_SVS@200M, SVS@300M, SVS_PLUS@383M, NOM@470M,
+    TURBO@560M). Encerrou a dívida de corners da S3.
+  - **GPU (0041)**, run `41158774144`: `gpu@5900000` Adreno
+    610.0 (chipid `0x06010001`, GMU-less), `gmu@596a000`
+    (gmu-wrapper nos GDSCs CX/GX do gpucc),
+    `adreno_smmu@59a0000`, `qfprom@1b40000` com a célula
+    `gpu_speed_bin@6006` e a tabela de OPPs fundida das 5
+    tabelas de pwrlevel downstream (bins 0..4 via fuses
+    0/235/216/157/127, corners RPM 64..416 como
+    `required-opps`, `opp-supported-hw` por bin). Firmware zap
+    não faz parte da série.
 - **S4 – Áudio/ADSP**: LPASS (macros, LPI pinctrl, SoundWire),
   sndcard e ADSP PAS com firmware-name do 0026.
 - **S5 – Placa**: I2C/GPIO expanders, WL2866D, leds/teclas, PMIC
