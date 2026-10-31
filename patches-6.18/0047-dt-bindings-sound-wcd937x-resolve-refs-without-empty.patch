@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 08:21:28 +0000
+Subject: [PATCH] dt-bindings: sound: wcd937x: resolve refs without empty
+ fragment; topaz micbias4
+
+CI reported the WCD937x properties defined in
+qcom,wcd93xx-common.yaml as 'unexpected' (while its required
+list, micbias4, did apply) - the common schema is not being
+merged for the unevaluatedProperties check when referenced
+with an empty fragment. Referencing the schema without the
+trailing '#' matches how the dtschema versions used in this
+project resolve other cross-file refs. Also add the missing
+required micbias4 property on the topaz codec (2.7 V like
+the other three, downstream value).
+---
+ Documentation/devicetree/bindings/sound/qcom,wcd937x.yaml | 4 ++--
+ arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts          | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/sound/qcom,wcd937x.yaml b/Documentation/devicetree/bindings/sound/qcom,wcd937x.yaml
+index f94203798..2a2137c1d 100644
+--- a/Documentation/devicetree/bindings/sound/qcom,wcd937x.yaml
++++ b/Documentation/devicetree/bindings/sound/qcom,wcd937x.yaml
+@@ -14,8 +14,8 @@ description:
+   It has RX and TX Soundwire slave devices.
+ 
+ allOf:
+-  - $ref: dai-common.yaml#
+-  - $ref: qcom,wcd93xx-common.yaml#
++  - $ref: dai-common.yaml
++  - $ref: qcom,wcd93xx-common.yaml
+ 
+ properties:
+   compatible:
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 4fac37560..d41c98a8a 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -349,6 +349,7 @@ wcd937x: audio-codec {
+ 		qcom,micbias1-microvolt = <2700000>;
+ 		qcom,micbias2-microvolt = <2700000>;
+ 		qcom,micbias3-microvolt = <2700000>;
++		qcom,micbias4-microvolt = <2700000>;
+ 
+ 		qcom,rx-device = <&wcd937x_rx>;
+ 		qcom,tx-device = <&wcd937x_tx>;
+-- 
+2.39.5
+
