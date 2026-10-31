@@ -1,0 +1,222 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 08:04:59 +0000
+Subject: [PATCH] arm64: dts: qcom: topaz: add the WCD937x codec and sound card
+
+Closes slice S4 on the DT side:
+
+- PM6125 L14 rail (ldoa14, FDT window), the codec buck and
+  mic-bias supply.
+- WCD937x codec: SoundWire RX/TX slaves (downstream device
+  number 0xa on both buses, unique ids 0x01170223/224) and
+  the main codec node with supplies (buck=l14, rxtx/px=l9),
+  micbias 2.7 V x3 and reset on tlmm gpio92 - all from the
+  downstream wcd937x-codec node and bengal-pinctrl states.
+  Port/channel mappings are deliberately left to the
+  wcd937x driver's defaults (downstream uses a different
+  encoding). Codec variant assumed WCD9370 (bengal-IDP
+  part, same SDW unique-id class).
+- Sound card (qcom,sm6225-sndcard, new match in the sm8250
+  machine driver): WCD Playback/Capture and VA Capture
+  AudioReach backend links, routing following the upstream
+  AudioReach+WCD937x board (qcm6490-idp).
+
+Not described, deliberately: the mono SIA81xx speaker
+amplifier (no upstream driver), SWR pin states in the LPI
+pinctrl and MBHC jack parameters - all need either driver
+work or careful downstream translation and are recorded in
+the plan. CI-only, no hardware evidence.
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 117 ++++++++++++++++++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          |  22 ++++
+ sound/soc/qcom/sm8250.c                       |   1 +
+ 3 files changed, 140 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 8a55f2fa9..4fac37560 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -233,6 +233,11 @@ &lpass_rx_macro {
+ 
+ &swr1 {
+ 	status = "okay";
++
++	wcd937x_rx: codec@0,a {
++		compatible = "sdw20217010a00";
++		reg = <0 10>;
++	};
+ };
+ 
+ &lpass_tx_macro {
+@@ -245,6 +250,111 @@ &lpass_va_macro {
+ 
+ &swr0 {
+ 	status = "okay";
++
++	wcd937x_tx: codec@0,a {
++		compatible = "sdw20217010a00";
++		reg = <0 10>;
++	};
++};
++
++/*
++ * Sound: AudioReach backends into the LPASS macros and the
++ * external WCD937x codec (model string and routes follow the
++ * upstream AudioReach boards with the same codec; mic-bias
++ * voltages and supplies are from the downstream wcd937x-codec
++ * node). The mono SIA81xx speaker amplifier has no upstream
++ * driver, so the speaker path is not described yet.
++ */
++/ {
++	sound {
++		compatible = "qcom,sm6225-sndcard";
++		model = "topaz";
++
++		audio-routing = "IN1_HPHL", "HPHL_OUT",
++				"IN2_HPHR", "HPHR_OUT",
++				"AMIC2", "MIC BIAS2",
++				"TX DMIC0", "MIC BIAS1",
++				"TX DMIC1", "MIC BIAS2",
++				"TX DMIC2", "MIC BIAS3",
++				"TX SWR_ADC1", "ADC2_OUTPUT",
++				"VA DMIC0", "VA MIC BIAS3",
++				"VA DMIC1", "VA MIC BIAS3",
++				"VA DMIC2", "VA MIC BIAS1",
++				"VA DMIC3", "VA MIC BIAS1";
++
++		wcd-playback-dai-link {
++			link-name = "WCD Playback";
++
++			codec {
++				sound-dai = <&wcd937x 0>, <&swr1 0>,
++					    <&lpass_rx_macro 0>;
++			};
++
++			cpu {
++				sound-dai = <&q6apmbedai RX_CODEC_DMA_RX_0>;
++			};
++
++			platform {
++				sound-dai = <&q6apm>;
++			};
++		};
++
++		wcd-capture-dai-link {
++			link-name = "WCD Capture";
++
++			codec {
++				sound-dai = <&wcd937x 1>, <&swr0 0>,
++					    <&lpass_tx_macro 0>;
++			};
++
++			cpu {
++				sound-dai = <&q6apmbedai TX_CODEC_DMA_TX_3>;
++			};
++
++			platform {
++				sound-dai = <&q6apm>;
++			};
++		};
++
++		va-dai-link {
++			link-name = "VA Capture";
++
++			codec {
++				sound-dai = <&lpass_va_macro 0>;
++			};
++
++			cpu {
++				sound-dai = <&q6apmbedai VA_CODEC_DMA_TX_0>;
++			};
++
++			platform {
++				sound-dai = <&q6apm>;
++			};
++		};
++	};
++
++	wcd937x: audio-codec {
++		compatible = "qcom,wcd9370-codec";
++
++		pinctrl-0 = <&wcd_default>;
++		pinctrl-names = "default";
++
++		reset-gpios = <&tlmm 92 GPIO_ACTIVE_LOW>;
++
++		vdd-buck-supply = <&pm6125_l14>;
++		vdd-rxtx-supply = <&pm6125_l9>;
++		vdd-px-supply = <&pm6125_l9>;
++		vdd-mic-bias-supply = <&pm6125_l14>;
++
++		qcom,micbias1-microvolt = <2700000>;
++		qcom,micbias2-microvolt = <2700000>;
++		qcom,micbias3-microvolt = <2700000>;
++
++		qcom,rx-device = <&wcd937x_rx>;
++		qcom,tx-device = <&wcd937x_tx>;
++
++		#sound-dai-cells = <1>;
++	};
+ };
+ 
+ &uart4 {
+@@ -341,4 +451,11 @@ te_active: te-active-state {
+ 		drive-strength = <2>;
+ 		bias-pull-down;
+ 	};
++
++	wcd_default: wcd-reset-n-active-state {
++		pins = "gpio92";
++		function = "gpio";
++		drive-strength = <16>;
++		bias-disable;
++	};
+ };
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index b53d9a108..3db79f986 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -493,6 +493,28 @@ pm6125_l11: regulator-l11 {
+ 					};
+ 				};
+ 
++				/*
++				 * L14: WCD937x codec buck/mic-bias rail
++				 * (window/init from the live FDT).
++				 */
++				rpm-regulator-ldoa14 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "ldoa";
++					qcom,resource-id = <14>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l14: regulator-l14 {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l14";
++						qcom,set = <3>;
++						regulator-min-microvolt = <1696672>;
++						regulator-max-microvolt = <1900992>;
++						qcom,init-voltage = <1696672>;
++					};
++				};
++
+ 				rpm-regulator-ldoa18 {
+ 					compatible = "qcom,rpm-smd-regulator-resource";
+ 					qcom,resource-name = "ldoa";
+diff --git a/sound/soc/qcom/sm8250.c b/sound/soc/qcom/sm8250.c
+index f5b75a06e..3ed654fc0 100644
+--- a/sound/soc/qcom/sm8250.c
++++ b/sound/soc/qcom/sm8250.c
+@@ -212,6 +212,7 @@ static const struct of_device_id snd_sm8250_dt_match[] = {
+ 	{ .compatible = "fairphone,fp5-sndcard", .data = "qcm6490" },
+ 	{ .compatible = "qcom,qrb4210-rb2-sndcard", .data = "sm4250" },
+ 	{ .compatible = "qcom,qrb5165-rb5-sndcard", .data = "sm8250" },
++	{ .compatible = "qcom,sm6225-sndcard", .data = "sm6225" },
+ 	{ .compatible = "qcom,sm8250-sndcard", .data = "sm8250" },
+ 	{}
+ };
+-- 
+2.39.5
+
