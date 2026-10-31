@@ -165,8 +165,31 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
     0/235/216/157/127, corners RPM 64..416 como
     `required-opps`, `opp-supported-hw` por bin). Firmware zap
     não faz parte da série.
-- **S4 – Áudio/ADSP**: LPASS (macros, LPI pinctrl, SoundWire),
-  sndcard e ADSP PAS com firmware-name do 0026.
+- **S4 – Áudio/ADSP**: lado DT completo (2026-10-31) em 6
+  patches CI-verdes (runs `41176222778`, `41178236139`,
+  `41181229514`, `41184273173`):
+  - 0042: smp2p-adsp + trilhos LPI (rwlc/rwlm) +
+    `remoteproc@ab00000` (PAS do 0026) com glink/APR+FastRPC.
+  - 0043 (correção): o firmware khaje é **AudioReach/SPF** —
+    serviços Elite substituídos por `gpr{q6apm,q6prm}`;
+    `lpass_tlmm@a7c0000`.
+  - 0044: macros VA/RX/TX (bolero) + SoundWire v1.6.0
+    (@a610000/@a740000), clocks PRM.
+  - 0045 (correção de CI): binding VA autocontraditório no
+    `clock-names` posicional (defeito latente); attrs de
+    porta SWR exigidos pelo binding.
+  - 0046: codec **WCD937x** (slaves SWR dev 0xa, supplies
+    l14/l9, micbias 2,7 V, reset gpio92) + sndcard
+    `qcom,sm6225-sndcard` (links WCD Playback/Capture + VA
+    Capture).
+  - 0047 (correção de CI): refs do binding `wcd937x` sem
+    fragmento vazio + `micbias4` obrigatório.
+  **Dívidas**: alto-falante (amplificador SIA81xx **sem driver
+  upstream** — caminho não descrito), estados de pinos SWR no
+  LPI, parâmetros MBHC (jack), variante 9370 vs 9375 por
+  confirmar em hardware, e o mapeamento de portas/canais do
+  codec ficou nos defaults do driver (downstream usa outra
+  codificação).
 - **S5 – Placa**: I2C/GPIO expanders, WL2866D, leds/teclas, PMIC
   (PM6125 via SPMI), thermal-zones a partir do FDT.
 - **S6 – Câmeras**: só após decisão CAMSS vs Spectra.

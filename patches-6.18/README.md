@@ -100,6 +100,19 @@ e
 verdes — apply limpo, `Image` linka e `dtbs_check` sem
 reportes. Firmware zap fora da serie; boot sem evidencia.
 
+Atualizacao (2026-10-31, fatia S4): entram **0042–0047** —
+ADSP (smp2p, trilhos LPI rwlc/rwlm, PAS@ab00000), servicos
+**AudioReach** (GPR q6apm/q6prm; correcao do Elite), LPASS
+(LPI pinctrl, macros VA/RX/TX, SoundWire 1.6.0), codec
+WCD937x e sndcard `qcom,sm6225-sndcard`. Duas correcoes de
+binding latente no caminho (VA-macro autocontraditorio e ref
+do wcd937x — padrao dos 0035/0037). Serie com **46 patches**
+(0001-0047 sem o 0029). Vereditos: runs `41176222778`,
+`41178236139`, `41181229514`, `41184273173` verdes —
+`dtbs_check` sem reportes. Alto-falante (SIA81xx, sem driver
+upstream), pinos SWR e MBHC pendentes; firmware ADSP fora da
+serie; boot sem evidencia.
+
 ## Estado (2026-10-29)
 
 Rebaseados e verificados aplicando limpos, em ordem, sobre o commit
