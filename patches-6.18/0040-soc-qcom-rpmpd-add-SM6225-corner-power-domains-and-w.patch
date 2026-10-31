@@ -1,0 +1,218 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 01:40:31 +0000
+Subject: [PATCH] soc: qcom: rpmpd: add SM6225 corner power domains and wire
+ MDP required-opps
+
+The SM6225 was missing from the RPM corner-PD stack entirely.
+
+- rpmpd driver/binding/header: add qcom,sm6225-rpmpd with the
+  same pd set and RPM resources as sm6115 (rwcx/rwmx/rwlc/rwlm
+  level resources, max_state TURBO_NO_CPR) - same bengal RPM.
+- DT: rpmpd power-controller under rpm_requests with the SMD
+  level ladder as an opp-table (mirrors sm6115).
+- MDP opp-table: add the missing required-opps. The corners are
+  taken from the RCG vdd_data in dispcc-khaje (rate_max per
+  vdd-level-bengal enum, mapped to RPM levels by the same
+  header): LOW_SVS@200M, SVS@300M, SVS_PLUS@383M, NOM@470M,
+  TURBO@560M; the 19.2M entry gets MIN_SVS.
+
+This also unblocks the Adreno node (needs the CX power
+domain). CI-only milestone; corner behaviour is unvalidated
+on hardware.
+---
+ .../devicetree/bindings/power/qcom,rpmpd.yaml |  1 +
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 66 +++++++++++++++++--
+ drivers/pmdomain/qcom/rpmpd.c                 | 18 +++++
+ include/dt-bindings/power/qcom-rpmpd.h        | 10 +++
+ 4 files changed, 91 insertions(+), 4 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/power/qcom,rpmpd.yaml b/Documentation/devicetree/bindings/power/qcom,rpmpd.yaml
+index af5fef872..70c5297b7 100644
+--- a/Documentation/devicetree/bindings/power/qcom,rpmpd.yaml
++++ b/Documentation/devicetree/bindings/power/qcom,rpmpd.yaml
+@@ -55,6 +55,7 @@ properties:
+           - qcom,sm4450-rpmhpd
+           - qcom,sm6115-rpmpd
+           - qcom,sm6125-rpmpd
++          - qcom,sm6225-rpmpd
+           - qcom,sm6350-rpmhpd
+           - qcom,sm6375-rpmpd
+           - qcom,sm7150-rpmhpd
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 7d6a19b08..4b2500736 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -17,6 +17,7 @@
+ #include <dt-bindings/clock/qcom,rpmcc.h>
+ #include <dt-bindings/interconnect/qcom,bengal.h>
+ #include <dt-bindings/interrupt-controller/arm-gic.h>
++#include <dt-bindings/power/qcom-rpmpd.h>
+ #include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
+ 
+ / {
+@@ -243,6 +244,55 @@ rpmcc: clock-controller {
+ 					#clock-cells = <1>;
+ 				};
+ 
++				/*
++				 * Corner (voltage-level) power domains
++				 * over the same RPM rwcx/rwmx resources,
++				 * for OPP required-opps coupling; the pd
++				 * set mirrors sm6115 (same bengal RPM
++				 * resources).
++				 */
++				rpmpd: power-controller {
++					compatible = "qcom,sm6225-rpmpd";
++					#power-domain-cells = <1>;
++					operating-points-v2 = <&rpmpd_opp_table>;
++
++					rpmpd_opp_table: opp-table {
++						compatible = "operating-points-v2";
++
++						rpmpd_opp_min_svs: opp1 {
++							opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
++						};
++
++						rpmpd_opp_low_svs: opp2 {
++							opp-level = <RPM_SMD_LEVEL_LOW_SVS>;
++						};
++
++						rpmpd_opp_svs: opp3 {
++							opp-level = <RPM_SMD_LEVEL_SVS>;
++						};
++
++						rpmpd_opp_svs_plus: opp4 {
++							opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
++						};
++
++						rpmpd_opp_nom: opp5 {
++							opp-level = <RPM_SMD_LEVEL_NOM>;
++						};
++
++						rpmpd_opp_nom_plus: opp6 {
++							opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
++						};
++
++						rpmpd_opp_turbo: opp7 {
++							opp-level = <RPM_SMD_LEVEL_TURBO>;
++						};
++
++						rpmpd_opp_turbo_plus: opp8 {
++							opp-level = <RPM_SMD_LEVEL_TURBO_NO_CPR>;
++						};
++					};
++				};
++
+ 				rpm-regulator-smpa3 {
+ 					compatible = "qcom,rpm-smd-regulator-resource";
+ 					qcom,resource-name = "rwcx";
+@@ -762,36 +812,44 @@ mdss_mdp: display-controller@5e01000 {
+ 
+ 				/*
+ 				* Rates of ftbl_disp_cc_mdss_mdp_clk_src
+-				* in dispcc-khaje. No required-opps yet:
+-				* the CX corner coupling needs the rpmpd
+-				* node, which does not exist yet; voltage
+-				* scaling of the MDP core is deferred.
++				* in dispcc-khaje; the corner ladder is
++				* the vdd_data of the same RCG (bengal
++				* vdd-level enums mapped through
++				* vdd-level-bengal.h): LOW_SVS@200M,
++				* SVS@300M, SVS_PLUS@383M, NOM@470M,
++				* TURBO@560M.
+ 				*/
+ 				mdp_opp_table: opp-table {
+ 					compatible = "operating-points-v2";
+ 
+ 					opp-19200000 {
+ 						opp-hz = /bits/ 64 <19200000>;
++						required-opps = <&rpmpd_opp_min_svs>;
+ 					};
+ 
+ 					opp-200000000 {
+ 						opp-hz = /bits/ 64 <200000000>;
++						required-opps = <&rpmpd_opp_low_svs>;
+ 					};
+ 
+ 					opp-300000000 {
+ 						opp-hz = /bits/ 64 <300000000>;
++						required-opps = <&rpmpd_opp_svs>;
+ 					};
+ 
+ 					opp-383000000 {
+ 						opp-hz = /bits/ 64 <383000000>;
++						required-opps = <&rpmpd_opp_svs_plus>;
+ 					};
+ 
+ 					opp-470000000 {
+ 						opp-hz = /bits/ 64 <470000000>;
++						required-opps = <&rpmpd_opp_nom>;
+ 					};
+ 
+ 					opp-560000000 {
+ 						opp-hz = /bits/ 64 <560000000>;
++						required-opps = <&rpmpd_opp_turbo>;
+ 					};
+ 				};
+ 
+diff --git a/drivers/pmdomain/qcom/rpmpd.c b/drivers/pmdomain/qcom/rpmpd.c
+index f8580ec0f..4d4cc5c73 100644
+--- a/drivers/pmdomain/qcom/rpmpd.c
++++ b/drivers/pmdomain/qcom/rpmpd.c
+@@ -880,6 +880,23 @@ static const struct rpmpd_desc sm6115_desc = {
+ 	.max_state = RPM_SMD_LEVEL_TURBO_NO_CPR,
+ };
+ 
++static struct rpmpd *sm6225_rpmpds[] = {
++	[SM6225_VDDCX] =	&cx_rwcx0_lvl,
++	[SM6225_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
++	[SM6225_VDDCX_VFL] =	&cx_rwcx0_vfl,
++	[SM6225_VDDMX] =	&mx_rwmx0_lvl,
++	[SM6225_VDDMX_AO] =	&mx_rwmx0_lvl_ao,
++	[SM6225_VDDMX_VFL] =	&mx_rwmx0_vfl,
++	[SM6225_VDD_LPI_CX] =	&lpi_cx_rwlc0_lvl,
++	[SM6225_VDD_LPI_MX] =	&lpi_mx_rwlm0_lvl,
++};
++
++static const struct rpmpd_desc sm6225_desc = {
++	.rpmpds = sm6225_rpmpds,
++	.num_pds = ARRAY_SIZE(sm6225_rpmpds),
++	.max_state = RPM_SMD_LEVEL_TURBO_NO_CPR,
++};
++
+ static struct rpmpd *sm6125_rpmpds[] = {
+ 	[RPMPD_VDDCX] =		&cx_rwcx0_lvl,
+ 	[RPMPD_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
+@@ -951,6 +968,7 @@ static const struct of_device_id rpmpd_match_table[] = {
+ 	{ .compatible = "qcom,sdm660-rpmpd", .data = &sdm660_desc },
+ 	{ .compatible = "qcom,sm6115-rpmpd", .data = &sm6115_desc },
+ 	{ .compatible = "qcom,sm6125-rpmpd", .data = &sm6125_desc },
++	{ .compatible = "qcom,sm6225-rpmpd", .data = &sm6225_desc },
+ 	{ .compatible = "qcom,sm6375-rpmpd", .data = &sm6375_desc },
+ 	{ }
+ };
+diff --git a/include/dt-bindings/power/qcom-rpmpd.h b/include/dt-bindings/power/qcom-rpmpd.h
+index 4371ac941..20bf481aa 100644
+--- a/include/dt-bindings/power/qcom-rpmpd.h
++++ b/include/dt-bindings/power/qcom-rpmpd.h
+@@ -178,6 +178,16 @@
+ #define SM6115_VDD_LPI_CX	6
+ #define SM6115_VDD_LPI_MX	7
+ 
++/* SM6225 Power Domains */
++#define SM6225_VDDCX		0
++#define SM6225_VDDCX_AO		1
++#define SM6225_VDDCX_VFL	2
++#define SM6225_VDDMX		3
++#define SM6225_VDDMX_AO		4
++#define SM6225_VDDMX_VFL	5
++#define SM6225_VDD_LPI_CX	6
++#define SM6225_VDD_LPI_MX	7
++
+ /* SM6125 Power Domains */
+ #define SM6125_VDDCX		RPMPD_VDDCX
+ #define SM6125_VDDCX_AO		RPMPD_VDDCX_AO
+-- 
+2.39.5
+
