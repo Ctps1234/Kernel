@@ -1,0 +1,218 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Arena <arena@local>
+Date: Sat, 31 Oct 2026 00:18:19 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: add apps_smmu, MDSS/UFS iommus and
+ MDP OPPs
+
+Follow-up to the S3 display slice: the first CI round failed
+dtbs_check with exactly two reports - qcom,khaje-mdss requires
+iommus and qcom,khaje-dpu requires operating-points-v2.
+
+- apps_smmu: iommu@c600000 (qcom,sm6225-smmu-500), reg/IRQs
+  identical to sm6115 and to the live FDT
+  (apps-smmu@0xc600000, global SPI 81 + context 88..151).
+- mdss iommus <0x420 0x2> / <0x421 0x0> (downstream FDT values,
+  matching the binding example and qcom,handoff-smrs).
+- ufshc iommus <0x100 0x0> - closes the documented S2 debt now
+  that the SMMU exists.
+- mdp_opp_table with the dispcc-khaje MDP RCG rates
+  (19.2/200/300/383/470/560 MHz). required-opps are still
+  missing: CX corner coupling needs the rpmpd node.
+- arm-smmu-qcom: match qcom,sm6225-smmu-500 to the same
+  impl0 data as sm6115 (same MMU-500) and add qcom,khaje-mdss
+  to the client table that carries sm6115-mdss.
+---
+ arch/arm64/boot/dts/qcom/sm6225.dtsi       | 123 ++++++++++++++++++++-
+ drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c |   2 +
+ 2 files changed, 123 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index a65afadd8..7d6a19b08 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -569,6 +569,7 @@ rpm_msg_ram: sram@45f0000 {
+ 		ufs_mem_hc: ufshc@4804000 {
+ 			compatible = "qcom,sm6225-ufshc", "qcom,ufshc",
+ 				     "jedec,ufs-2.0";
++			iommus = <&apps_smmu 0x100 0x0>;
+ 			reg = <0x0 0x04804000 0x0 0x3000>,
+ 			      <0x0 0x04810000 0x0 0x8000>;
+ 			reg-names = "std", "ice";
+@@ -705,8 +706,7 @@ gpucc: clock-controller@5990000 {
+ 		 * downstream khaje-sde-common.dtsi and the live FDT; shape
+ 		 * and clocks follow the in-tree qcom,khaje-mdss /
+ 		 * qcom,khaje-dpu bindings (whose examples are written for
+-		 * this SoC). No iommus yet (no apps_smmu node; same debt as
+-		 * UFS) and no MDP OPP table yet.
++		 * this SoC).
+ 		 */
+ 		mdss: display-subsystem@5e00000 {
+ 			compatible = "qcom,khaje-mdss";
+@@ -724,6 +724,9 @@ mdss: display-subsystem@5e00000 {
+ 			interrupt-controller;
+ 			#interrupt-cells = <1>;
+ 
++			iommus = <&apps_smmu 0x420 0x2>,
++				 <&apps_smmu 0x421 0x0>;
++
+ 			interconnects = <&mmrt_virt MASTER_MDP_PORT0
+ 					 &bimc SLAVE_EBI_CH0>,
+ 					<&bimc MASTER_AMPSS_M0
+@@ -751,11 +754,47 @@ mdss_mdp: display-controller@5e01000 {
+ 				clock-names = "bus", "iface", "core", "lut",
+ 					      "rot", "vsync";
+ 
++				operating-points-v2 = <&mdp_opp_table>;
+ 				power-domains = <&dispcc MDSS_GDSC>;
+ 
+ 				interrupt-parent = <&mdss>;
+ 				interrupts = <0>;
+ 
++				/*
++				* Rates of ftbl_disp_cc_mdss_mdp_clk_src
++				* in dispcc-khaje. No required-opps yet:
++				* the CX corner coupling needs the rpmpd
++				* node, which does not exist yet; voltage
++				* scaling of the MDP core is deferred.
++				*/
++				mdp_opp_table: opp-table {
++					compatible = "operating-points-v2";
++
++					opp-19200000 {
++						opp-hz = /bits/ 64 <19200000>;
++					};
++
++					opp-200000000 {
++						opp-hz = /bits/ 64 <200000000>;
++					};
++
++					opp-300000000 {
++						opp-hz = /bits/ 64 <300000000>;
++					};
++
++					opp-383000000 {
++						opp-hz = /bits/ 64 <383000000>;
++					};
++
++					opp-470000000 {
++						opp-hz = /bits/ 64 <470000000>;
++					};
++
++					opp-560000000 {
++						opp-hz = /bits/ 64 <560000000>;
++					};
++				};
++
+ 				ports {
+ 					#address-cells = <1>;
+ 					#size-cells = <0>;
+@@ -852,6 +891,86 @@ dispcc: clock-controller@5f00000 {
+ 			#power-domain-cells = <1>;
+ 		};
+ 
++		/*
++		 * Apps SMMU (MMU-500). Address and IRQs are identical to
++		 * sm6115 and to the live FDT (apps-smmu@0xc600000). The
++		 * qcom,khaje-mdss binding requires the MDSS iommus,
++		 * which pulls this node into the display slice; the UFS
++		 * stream is wired retroactively in the same patch.
++		 */
++		apps_smmu: iommu@c600000 {
++			compatible = "qcom,sm6225-smmu-500", "qcom,smmu-500", "arm,mmu-500";
++			reg = <0x0 0x0c600000 0x0 0x80000>;
++			#iommu-cells = <2>;
++			#global-interrupts = <1>;
++
++			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
++		};
++
+ 		apcs_glb: mailbox@f111000 {
+ 			compatible = "qcom,sm6225-apcs-hmss-global",
+ 				     "qcom,msm8994-apcs-kpss-global";
+diff --git a/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c b/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c
+index 57c097e87..76d3b63db 100644
+--- a/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c
++++ b/drivers/iommu/arm/arm-smmu/arm-smmu-qcom.c
+@@ -367,6 +367,7 @@ static int qcom_adreno_smmu_init_context(struct arm_smmu_domain *smmu_domain,
+ static const struct of_device_id qcom_smmu_client_of_match[] __maybe_unused = {
+ 	{ .compatible = "qcom,adreno" },
+ 	{ .compatible = "qcom,adreno-gmu" },
++	{ .compatible = "qcom,khaje-mdss" },
+ 	{ .compatible = "qcom,mdp4" },
+ 	{ .compatible = "qcom,mdss" },
+ 	{ .compatible = "qcom,qcm2290-mdss" },
+@@ -707,6 +708,7 @@ static const struct of_device_id __maybe_unused qcom_smmu_impl_of_match[] = {
+ 	{ .compatible = "qcom,sdm845-smmu-v2", .data = &qcom_smmu_v2_data },
+ 	{ .compatible = "qcom,sdm845-smmu-500", .data = &sdm845_smmu_500_data },
+ 	{ .compatible = "qcom,sm6115-smmu-500", .data = &qcom_smmu_500_impl0_data},
++	{ .compatible = "qcom,sm6225-smmu-500", .data = &qcom_smmu_500_impl0_data},
+ 	{ .compatible = "qcom,sm6125-smmu-500", .data = &qcom_smmu_500_impl0_data },
+ 	{ .compatible = "qcom,sm6350-smmu-v2", .data = &qcom_smmu_v2_data },
+ 	{ .compatible = "qcom,sm6350-smmu-500", .data = &qcom_smmu_500_impl0_data },
+-- 
+2.39.5
+
