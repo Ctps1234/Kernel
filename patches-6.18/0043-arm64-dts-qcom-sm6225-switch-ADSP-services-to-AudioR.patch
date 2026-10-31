@@ -1,0 +1,198 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 06:50:44 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: switch ADSP services to AudioReach,
+ add LPI pinctrl
+
+Correction to the previous patch, found while scouting the
+LPASS blocks: the Khaje ADSP firmware is SPF/AudioReach (the
+downstream DT has spf_core_platform/bolero-codec and a
+"qcom,gpr" endpoint on the "adsp_apps" channel), it does not
+offer the legacy Elite APR services.
+
+- Replace the apr { q6core/q6afe/q6asm/q6adm } subtree in the
+  ADSP glink-edge with gpr { q6apm/q6prm }, following the
+  upstream AudioReach shape (sm8450). The audio context-bank
+  stream id 0x1c1 moves to the APM frontends; FastRPC is
+  unchanged. qcom,intents 512/20 matches the downstream gpr
+  node.
+- Add lpass_tlmm (LPI pinctrl): base registers at
+  0xa7c0000/0xa950000 and 19 gpios from the downstream
+  lpi_pinctrl node; the sm6115 LPI binding already covers
+  sm6225 as a fallback. The audio vote comes from the new
+  PRM clock service (DCODEC vote), replacing the Elite
+  q6afecc supply.
+
+The LPASS codec macros, their SoundWire controllers, the
+lpasscc clock controller and the sound card remain for the
+following patches of the slice.
+---
+ arch/arm64/boot/dts/qcom/sm6225.dtsi | 118 +++++++++++++--------------
+ 1 file changed, 59 insertions(+), 59 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index f6a1f2dae..3ee844366 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -20,8 +20,8 @@
+ #include <dt-bindings/interrupt-controller/arm-gic.h>
+ #include <dt-bindings/power/qcom-rpmpd.h>
+ #include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
+-#include <dt-bindings/soc/qcom,apr.h>
+-#include <dt-bindings/sound/qcom,q6asm.h>
++#include <dt-bindings/soc/qcom,gpr.h>
++#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
+ 
+ / {
+ 	interrupt-parent = <&intc>;
+@@ -1168,17 +1168,40 @@ dispcc: clock-controller@5f00000 {
+ 			#power-domain-cells = <1>;
+ 		};
+ 
++		/*
++		 * LPASS LPI TLMM (downstream lpi_pinctrl@ac40000
++		 * refers to @a7c0000 with slew registers at
++		 * 0xa95a000 and 19 gpios - same window layout as
++		 * sm6115, whose binding already covers sm6225).
++		 */
++		lpass_tlmm: pinctrl@a7c0000 {
++			compatible = "qcom,sm6225-lpass-lpi-pinctrl",
++				     "qcom,sm6115-lpass-lpi-pinctrl";
++			reg = <0x0 0x0a7c0000 0x0 0x20000>,
++			      <0x0 0x0a950000 0x0 0x10000>;
++
++			clocks = <&q6prmcc LPASS_HW_DCODEC_VOTE
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
++			clock-names = "audio";
++
++			gpio-controller;
++			#gpio-cells = <2>;
++			gpio-ranges = <&lpass_tlmm 0 0 19>;
++		};
++
+ 		/*
+ 		 * ADSP (LPASS Hexagon) via PAS. Register window,
+ 		 * supplies and IRQs come from the downstream
+ 		 * adsp_pas node (khaje.dtsi) and the live FDT; the
+ 		 * node shape follows the in-tree qcom,sm6225-pas
+ 		 * binding (its driver data uses the cx/mx regulator
+-		 * supply path with TURBO level votes). The APR/Q6
+-		 * services and FastRPC context banks mirror sm6115
+-		 * with the stream ids confirmed in the downstream
+-		 * FDT. The LPASS hardware blocks (macros, lpasscc,
+-		 * soundwire) land in the next slice.
++		 * supply path with TURBO level votes). The glink
++		 * services are AudioReach (SPF) APM/PRM over GPR
++		 * (see the note inside glink-edge); the FastRPC
++		 * context banks mirror sm6115 with the stream ids
++		 * confirmed in the downstream FDT. The LPASS
++		 * hardware blocks (macros, lpasscc, soundwire,
++		 * sound card) land in the next slices.
+ 		 */
+ 		remoteproc_adsp: remoteproc@ab00000 {
+ 			compatible = "qcom,sm6225-adsp-pas";
+@@ -1211,72 +1234,49 @@ glink-edge {
+ 				qcom,remote-pid = <2>;
+ 				mboxes = <&apcs_glb 8>;
+ 
+-				apr {
+-					compatible = "qcom,apr-v2";
+-					qcom,glink-channels = "apr_audio_svc";
+-					qcom,domain = <APR_DOMAIN_ADSP>;
++				/*
++				 * Khaje ADSP firmware speaks AudioReach (SPF),
++				 * not the legacy Elite APR services - the
++				 * downstream DT has spf_core_platform and a
++				 * "qcom,gpr" node on the "adsp_apps" channel.
++				 * Stream id for the APM frontends is the
++				 * downstream audio context bank (0x1c1).
++				 */
++				gpr {
++					compatible = "qcom,gpr";
++					qcom,glink-channels = "adsp_apps";
++					qcom,domain = <GPR_DOMAIN_ID_ADSP>;
++					qcom,intents = <512 20>;
+ 					#address-cells = <1>;
+ 					#size-cells = <0>;
+ 
+-					service@3 {
+-						reg = <APR_SVC_ADSP_CORE>;
+-						compatible = "qcom,q6core";
++					q6apm: service@1 {
++						compatible = "qcom,q6apm";
++						reg = <GPR_APM_MODULE_IID>;
++						#sound-dai-cells = <0>;
+ 						qcom,protection-domain = "avs/audio",
+ 									 "msm/adsp/audio_pd";
+-					};
+ 
+-					q6afe: service@4 {
+-						compatible = "qcom,q6afe";
+-						reg = <APR_SVC_AFE>;
+-						qcom,protection-domain = "avs/audio",
+-									 "msm/adsp/audio_pd";
+-						q6afedai: dais {
+-							compatible = "qcom,q6afe-dais";
+-							#address-cells = <1>;
+-							#size-cells = <0>;
+-							#sound-dai-cells = <1>;
++						q6apmdai: dais {
++							compatible = "qcom,q6apm-dais";
++							iommus = <&apps_smmu 0x1c1 0x0>;
+ 						};
+ 
+-						q6afecc: clock-controller {
+-							compatible = "qcom,q6afe-clocks";
+-							#clock-cells = <2>;
+-						};
+-					};
+-
+-					q6asm: service@7 {
+-						compatible = "qcom,q6asm";
+-						reg = <APR_SVC_ASM>;
+-						qcom,protection-domain = "avs/audio",
+-									 "msm/adsp/audio_pd";
+-						q6asmdai: dais {
+-							compatible = "qcom,q6asm-dais";
+-							#address-cells = <1>;
+-							#size-cells = <0>;
++						q6apmbedai: bedais {
++							compatible = "qcom,q6apm-lpass-dais";
+ 							#sound-dai-cells = <1>;
+-							iommus = <&apps_smmu 0x1c1 0x0>;
+-
+-							dai@0 {
+-								reg = <MSM_FRONTEND_DAI_MULTIMEDIA1>;
+-							};
+-
+-							dai@1 {
+-								reg = <MSM_FRONTEND_DAI_MULTIMEDIA2>;
+-							};
+-
+-							dai@2 {
+-								reg = <MSM_FRONTEND_DAI_MULTIMEDIA3>;
+-							};
+ 						};
+ 					};
+ 
+-					q6adm: service@8 {
+-						compatible = "qcom,q6adm";
+-						reg = <APR_SVC_ADM>;
++					q6prm: service@2 {
++						compatible = "qcom,q6prm";
++						reg = <GPR_PRM_MODULE_IID>;
+ 						qcom,protection-domain = "avs/audio",
+ 									 "msm/adsp/audio_pd";
+-						q6routing: routing {
+-							compatible = "qcom,q6adm-routing";
+-							#sound-dai-cells = <0>;
++
++						q6prmcc: clock-controller {
++							compatible = "qcom,q6prm-lpass-clocks";
++							#clock-cells = <2>;
+ 						};
+ 					};
+ 				};
+-- 
+2.39.5
+
