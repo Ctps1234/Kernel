@@ -131,14 +131,23 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   (c) os stubs de clock-símbolo da PHY como parents do GCC
   continuam (como downstream); trocar pelos clocks reais da PHY
   é limpeza posterior.
-- **S3 – Display**: ESCRITA (2026-10-30) como **0038**, aguardando
-  CI. gpucc@5990000 + dispcc@5f00000 (parents e `vdd_cx`/`vdd_mx`
-  dos bindings khaje), MDSS@5e00000/DPU@5e01000/DSI@5e94000/
-  PHY-7nm@5e94400 (endereços/IRQ 186 do `khaje-sde-common.dtsi`;
-  clocks dos bindings khaje-mdss/dpu), painel M7 0a na placa
-  (`vddio`=l9, recurso RPM `ldoa9`; reset gpio82; enable LCM
-  gpio54; TE gpio81) e supplies DSI/PHY (l18/l4). **Dívidas**:
-  `iommus` (SMMU), OPP do MDP, nó da GPU (só gpucc), validar
+- **S3 – Display**: CONCLUÍDA (CI) em 2026-10-30 — **0038** +
+  **0039**, run `41149442110` verde (apply 38/38, `Image` linka,
+  `dtbs_check` sem reportes). Conteúdo: gpucc@5990000 +
+  dispcc@5f00000 (parents e `vdd_cx`/`vdd_mx` dos bindings khaje),
+  MDSS@5e00000/DPU@5e01000/DSI@5e94000/PHY-7nm@5e94400
+  (endereços/IRQ 186 do `khaje-sde-common.dtsi`; clocks dos
+  bindings khaje-mdss/dpu), painel M7 0a (`vddio`=l9, recurso RPM
+  `ldoa9`; reset gpio82; enable LCM gpio54; TE gpio81) e
+  supplies DSI/PHY (l18/l4). A primeira rodada reprovou com 2
+  reportes (`iommus` e `operating-points-v2` obrigatórios pelos
+  bindings); o **0039** puxou o `apps_smmu@c600000` para esta
+  fatia e ligou `iommus` de MDSS e, retroativamente, do UFS
+  (dívida da S2 encerrada), tabela de OPPs do MDP (rates do
+  dispcc-khaje) e os matches `qcom,sm6225-smmu-500`/
+  `qcom,khaje-mdss` no arm-smmu-qcom. **Dívidas restantes**:
+  `required-opps`/corners de tensão (nó rpmpd ainda não existe),
+  nó da GPU (depende de rpmpd + adreno_smmu), validar
   TE/modo-comando do 0016 quando houver hardware.
 - **S4 – Áudio/ADSP**: LPASS (macros, LPI pinctrl, SoundWire),
   sndcard e ADSP PAS com firmware-name do 0026.

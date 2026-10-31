@@ -73,6 +73,19 @@ Atualizacao (2026-10-30, fatia S3): entra o **0038** — MDSS
 0029). Dividas pendentes (`iommus`/SMMU, OPP do MDP, no da GPU),
 documentadas no plano de DT. Aguardando veredito do CI.
 
+Errata/veredito da S3 (mesmo dia): a run `41146627214` reprovou o
+`dtbs_check` com 2 reportes — os bindings `qcom,khaje-mdss` e
+`qcom,khaje-dpu` exigem `iommus` e `operating-points-v2`. Entra o
+**0039**: `apps_smmu@c600000` (identico ao sm6115/FDT), `iommus`
+do MDSS e retroativo do UFS (SID 0x100 — divida da S2 encerrada),
+OPPs do MDP (rates do dispcc-khaje) e matches no arm-smmu-qcom.
+Serie com **38 patches** (0001-0039 sem o 0029). Veredito: run
+[`41149442110`](https://github.com/Ctps1234/Kernel/actions/runs/41149442110)
+verde — apply 38/38, `Image` linka e o DTB (S1+S2+S3) passa
+`dtbs_check` sem reportes. S3 concluida no sentido CI; boot
+continua sem evidencia. `required-opps` (rpmpd) e no da GPU
+seguem pendentes.
+
 ## Estado (2026-10-29)
 
 Rebaseados e verificados aplicando limpos, em ordem, sobre o commit
