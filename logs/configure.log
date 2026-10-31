@@ -1,0 +1,154 @@
+arvore com PSTORE_RAM: exigindo ramoops built-in
+usando compilador cruzado: aarch64-linux-gnu-gcc
+== defconfig GKI ==
+  HOSTCC  scripts/basic/fixdep
+  HOSTCC  scripts/kconfig/conf.o
+  HOSTCC  scripts/kconfig/confdata.o
+  HOSTCC  scripts/kconfig/expr.o
+  LEX     scripts/kconfig/lexer.lex.c
+  YACC    scripts/kconfig/parser.tab.[ch]
+  HOSTCC  scripts/kconfig/lexer.lex.o
+  HOSTCC  scripts/kconfig/menu.o
+  HOSTCC  scripts/kconfig/parser.tab.o
+  HOSTCC  scripts/kconfig/preprocess.o
+  HOSTCC  scripts/kconfig/symbol.o
+  HOSTCC  scripts/kconfig/util.o
+  HOSTLD  scripts/kconfig/conf
+*** Default configuration is based on 'defconfig'
+#
+# configuration written to .config
+#
+== mesclando /home/runner/work/Kernel/Kernel/config/topaz-khaje.config ==
+.merged-khaje.config:11275:warning: override: reassigning to symbol ARCH_QCOM
+.merged-khaje.config:11276:warning: override: reassigning to symbol QCOM_SMD_RPM
+.merged-khaje.config:11278:warning: override: reassigning to symbol COMMON_CLK_QCOM
+.merged-khaje.config:11279:warning: override: reassigning to symbol SM_GCC_6225
+.merged-khaje.config:11281:warning: override: reassigning to symbol SM_GPUCC_6225
+.merged-khaje.config:11284:warning: override: reassigning to symbol PINCTRL_MSM
+.merged-khaje.config:11285:warning: override: reassigning to symbol PINCTRL_KHAJE
+.merged-khaje.config:11287:warning: override: reassigning to symbol INTERCONNECT_QCOM
+.merged-khaje.config:11288:warning: override: reassigning to symbol INTERCONNECT_QCOM_BENGAL
+.merged-khaje.config:11290:warning: override: reassigning to symbol REGULATOR_QCOM_SMD_RPM
+.merged-khaje.config:11292:warning: override: reassigning to symbol PHY_QCOM_QMP
+.merged-khaje.config:11293:warning: override: reassigning to symbol PHY_QCOM_QMP_UFS
+.merged-khaje.config:11296:warning: override: reassigning to symbol QCOM_PANEL_EVENT_NOTIFIER
+.merged-khaje.config:11309:warning: override: reassigning to symbol DRM
+.merged-khaje.config:11310:warning: override: reassigning to symbol DRM_MSM
+.merged-khaje.config:11311:warning: override: reassigning to symbol DRM_MSM_DPU
+.merged-khaje.config:11316:warning: override: reassigning to symbol BACKLIGHT_CLASS_DEVICE
+.merged-khaje.config:11317:warning: override: reassigning to symbol DRM_PANEL_XIAOMI_M7
+.merged-khaje.config:11318:warning: override: reassigning to symbol QCOM_LLCC
+.merged-khaje.config:11319:warning: override: reassigning to symbol QCOM_OCMEM
+.merged-khaje.config:11327:warning: override: reassigning to symbol SCSI_UFS_QCOM
+.merged-khaje.config:11330:warning: override: reassigning to symbol BLK_DEV_DM
+.merged-khaje.config:11331:warning: override: reassigning to symbol DM_VERITY
+.merged-khaje.config:11334:warning: override: reassigning to symbol F2FS_FS
+.merged-khaje.config:11335:warning: override: reassigning to symbol EROFS_FS
+.merged-khaje.config:11339:warning: override: reassigning to symbol USB_CONFIGFS
+.merged-khaje.config:11340:warning: override: reassigning to symbol USB_CONFIGFS_F_FS
+.merged-khaje.config:11345:warning: override: reassigning to symbol PSTORE_BLK
+.merged-khaje.config:11353:warning: override: reassigning to symbol PSTORE
+.merged-khaje.config:11354:warning: override: reassigning to symbol PSTORE_RAM
+.merged-khaje.config:11355:warning: override: reassigning to symbol PSTORE_CONSOLE
+.merged-khaje.config:11363:warning: override: reassigning to symbol I2C
+.merged-khaje.config:11364:warning: override: reassigning to symbol QCOM_GENI_SE
+.merged-khaje.config:11365:warning: override: reassigning to symbol I2C_QCOM_GENI
+.merged-khaje.config:11366:warning: override: reassigning to symbol INPUT_TOUCHSCREEN
+.merged-khaje.config:11367:warning: override: reassigning to symbol TOUCHSCREEN_EDT_FT5X06
+.merged-khaje.config:11380:warning: override: reassigning to symbol REMOTEPROC
+.merged-khaje.config:11381:warning: override: reassigning to symbol QCOM_SYSMON
+.merged-khaje.config:11382:warning: override: reassigning to symbol RPMSG_QCOM_GLINK_SMEM
+.merged-khaje.config:11383:warning: override: reassigning to symbol QCOM_Q6V5_PAS
+.merged-khaje.config:11384:warning: override: reassigning to symbol NVMEM_QCOM_QFPROM
+.merged-khaje.config:11385:warning: override: reassigning to symbol QCOM_ADSP_LOADER
+.merged-khaje.config:11391:warning: override: reassigning to symbol SM_LPASSCC_6115
+.merged-khaje.config:11400:warning: override: reassigning to symbol QRTR
+.merged-khaje.config:11401:warning: override: reassigning to symbol QRTR_SMD
+.merged-khaje.config:11402:warning: override: reassigning to symbol QCOM_APR
+.merged-khaje.config:11406:warning: override: reassigning to symbol SOUND
+.merged-khaje.config:11407:warning: override: reassigning to symbol SND
+.merged-khaje.config:11408:warning: override: reassigning to symbol SND_SOC
+.merged-khaje.config:11409:warning: override: reassigning to symbol SND_SOC_QCOM
+.merged-khaje.config:11410:warning: override: reassigning to symbol SND_SOC_QDSP6
+.merged-khaje.config:11418:warning: override: reassigning to symbol SOUNDWIRE
+.merged-khaje.config:11419:warning: override: reassigning to symbol SOUNDWIRE_QCOM
+.merged-khaje.config:11420:warning: override: reassigning to symbol SND_SOC_LPASS_RX_MACRO
+.merged-khaje.config:11421:warning: override: reassigning to symbol SND_SOC_LPASS_TX_MACRO
+.merged-khaje.config:11422:warning: override: reassigning to symbol SND_SOC_LPASS_VA_MACRO
+.merged-khaje.config:11428:warning: override: reassigning to symbol PINCTRL_LPASS_LPI
+.merged-khaje.config:11429:warning: override: reassigning to symbol PINCTRL_SM6115_LPASS_LPI
+.merged-khaje.config:11435:warning: override: reassigning to symbol SND_SOC_WCD937X_SDW
+.merged-khaje.config:11441:warning: override: reassigning to symbol SND_SOC_SC8280XP
+.merged-khaje.config:11448:warning: override: reassigning to symbol WL2866D
+#
+# configuration written to .config
+#
+== conference dos símbolos do port Khaje ==
+  ok      CONFIG_ARCH_QCOM=y
+  ok      CONFIG_QCOM_SMD_RPM=y
+  ok      CONFIG_COMMON_CLK_QCOM=y
+  ok      CONFIG_SM_GCC_6225=y
+  ok      CONFIG_SM_DISPCC_6225=y
+  ok      CONFIG_SM_GPUCC_6225=y
+  ok      CONFIG_SM_DEBUGCC_6225=y
+  ok      CONFIG_SM_LPASSCC_6115=y
+  ok      CONFIG_PINCTRL_MSM=y
+  ok      CONFIG_PINCTRL_KHAJE=y
+  ok      CONFIG_INTERCONNECT_QCOM=y
+  ok      CONFIG_INTERCONNECT_QCOM_BENGAL=y
+  ok      CONFIG_REGULATOR_QCOM_SMD_RPM=y
+  ok      CONFIG_SCSI_UFS_QCOM=y
+  ok      CONFIG_BLK_DEV_DM=y
+  ok      CONFIG_DM_VERITY=y
+  ok      CONFIG_F2FS_FS=y
+  ok      CONFIG_EROFS_FS=y
+  ok      CONFIG_USB_CONFIGFS=y
+  ok      CONFIG_USB_CONFIGFS_F_FS=y
+  ok      CONFIG_PSTORE_BLK=y
+  ok      CONFIG_PSTORE=y
+  ok      CONFIG_PSTORE_CONSOLE=y
+  ok      CONFIG_QCOM_PANEL_EVENT_NOTIFIER=y
+  ok      CONFIG_DRM=y
+  ok      CONFIG_DRM_MSM=y
+  ok      CONFIG_DRM_MSM_DPU=y
+  ok      CONFIG_DRM_MSM_MDSS=y
+  ok      CONFIG_BACKLIGHT_CLASS_DEVICE=y
+  ok      CONFIG_DRM_PANEL_XIAOMI_M7=y
+  ok      CONFIG_I2C=y
+  ok      CONFIG_QCOM_GENI_SE=y
+  ok      CONFIG_I2C_QCOM_GENI=y
+  ok      CONFIG_INPUT_TOUCHSCREEN=y
+  ok      CONFIG_TOUCHSCREEN_EDT_FT5X06=y
+  ok      CONFIG_REMOTEPROC=y
+  ok      CONFIG_QCOM_Q6V5_PAS=y
+  ok      CONFIG_QCOM_ADSP_LOADER=y
+  ok      CONFIG_NVMEM_QCOM_QFPROM=y
+  ok      CONFIG_QCOM_SYSMON=y
+  ok      CONFIG_RPMSG_QCOM_GLINK_SMEM=y
+  ok      CONFIG_QRTR=y
+  ok      CONFIG_QRTR_SMD=y
+  ok      CONFIG_QCOM_APR=y
+  ok      CONFIG_QCOM_PDR_HELPERS=y
+  ok      CONFIG_QCOM_PDR_MSG=y
+  ok      CONFIG_QCOM_QMI_HELPERS=y
+  ok      CONFIG_SOUND=y
+  ok      CONFIG_SND=y
+  ok      CONFIG_SND_SOC=y
+  ok      CONFIG_SND_SOC_QCOM=y
+  ok      CONFIG_SND_SOC_QDSP6=y
+  ok      CONFIG_SND_SOC_QDSP6_APM=y
+  ok      CONFIG_SND_SOC_QDSP6_PRM=y
+  ok      CONFIG_SOUNDWIRE=y
+  ok      CONFIG_SOUNDWIRE_QCOM=y
+  ok      CONFIG_SND_SOC_LPASS_RX_MACRO=y
+  ok      CONFIG_SND_SOC_LPASS_TX_MACRO=y
+  ok      CONFIG_SND_SOC_LPASS_VA_MACRO=y
+  ok      CONFIG_PINCTRL_LPASS_LPI=y
+  ok      CONFIG_PINCTRL_SM6115_LPASS_LPI=y
+  ok      CONFIG_SND_SOC_WCD937X=y
+  ok      CONFIG_SND_SOC_WCD937X_SDW=y
+  ok      CONFIG_SND_SOC_SC8280XP=y
+  ok      CONFIG_WL2866D=y
+  ok      CONFIG_PSTORE_RAM=y
+  ok      CONFIG_PHY_QCOM_QMP_UFS=y
+configuração do port concluída

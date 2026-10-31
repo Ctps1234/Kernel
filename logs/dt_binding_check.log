@@ -1,0 +1,8 @@
+make[1]: aarch64-linux-gcc: No such file or directory
+  CHKDT   Documentation/devicetree/bindings
+  LINT    Documentation/devicetree/bindings
+usage: yamllint [-h] [-c CONFIG_FILE | -d CONFIG_DATA] [--list-files]
+                [-f {parsable,standard,colored,github,auto}] [-s]
+                [--no-warnings] [-v]
+                (- | FILE_OR_DIR ...)
+yamllint: error: one of the arguments FILE_OR_DIR - is required
