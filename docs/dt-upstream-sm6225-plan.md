@@ -190,8 +190,29 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   confirmar em hardware, e o mapeamento de portas/canais do
   codec ficou nos defaults do driver (downstream usa outra
   codificação).
-- **S5 – Placa**: I2C/GPIO expanders, WL2866D, leds/teclas, PMIC
-  (PM6125 via SPMI), thermal-zones a partir do FDT.
+- **S5 – Placa**: lado DT completo (2026-10-31) em 5 patches
+  CI-verdes (runs `41226732607`, `41228370915`,
+  `41231928129`, `41233199069`):
+  - 0048: `spmi@1c40000` + placa inclui o `pm6125.dtsi`
+    upstream (PON power/resin→volume−, temp-alarm+zona,
+    ADC5/ADC-TM, RTC, gpios PMIC) + volume+ no PMIC GPIO5.
+  - 0049: TSENS `qcom,sm6225-tsens` (16 sensores, IRQs
+    275/190) + 16 zonas térmicas (índices conferem 1:1 com
+    o mapa downstream bengal; sem cooling-maps ainda).
+  - 0050: QUP `i2c2@4a88000`/`i2c4@4a90000` +
+    `uart3@4a8c000` — **correção: o console khaje é SE3**
+    (alias `hsuart0` do FDT); a S1 usava SE4, que é o I2C
+    do NFC. Touch **FocalTech FT5452** (@0x38, irq 80,
+    reset 86, avdd 36; clock SE fixado em 19,2 MHz) e NFC
+    **ST21NFC** (`st,st21nfcc-i2c` @0x08, irq 70, reset 69).
+  - 0051: `input-enable` removido dos estados do touch
+    (TLMM não aceita a propriedade).
+  - 0052: vibrador `gpio-vibrator` no PM6125 GPIO8.
+  **Dívidas**: driver do touch (`focaltech,fts`) ainda não
+  importado; clkreq/clock de RF do NFC fora do binding
+  upstream; GPI DMA não descrito (I2C em modo FIFO); flash
+  LED ficou com a fatia de câmeras; calibração TSENS opera
+  no modo "calibrationless" (como o sm6115 upstream).
 - **S6 – Câmeras**: só após decisão CAMSS vs Spectra.
 
 ## Gate de CI a adicionar (junto da S1)
