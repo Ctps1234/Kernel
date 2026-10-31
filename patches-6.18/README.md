@@ -127,15 +127,19 @@ foi reescrito para o binding edt sem importar driver
 vendor. O **0054** fecha a fatia de **CPU**: cpufreq-hw
 (`qcom,sm6225-cpufreq-hw`, LUT de hardware), CPUs
 `qcom,kryo260` e PSCI/OSI com os idle-states do FDT
-(+ config `ARM_QCOM_CPUFREQ_HW=y`). Serie com
-**53 patches** (0001-0054 sem o 0029). Vereditos: runs
+(+ config `ARM_QCOM_CPUFREQ_HW=y`). O **0055** abre a
+**S6 (cameras, rota CAMSS upstream)**: CCI
+`cci@5c1b000` com clocks/GDSC do GCC (bengal nao tem
+CAMCC separado — o GCC khaje ja trazia todos os
+`GCC_CAMSS_*`) + `I2C_QCOM_CCI=y`. Serie com
+**54 patches** (0001-0055 sem o 0029). Vereditos: runs
 `41226732607`, `41228370915`, `41231928129`, `41233199069`,
-`41243173565`, `41247264596` verdes — `dtbs_check` sem
-reportes. Dividas: identify/resume do edt no FT3519T e
-rail IOVCC sem confirmacao, clock/clkreq do NFC fora do
-binding, I2C sem GPI DMA (modo FIFO), flash LED com a
-fatia de cameras, `dynamic-power-coefficient` estimado;
-boot sem evidencia.
+`41243173565`, `41247264596`, `41250221213` verdes —
+`dtbs_check` sem reportes. Dividas: identify/resume do
+edt no FT3519T e rail IOVCC sem confirmacao, clock/clkreq
+do NFC fora do binding, I2C sem GPI DMA (modo FIFO),
+`dynamic-power-coefficient` estimado; CAMSS/sensores/
+flash nas sub-fatias S6b/S6c; boot sem evidencia.
 
 ## Estado (2026-10-29)
 

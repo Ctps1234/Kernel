@@ -235,7 +235,26 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   (`ARM_QCOM_CPUFREQ_HW`, erro de nome corrigido no caminho).
   **Dívidas**: `dynamic-power-coefficient` herdado do sm6115
   (estimativa), sem verificação de DVFS/idle em hardware.
-- **S6 – Câmeras**: só após decisão CAMSS vs Spectra.
+- **S6 – Câmeras** (em curso; decisão: **CAMSS upstream**,
+  sem vendor Spectra): levantamento 2026-10-31 mostrou que
+  (a) não há CAMCC separado no bengal — os clocks e o GDSC
+  TOP de câmera saem do GCC khaje já portado (0011);
+  (b) o `qcom,qcm2290-camss` (mesmo IP-base `0x5c6e000`) é
+  o molde na base; (c) `ov08d10` existe upstream, `s5kjn1`
+  e `gc02m1` não; (d) a árvore mainline SM6225 de
+  referência **não tem câmeras** — caminho novo.
+  - **S6a (0055)**, run `41250221213`: CCI
+    (`cci@5c1b000`, 2 mestres, IRQ 206, clocks/GDSC do
+    GCC) + `I2C_QCOM_CCI=y`.
+  - **S6b (a fazer)**: binding + recursos `sm6225` no
+    driver CAMSS + nó `camss@5c6e000` — khaje tem **3×
+    CSIPHY** e CSID/TFE cujas gerações precisam ser
+    conferidas contra o `CAMSS_2290` (csiphy-3ph-1.0,
+    csid/vfe) usando o mapa do FDT.
+  - **S6c (a fazer)**: sensores na placa (mclk/reset/
+    trilhos via WL2866D): OV08D10 (frontal, driver ok)
+    primeiro; S5KJN1 (principal) e GC02M1 (macro) exigem
+    drivers novos; flash PM6125 no USID1 fecha a fatia.
 
 ## Gate de CI a adicionar (junto da S1)
 
