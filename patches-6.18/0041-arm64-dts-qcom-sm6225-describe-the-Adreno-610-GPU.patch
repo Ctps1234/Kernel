@@ -1,0 +1,259 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 02:10:26 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: describe the Adreno 610 GPU
+
+Adds the GPU slice unblocked by the rpmpd patch:
+
+- qfprom@1b40000 (new qcom,sm6225-qfprom in the binding) with
+  the gpu-speed-bin cell @6006 bits <5 8> - identical in the
+  downstream FDT and sm6115.
+- gpu@5900000 (qcom,adreno-610.0; downstream chipid 0x06010001,
+  "Adreno610v2"): GMU-less clock set following sm6115 (khaje
+  header ids), SPI 177, iommus <&adreno_smmu 0 1>, interconnect
+  MASTER_GRAPHICS_3D -> SLAVE_EBI_CH0 (downstream ids 4/512),
+  power-domains CX corner (SM6225_VDDCX).
+- gpu_opp_table: merge of the five downstream speed-bin
+  pwrlevel tables. Fuse encodings 0/235/216/157/127 map to
+  bins 0..4 exactly like ADRENO_SPEEDBINS of the A610 entry in
+  a6xx_catalog (which even names Khaje); qcom,level values are
+  RPM level numbers (64 LOW_SVS .. 416 TURBO_NO_CPR) and become
+  required-opps; opp-supported-hw is the OR of the bins that
+  contain the level.
+- gmu@596a000 (qcom,adreno-gmu-wrapper) on the gpucc CX/GX
+  GDSCs and adreno_smmu@59a0000 (9 IRQs = downstream gfx smmu,
+  same as sm6115).
+- Board: label the stock gpu reserved region pil_gpu_mem and
+  enable the GPU with the zap firmware name following the
+  qcom/<soc>/<oem>/<device>/ convention.
+
+The zap firmware itself is not part of this series; like all
+slices so far this is CI-only, no hardware evidence.
+---
+ .../bindings/nvmem/qcom,qfprom.yaml           |   1 +
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  10 +-
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 147 ++++++++++++++++++
+ 3 files changed, 157 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/devicetree/bindings/nvmem/qcom,qfprom.yaml b/Documentation/devicetree/bindings/nvmem/qcom,qfprom.yaml
+index 3f6dc6a3a..9d1f89354 100644
+--- a/Documentation/devicetree/bindings/nvmem/qcom,qfprom.yaml
++++ b/Documentation/devicetree/bindings/nvmem/qcom,qfprom.yaml
+@@ -47,6 +47,7 @@ properties:
+           - qcom,sdm670-qfprom
+           - qcom,sdm845-qfprom
+           - qcom,sm6115-qfprom
++          - qcom,sm6225-qfprom
+           - qcom,sm6350-qfprom
+           - qcom,sm6375-qfprom
+           - qcom,sm8150-qfprom
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 823420e46..a56fbd40a 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -98,7 +98,7 @@ ipa_gsi_region@55b10000 {
+ 			reg = <0x0 0x55b10000 0x0 0x5000>;
+ 		};
+ 
+-		gpu_region@55b15000 {
++		pil_gpu_mem: gpu_region@55b15000 {
+ 			no-map;
+ 			reg = <0x0 0x55b15000 0x0 0x2000>;
+ 		};
+@@ -243,6 +243,14 @@ &ufs_mem_phy {
+ 	status = "okay";
+ };
+ 
++&gpu {
++	status = "okay";
++
++	zap-shader {
++		firmware-name = "qcom/sm6225/xiaomi/topaz/a610_zap.mbn";
++	};
++};
++
+ &mdss {
+ 	status = "okay";
+ };
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 4b2500736..5c346d89c 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -14,6 +14,7 @@
+ #include <dt-bindings/clock/qcom,dispcc-khaje.h>
+ #include <dt-bindings/clock/qcom,dsi-phy-28nm.h>
+ #include <dt-bindings/clock/qcom,gcc-khaje.h>
++#include <dt-bindings/clock/qcom,gpucc-khaje.h>
+ #include <dt-bindings/clock/qcom,rpmcc.h>
+ #include <dt-bindings/interconnect/qcom,bengal.h>
+ #include <dt-bindings/interrupt-controller/arm-gic.h>
+@@ -593,6 +594,18 @@ config_noc: interconnect@1900000 {
+ 			#interconnect-cells = <1>;
+ 		};
+ 
++		qfprom@1b40000 {
++			compatible = "qcom,sm6225-qfprom", "qcom,qfprom";
++			reg = <0x0 0x01b40000 0x0 0x7000>;
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			gpu_speed_bin: gpu-speed-bin@6006 {
++				reg = <0x6006 0x2>;
++				bits = <5 8>;
++			};
++		};
++
+ 		bimc: interconnect@4480000 {
+ 			compatible = "qcom,bengal-bimc";
+ 			reg = <0x0 0x04480000 0x0 0x80000>;
+@@ -732,6 +745,115 @@ &clk_virt SLAVE_QUP_CORE_0>,
+ 			};
+ 		};
+ 
++		/*
++		 * Adreno 610 (downstream "Adreno610v2", chipid
++		 * 0x06010001), GMU-less like sm6115. Registers/IRQs
++		 * from the downstream kgsl-3d0/kgsl-iommu nodes and
++		 * the live FDT. The OPP table merges the five
++		 * downstream speed-bin pwrlevel tables (fuse values
++		 * 0/235/216/157/127 mapped to bins 0..4 exactly like
++		 * the A610 table in a6xx_catalog) with the RPM level
++		 * of each pwrlevel as required-opp.
++		 */
++		gpu: gpu@5900000 {
++			compatible = "qcom,adreno-610.0", "qcom,adreno";
++			reg = <0x0 0x05900000 0x0 0x90000>;
++			reg-names = "kgsl_3d0_reg_memory";
++
++			clocks = <&gpucc GPU_CC_GX_GFX3D_CLK>,
++				 <&gpucc GPU_CC_AHB_CLK>,
++				 <&gcc GCC_BIMC_GPU_AXI_CLK>,
++				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
++				 <&gpucc GPU_CC_CX_GMU_CLK>,
++				 <&gpucc GPU_CC_CXO_CLK>;
++			clock-names = "core", "iface", "mem_iface",
++				      "alt_mem_iface", "gmu", "xo";
++
++			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
++
++			iommus = <&adreno_smmu 0 1>;
++			operating-points-v2 = <&gpu_opp_table>;
++			power-domains = <&rpmpd SM6225_VDDCX>;
++			qcom,gmu = <&gmu_wrapper>;
++
++			interconnects = <&mmrt_virt MASTER_GRAPHICS_3D
++					 &bimc SLAVE_EBI_CH0>;
++			interconnect-names = "gfx-mem";
++
++			nvmem-cells = <&gpu_speed_bin>;
++			nvmem-cell-names = "speed_bin";
++			#cooling-cells = <2>;
++
++			status = "disabled";
++
++			gpu_zap_shader: zap-shader {
++				memory-region = <&pil_gpu_mem>;
++			};
++
++			gpu_opp_table: opp-table {
++				compatible = "operating-points-v2";
++
++				opp-320000000 {
++					opp-hz = /bits/ 64 <320000000>;
++					required-opps = <&rpmpd_opp_low_svs>;
++					opp-supported-hw = <0x1f>;
++				};
++
++				opp-465000000 {
++					opp-hz = /bits/ 64 <465000000>;
++					required-opps = <&rpmpd_opp_svs>;
++					opp-supported-hw = <0x1f>;
++				};
++
++				opp-600000000 {
++					opp-hz = /bits/ 64 <600000000>;
++					required-opps = <&rpmpd_opp_svs_plus>;
++					opp-supported-hw = <0x1f>;
++				};
++
++				/* Speed bin 3 tops out at 745 MHz. */
++				opp-745000000 {
++					opp-hz = /bits/ 64 <745000000>;
++					required-opps = <&rpmpd_opp_nom>;
++					opp-supported-hw = <0x8>;
++				};
++
++				opp-785000000 {
++					opp-hz = /bits/ 64 <785000000>;
++					required-opps = <&rpmpd_opp_nom>;
++					opp-supported-hw = <0x7>;
++				};
++
++				opp-1025000000 {
++					opp-hz = /bits/ 64 <1025000000>;
++					required-opps = <&rpmpd_opp_turbo>;
++					opp-supported-hw = <0x7>;
++				};
++
++				opp-1114800000 {
++					opp-hz = /bits/ 64 <1114800000>;
++					required-opps = <&rpmpd_opp_turbo_plus>;
++					opp-supported-hw = <0x3>;
++				};
++
++				/* Only speed bin 0 reaches 1.26 GHz. */
++				opp-1260000000 {
++					opp-hz = /bits/ 64 <1260000000>;
++					required-opps = <&rpmpd_opp_turbo_plus>;
++					opp-supported-hw = <0x1>;
++				};
++			};
++		};
++
++		gmu_wrapper: gmu@596a000 {
++			compatible = "qcom,adreno-gmu-wrapper";
++			reg = <0x0 0x0596a000 0x0 0x30000>;
++			reg-names = "gmu";
++			power-domains = <&gpucc GPU_CX_GDSC>,
++					<&gpucc GPU_GX_GDSC>;
++			power-domain-names = "cx", "gx";
++		};
++
+ 		gpucc: clock-controller@5990000 {
+ 			compatible = "qcom,khaje-gpucc", "syscon";
+ 			reg = <0x0 0x05990000 0x0 0x9000>;
+@@ -751,6 +873,31 @@ gpucc: clock-controller@5990000 {
+ 			#power-domain-cells = <1>;
+ 		};
+ 
++		adreno_smmu: iommu@59a0000 {
++			compatible = "qcom,sm6225-smmu-500", "qcom,adreno-smmu",
++				     "qcom,smmu-500", "arm,mmu-500";
++			reg = <0x0 0x059a0000 0x0 0x10000>;
++			#iommu-cells = <2>;
++			#global-interrupts = <1>;
++
++			interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
++
++			clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
++				 <&gpucc GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK>,
++				 <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>;
++			clock-names = "mem", "hlos", "iface";
++
++			power-domains = <&gpucc GPU_CX_GDSC>;
++		};
++
+ 		/*
+ 		 * MDSS (DPU 6.10 + single DSI). Addresses/IRQs from the
+ 		 * downstream khaje-sde-common.dtsi and the live FDT; shape
+-- 
+2.39.5
+
