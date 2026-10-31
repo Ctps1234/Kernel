@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 19:13:31 +0000
+Subject: [PATCH] arm64: dts: qcom: topaz: add gpio vibrator
+
+Last small item of slice S5: the ERM vibrator is
+enabled from PM6125 GPIO8, active-low (downstream
+qcom,qpnp-vibrator-ldo-tz); upstream model is the
+generic gpio-vibrator. Flash LED was left with the
+camera slice (its camx flash nodes + PM6125 flash
+data belong there).
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index af6837db0..72988d61c 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -33,6 +33,18 @@ chosen {
+ 		stdout-path = "serial0:115200n8";
+ 	};
+ 
++	/*
++	 * ERM vibrator driven from PM6125 GPIO8 (downstream
++	 * qcom,qpnp-vibrator-ldo-tz with vib,en-gpio active
++	 * low). Upstream model: plain gpio-vibrator.
++	 */
++	vibrator {
++		compatible = "gpio-vibrator";
++		enable-gpios = <&pm6125_gpios 8 GPIO_ACTIVE_LOW>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&vib_en_default>;
++	};
++
+ 	/* Volume-up is on PM6125 GPIO5 (volume-down uses PON resin). */
+ 	gpio-keys {
+ 		compatible = "gpio-keys";
+@@ -236,6 +248,13 @@ &sleep_clk {
+ };
+ 
+ &pm6125_gpios {
++	vib_en_default: vib-en-default-state {
++		pins = "gpio8";
++		function = "normal";
++		power-source = <0>;
++		bias-pull-up;
++	};
++
+ 	key_vol_up_default: key-vol-up-default-state {
+ 		pins = "gpio5";
+ 		function = "normal";
+-- 
+2.39.5
+
