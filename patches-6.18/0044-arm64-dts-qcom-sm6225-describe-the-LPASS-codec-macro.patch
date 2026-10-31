@@ -1,0 +1,191 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 07:19:06 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: describe the LPASS codec macros and
+ SoundWire
+
+Second half of slice S4: the LPASS hardware blocks.
+
+- RX macro @a600000 + SoundWire @a610000 (SPI 297, 5 ports),
+  TX macro @a620000, VA macro @a730000 + SoundWire @a740000
+  (SPI 296, 3 ports). Bases/IRQs/port counts from the
+  downstream bolero-codec subtree (spf_core_platform) in the
+  live FDT; both masters report qcom,swr-master-version
+  1.6.0, hence "qcom,soundwire-v1.6.0".
+- The three macro bindings already cover sm6225 (with sm6115
+  fallback) and prescribe the clock-name sets implemented
+  here. All clocks are AudioReach PRM votes; fsgen is the VA
+  macro's clock output, following the upstream convention.
+- DMIC sample rates from downstream (VA 600 kHz, TX 2.4 MHz).
+- Board: enable the five blocks.
+
+Debts for the sound-card slice: the WCD937x codec devices on
+the two SoundWire buses, SWR/MI2S pinctrl states, the SIA81xx
+speaker amplifier path and the machine driver (AudioReach
+topology). The lpasscc/lpassaudiocc reset-only controllers
+are deliberately absent: no consumer references them in this
+model (see sm6115 upstream, which also omits them).
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  20 +++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 114 ++++++++++++++++++
+ 2 files changed, 134 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 7de598d41..8a55f2fa9 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -227,6 +227,26 @@ &remoteproc_adsp {
+ 	status = "okay";
+ };
+ 
++&lpass_rx_macro {
++	status = "okay";
++};
++
++&swr1 {
++	status = "okay";
++};
++
++&lpass_tx_macro {
++	status = "okay";
++};
++
++&lpass_va_macro {
++	status = "okay";
++};
++
++&swr0 {
++	status = "okay";
++};
++
+ &uart4 {
+ 	status = "okay";
+ };
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 3ee844366..85cf89608 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -1168,6 +1168,120 @@ dispcc: clock-controller@5f00000 {
+ 			#power-domain-cells = <1>;
+ 		};
+ 
++		/*
++		 * LPASS codec macros (bolero generation) and their
++		 * SoundWire controllers. Bases, IRQs, port counts
++		 * and DMIC rates from the downstream
++		 * spf_core_platform/bolero-codec subtree and the
++		 * live FDT; node shape and clock wiring follow the
++		 * upstream AudioReach platforms. The sm6115/sm6225
++		 * branches of the macro bindings dictate the clock
++		 * name sets below; all of them are PRM firmware
++		 * clocks. The two SoundWire masters report version
++		 * 1.6.0 downstream (qcom,swr-master-version).
++		 * SWR pinctrl states land with the board audio
++		 * wiring in the sound-card slice.
++		 */
++		lpass_rx_macro: codec@a600000 {
++			compatible = "qcom,sm6225-lpass-rx-macro",
++				     "qcom,sm6115-lpass-rx-macro";
++			reg = <0x0 0x0a600000 0x0 0x1000>;
++
++			clocks = <&q6prmcc LPASS_CLK_ID_RX_CORE_MCLK
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
++				 <&q6prmcc LPASS_CLK_ID_RX_CORE_NPL_MCLK
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
++				 <&q6prmcc LPASS_HW_DCODEC_VOTE
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
++				 <&lpass_va_macro>;
++			clock-names = "mclk", "npl", "dcodec", "fsgen";
++
++			#clock-cells = <0>;
++			clock-output-names = "mclk";
++			#sound-dai-cells = <1>;
++
++			status = "disabled";
++		};
++
++		swr1: soundwire@a610000 {
++			compatible = "qcom,soundwire-v1.6.0";
++			reg = <0x0 0x0a610000 0x0 0x2000>;
++			interrupts = <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&lpass_rx_macro>;
++			clock-names = "iface";
++			label = "RX";
++
++			qcom,din-ports = <0>;
++			qcom,dout-ports = <5>;
++
++			#address-cells = <2>;
++			#size-cells = <0>;
++			#sound-dai-cells = <1>;
++
++			status = "disabled";
++		};
++
++		lpass_tx_macro: codec@a620000 {
++			compatible = "qcom,sm6225-lpass-tx-macro",
++				     "qcom,sm6115-lpass-tx-macro";
++			reg = <0x0 0x0a620000 0x0 0x1000>;
++
++			clocks = <&q6prmcc LPASS_CLK_ID_TX_CORE_MCLK
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
++				 <&q6prmcc LPASS_CLK_ID_TX_CORE_NPL_MCLK
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
++				 <&q6prmcc LPASS_HW_DCODEC_VOTE
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
++				 <&lpass_va_macro>;
++			clock-names = "mclk", "npl", "dcodec", "fsgen";
++
++			qcom,dmic-sample-rate = <2400000>;
++
++			#sound-dai-cells = <1>;
++
++			status = "disabled";
++		};
++
++		lpass_va_macro: codec@a730000 {
++			compatible = "qcom,sm6225-lpass-va-macro",
++				     "qcom,sm6115-lpass-va-macro";
++			reg = <0x0 0x0a730000 0x0 0x1000>;
++
++			clocks = <&q6prmcc LPASS_CLK_ID_VA_CORE_MCLK
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
++				 <&q6prmcc LPASS_HW_DCODEC_VOTE
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
++				 <&q6prmcc LPASS_CLK_ID_VA_CORE_2X_MCLK
++				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
++			clock-names = "mclk", "dcodec", "npl";
++
++			qcom,dmic-sample-rate = <600000>;
++
++			#clock-cells = <0>;
++			clock-output-names = "fsgen";
++			#sound-dai-cells = <1>;
++
++			status = "disabled";
++		};
++
++		swr0: soundwire@a740000 {
++			compatible = "qcom,soundwire-v1.6.0";
++			reg = <0x0 0x0a740000 0x0 0x2000>;
++			interrupts = <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&lpass_va_macro>;
++			clock-names = "iface";
++			label = "VA";
++
++			qcom,din-ports = <3>;
++			qcom,dout-ports = <0>;
++
++			#address-cells = <2>;
++			#size-cells = <0>;
++			#sound-dai-cells = <1>;
++
++			status = "disabled";
++		};
++
+ 		/*
+ 		 * LPASS LPI TLMM (downstream lpi_pinctrl@ac40000
+ 		 * refers to @a7c0000 with slew registers at
+-- 
+2.39.5
+
