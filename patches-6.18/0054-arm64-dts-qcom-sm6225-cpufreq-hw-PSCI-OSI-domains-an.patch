@@ -1,0 +1,394 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sat, 31 Oct 2026 22:12:00 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: cpufreq-hw, PSCI/OSI domains and
+ CPU idle
+
+CPU slice:
+
+- binding: qcom,sm6225-cpufreq-hw in the v1 family and
+  in the two-frequency-domains branch.
+- cpufreq@f521000 (OSM): silver/gold domain windows and
+  xo/GPLL0 clocks, identical downstream / upstream
+  sm6115; OPPs come from the hardware LUT as upstream.
+- CPUs become qcom,kryo260 with clocks/freq-domain,
+  dynamic-power-coefficient (100 silver / 282 gold,
+  upstream-sibling estimates, not khaje-measured) and
+  PSCI power-domains.
+- The psci node gains the OSI domain hierarchy copied
+  from the live FDT (cpu -> silver/gold cluster -> CCI
+  -> system), with the khaje idle states verbatim:
+  silver 297/324/1110us, gold 290/376/1182us, cluster
+  power-collapse 0x41000043 (sm6115 upstream has GDHS
+  states and ..44 instead - khaje TZ state IDs win),
+  cci-ret 0x42000043, cci-pc 0x42000343.
+- GPU thermal zone cooling-map restored (gpu has had
+  #cooling-cells since the GPU slice); CPU cooling
+  maps stay out, like upstream sm6115.
+
+Frequency scaling will only become real with the
+cpufreq-hw driver built-in (config fragment in the
+repo commit); idle states are only as good as the TZ
+params until hardware can confirm them.
+---
+ .../bindings/cpufreq/cpufreq-qcom-hw.yaml     |   2 +
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 226 +++++++++++++++++-
+ 2 files changed, 220 insertions(+), 8 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/cpufreq/cpufreq-qcom-hw.yaml b/Documentation/devicetree/bindings/cpufreq/cpufreq-qcom-hw.yaml
+index 2d42fc3d8ef8..938b4a88c890 100644
+--- a/Documentation/devicetree/bindings/cpufreq/cpufreq-qcom-hw.yaml
++++ b/Documentation/devicetree/bindings/cpufreq/cpufreq-qcom-hw.yaml
+@@ -28,6 +28,7 @@ properties:
+               - qcom,sdm670-cpufreq-hw
+               - qcom,sdm845-cpufreq-hw
+               - qcom,sm6115-cpufreq-hw
++              - qcom,sm6225-cpufreq-hw
+               - qcom,sm6350-cpufreq-hw
+               - qcom,sm8150-cpufreq-hw
+           - const: qcom,cpufreq-hw
+@@ -144,6 +145,7 @@ allOf:
+               - qcom,sdm845-cpufreq-hw
+               - qcom,sm4450-cpufreq-epss
+               - qcom,sm6115-cpufreq-hw
++              - qcom,sm6225-cpufreq-hw
+               - qcom,sm6350-cpufreq-hw
+               - qcom,sm6375-cpufreq-epss
+     then:
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 33642bef2ec0..62b382877955 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -21,6 +21,7 @@
+ #include <dt-bindings/power/qcom-rpmpd.h>
+ #include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
+ #include <dt-bindings/soc/qcom,gpr.h>
++#include <dt-bindings/thermal/thermal.h>
+ #include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
+ 
+ / {
+@@ -78,11 +79,16 @@ cpus {
+ 
+ 		cpu0: cpu@0 {
+ 			device_type = "cpu";
+-			compatible = "arm,cortex-a53";
++			compatible = "qcom,kryo260";
+ 			reg = <0x0 0x0>;
++			clocks = <&cpufreq_hw 0>;
+ 			capacity-dmips-mhz = <1024>;
++			dynamic-power-coefficient = <100>;
+ 			enable-method = "psci";
+ 			next-level-cache = <&l2_0>;
++			qcom,freq-domain = <&cpufreq_hw 0>;
++			power-domains = <&cpu_pd0>;
++			power-domain-names = "psci";
+ 
+ 			l2_0: l2-cache {
+ 				compatible = "cache";
+@@ -93,38 +99,58 @@ l2_0: l2-cache {
+ 
+ 		cpu1: cpu@1 {
+ 			device_type = "cpu";
+-			compatible = "arm,cortex-a53";
++			compatible = "qcom,kryo260";
+ 			reg = <0x0 0x1>;
++			clocks = <&cpufreq_hw 0>;
+ 			capacity-dmips-mhz = <1024>;
++			dynamic-power-coefficient = <100>;
+ 			enable-method = "psci";
+ 			next-level-cache = <&l2_0>;
++			qcom,freq-domain = <&cpufreq_hw 0>;
++			power-domains = <&cpu_pd1>;
++			power-domain-names = "psci";
+ 		};
+ 
+ 		cpu2: cpu@2 {
+ 			device_type = "cpu";
+-			compatible = "arm,cortex-a53";
++			compatible = "qcom,kryo260";
+ 			reg = <0x0 0x2>;
++			clocks = <&cpufreq_hw 0>;
+ 			capacity-dmips-mhz = <1024>;
++			dynamic-power-coefficient = <100>;
+ 			enable-method = "psci";
+ 			next-level-cache = <&l2_0>;
++			qcom,freq-domain = <&cpufreq_hw 0>;
++			power-domains = <&cpu_pd2>;
++			power-domain-names = "psci";
+ 		};
+ 
+ 		cpu3: cpu@3 {
+ 			device_type = "cpu";
+-			compatible = "arm,cortex-a53";
++			compatible = "qcom,kryo260";
+ 			reg = <0x0 0x3>;
++			clocks = <&cpufreq_hw 0>;
+ 			capacity-dmips-mhz = <1024>;
++			dynamic-power-coefficient = <100>;
+ 			enable-method = "psci";
+ 			next-level-cache = <&l2_0>;
++			qcom,freq-domain = <&cpufreq_hw 0>;
++			power-domains = <&cpu_pd3>;
++			power-domain-names = "psci";
+ 		};
+ 
+ 		cpu4: cpu@100 {
+ 			device_type = "cpu";
+-			compatible = "arm,cortex-a73";
++			compatible = "qcom,kryo260";
+ 			reg = <0x0 0x100>;
++			clocks = <&cpufreq_hw 1>;
+ 			capacity-dmips-mhz = <1638>;
++			dynamic-power-coefficient = <282>;
+ 			enable-method = "psci";
+ 			next-level-cache = <&l2_1>;
++			qcom,freq-domain = <&cpufreq_hw 1>;
++			power-domains = <&cpu_pd4>;
++			power-domain-names = "psci";
+ 
+ 			l2_1: l2-cache {
+ 				compatible = "cache";
+@@ -135,29 +161,115 @@ l2_1: l2-cache {
+ 
+ 		cpu5: cpu@101 {
+ 			device_type = "cpu";
+-			compatible = "arm,cortex-a73";
++			compatible = "qcom,kryo260";
+ 			reg = <0x0 0x101>;
++			clocks = <&cpufreq_hw 1>;
+ 			capacity-dmips-mhz = <1638>;
++			dynamic-power-coefficient = <282>;
+ 			enable-method = "psci";
+ 			next-level-cache = <&l2_1>;
++			qcom,freq-domain = <&cpufreq_hw 1>;
++			power-domains = <&cpu_pd5>;
++			power-domain-names = "psci";
+ 		};
+ 
+ 		cpu6: cpu@102 {
+ 			device_type = "cpu";
+-			compatible = "arm,cortex-a73";
++			compatible = "qcom,kryo260";
+ 			reg = <0x0 0x102>;
++			clocks = <&cpufreq_hw 1>;
+ 			capacity-dmips-mhz = <1638>;
++			dynamic-power-coefficient = <282>;
+ 			enable-method = "psci";
+ 			next-level-cache = <&l2_1>;
++			qcom,freq-domain = <&cpufreq_hw 1>;
++			power-domains = <&cpu_pd6>;
++			power-domain-names = "psci";
+ 		};
+ 
+ 		cpu7: cpu@103 {
+ 			device_type = "cpu";
+-			compatible = "arm,cortex-a73";
++			compatible = "qcom,kryo260";
+ 			reg = <0x0 0x103>;
++			clocks = <&cpufreq_hw 1>;
+ 			capacity-dmips-mhz = <1638>;
++			dynamic-power-coefficient = <282>;
+ 			enable-method = "psci";
+ 			next-level-cache = <&l2_1>;
++			qcom,freq-domain = <&cpufreq_hw 1>;
++			power-domains = <&cpu_pd7>;
++			power-domain-names = "psci";
++		};
++
++		/*
++		 * Idle-state set and PSCI suspend params copied
++		 * from the downstream khaje data (live FDT). They
++		 * differ from sm6115: CPU latencies are silver
++		 * 297/324/1110us, gold 290/376/1182us; the cluster
++		 * power-collapse state ID is 0x41000043 (not ..44)
++		 * and there is a 4-level domain hierarchy with the
++		 * two CCI/system states below.
++		 */
++		idle-states {
++			entry-method = "psci";
++
++			little_cpu_sleep_0: cpu-sleep-0-0 {
++				compatible = "arm,idle-state";
++				idle-state-name = "silver-rail-power-collapse";
++				arm,psci-suspend-param = <0x40000003>;
++				entry-latency-us = <297>;
++				exit-latency-us = <324>;
++				min-residency-us = <1110>;
++				local-timer-stop;
++			};
++
++			big_cpu_sleep_0: cpu-sleep-1-0 {
++				compatible = "arm,idle-state";
++				idle-state-name = "gold-rail-power-collapse";
++				arm,psci-suspend-param = <0x40000003>;
++				entry-latency-us = <290>;
++				exit-latency-us = <376>;
++				min-residency-us = <1182>;
++				local-timer-stop;
++			};
++		};
++
++		domain-idle-states {
++			cluster_0_sleep_0: cluster-sleep-0-0 {
++				compatible = "domain-idle-state";
++				idle-state-name = "pwr-l2-pc";
++				arm,psci-suspend-param = <0x41000043>;
++				entry-latency-us = <640>;
++				exit-latency-us = <1664>;
++				min-residency-us = <8094>;
++			};
++
++			cluster_1_sleep_0: cluster-sleep-1-0 {
++				compatible = "domain-idle-state";
++				idle-state-name = "perf-l2-pc";
++				arm,psci-suspend-param = <0x41000043>;
++				entry-latency-us = <800>;
++				exit-latency-us = <2118>;
++				min-residency-us = <7376>;
++			};
++
++			cluster_ret: cluster-retention {
++				compatible = "domain-idle-state";
++				idle-state-name = "cci-ret";
++				arm,psci-suspend-param = <0x42000043>;
++				entry-latency-us = <108>;
++				exit-latency-us = <450>;
++				min-residency-us = <153>;
++			};
++
++			cluster_pc: cluster-power-collapse {
++				compatible = "domain-idle-state";
++				idle-state-name = "cci-pc";
++				arm,psci-suspend-param = <0x42000343>;
++				entry-latency-us = <10831>;
++				exit-latency-us = <4506>;
++				min-residency-us = <15338>;
++			};
+ 		};
+ 
+ 		cpu-map {
+@@ -199,9 +311,82 @@ core3 {
+ 		};
+ 	};
+ 
++	/* PSCI in OSI mode; domain hierarchy as downstream
++	 * (cpu -> silver/gold cluster -> CCI -> system). */
+ 	psci {
+ 		compatible = "arm,psci-1.0";
+ 		method = "smc";
++
++		cpu_pd0: power-domain-cpu0 {
++			#power-domain-cells = <0>;
++			power-domains = <&cluster_0_pd>;
++			domain-idle-states = <&little_cpu_sleep_0>;
++		};
++
++		cpu_pd1: power-domain-cpu1 {
++			#power-domain-cells = <0>;
++			power-domains = <&cluster_0_pd>;
++			domain-idle-states = <&little_cpu_sleep_0>;
++		};
++
++		cpu_pd2: power-domain-cpu2 {
++			#power-domain-cells = <0>;
++			power-domains = <&cluster_0_pd>;
++			domain-idle-states = <&little_cpu_sleep_0>;
++		};
++
++		cpu_pd3: power-domain-cpu3 {
++			#power-domain-cells = <0>;
++			power-domains = <&cluster_0_pd>;
++			domain-idle-states = <&little_cpu_sleep_0>;
++		};
++
++		cpu_pd4: power-domain-cpu4 {
++			#power-domain-cells = <0>;
++			power-domains = <&cluster_1_pd>;
++			domain-idle-states = <&big_cpu_sleep_0>;
++		};
++
++		cpu_pd5: power-domain-cpu5 {
++			#power-domain-cells = <0>;
++			power-domains = <&cluster_1_pd>;
++			domain-idle-states = <&big_cpu_sleep_0>;
++		};
++
++		cpu_pd6: power-domain-cpu6 {
++			#power-domain-cells = <0>;
++			power-domains = <&cluster_1_pd>;
++			domain-idle-states = <&big_cpu_sleep_0>;
++		};
++
++		cpu_pd7: power-domain-cpu7 {
++			#power-domain-cells = <0>;
++			power-domains = <&cluster_1_pd>;
++			domain-idle-states = <&big_cpu_sleep_0>;
++		};
++
++		cluster_0_pd: power-domain-cpu-cluster0 {
++			#power-domain-cells = <0>;
++			power-domains = <&clusters_pd>;
++			domain-idle-states = <&cluster_0_sleep_0>;
++		};
++
++		cluster_1_pd: power-domain-cpu-cluster1 {
++			#power-domain-cells = <0>;
++			power-domains = <&clusters_pd>;
++			domain-idle-states = <&cluster_1_sleep_0>;
++		};
++
++		clusters_pd: power-domain-cpu-clusters {
++			#power-domain-cells = <0>;
++			power-domains = <&system_pd>;
++			domain-idle-states = <&cluster_ret>;
++		};
++
++		system_pd: power-domain-system {
++			#power-domain-cells = <0>;
++			domain-idle-states = <&cluster_pc>;
++		};
+ 	};
+ 
+ 	timer {
+@@ -1694,6 +1879,24 @@ intc: interrupt-controller@f200000 {
+ 			redistributor-stride = <0x0 0x20000>;
+ 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+ 		};
++
++		/*
++		 * OSM cpufreq-hw, two frequency domains (silver +
++		 * gold). Register windows and xo/GPLL0 clock pair
++		 * identical downstream and on upstream sm6115;
++		 * OPPs come from the hardware LUT, as upstream.
++		 */
++		cpufreq_hw: cpufreq@f521000 {
++			compatible = "qcom,sm6225-cpufreq-hw", "qcom,cpufreq-hw";
++			reg = <0x0 0x0f521000 0x0 0x1000>,
++			      <0x0 0x0f523000 0x0 0x1000>;
++			reg-names = "freq-domain0", "freq-domain1";
++			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>, <&gcc GPLL0>;
++			clock-names = "xo", "alternate";
++
++			#freq-domain-cells = <1>;
++			#clock-cells = <1>;
++		};
+ 	};
+ 
+ 	thermal-zones {
+@@ -2028,6 +2231,13 @@ trip-point1 {
+ 					type = "critical";
+ 				};
+ 			};
++
++			cooling-maps {
++				map0 {
++					trip = <&gpu_alert0>;
++					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
++				};
++			};
+ 		};
+ 	};
+ };
+-- 
+2.39.5
+
