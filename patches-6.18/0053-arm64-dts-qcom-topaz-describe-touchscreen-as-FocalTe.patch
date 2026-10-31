@@ -1,0 +1,243 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sat, 31 Oct 2026 21:20:56 +0000
+Subject: [PATCH] arm64: dts: qcom: topaz: describe touchscreen as FocalTech
+ FT3519 (edt-ft5x06)
+
+Correction to the S5c description: the real controller
+on topaz is the FT3519T (runtime evidence on the device:
+focaltech_ts_fw_samsung_ft3519t.bin + focaltech_ts_i2c;
+see docs/touch-port-audit.md), not an FT5452 as the
+0x54/0x52 chip-ID registers suggest and definitely not
+a part needing the vendor FTS driver.
+
+The driver side was already in this series (0017-era
+patch 0022: edt-ft5x06 focaltech,ft3519 with packed
+15-bit coordinate unpacking, built-in via the config
+fragment), but its DT node sat in the disabled prototype
+pending an upstream-style QUP I2C bus, which S5c added.
+
+- Node rewritten to the edt-ft5x06 binding: reset-gpios
+  (86), vcc-supply via a new GPIO36-fixed AVDD regulator,
+  iovcc-supply = pm6125_l9 (exact rail unconfirmed;
+  downstream treats it as always-on), sizes 10800x24000,
+  default pinctrl incl. the AVDD pin.
+- Remove the interim focaltech,fts binding doc created
+  by S5c and the now-unused suspend pinctrl states.
+
+Still open (hardware-verification territory): the
+driver's identify()/resume register traffic on FT3519T
+is untested, and there is no firmware update/gesture
+support.
+---
+ .../input/touchscreen/focaltech,fts.yaml      | 85 -------------------
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 66 ++++++++------
+ 2 files changed, 40 insertions(+), 111 deletions(-)
+ delete mode 100644 Documentation/devicetree/bindings/input/touchscreen/focaltech,fts.yaml
+
+diff --git a/Documentation/devicetree/bindings/input/touchscreen/focaltech,fts.yaml b/Documentation/devicetree/bindings/input/touchscreen/focaltech,fts.yaml
+deleted file mode 100644
+index 6a39436b9fd9..000000000000
+--- a/Documentation/devicetree/bindings/input/touchscreen/focaltech,fts.yaml
++++ /dev/null
+@@ -1,85 +0,0 @@
+-# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+-%YAML 1.2
+----
+-$id: http://devicetree.org/schemas/input/touchscreen/focaltech,fts.yaml#
+-$schema: http://devicetree.org/meta-schemas/core.yaml#
+-
+-title: FocalTech FTS I2C touchscreen controller
+-
+-maintainers:
+-  - Porting Team <noreply@localhost>
+-
+-description:
+-  Binding for FocalTech FTS-family capacitive touch controllers
+-  (e.g. FT5452) as described by the downstream vendor devicetree
+-  usage. There is currently no driver in this tree for this
+-  compatible; the binding documents the hardware description the
+-  downstream/mainline-port drivers consume (gpios, coordinate
+-  range, touch count).
+-
+-properties:
+-  compatible:
+-    const: focaltech,fts
+-
+-  reg:
+-    maxItems: 1
+-
+-  interrupts:
+-    maxItems: 1
+-
+-  focaltech,irq-gpio:
+-    maxItems: 1
+-    description: GPIO connected to the controller IRQ output.
+-
+-  focaltech,reset-gpio:
+-    maxItems: 1
+-    description: GPIO connected to the controller reset input.
+-
+-  focaltech,avdd-gpio:
+-    maxItems: 1
+-    description: GPIO enabling the controller AVDD supply.
+-
+-  focaltech,display-coords:
+-    $ref: /schemas/types.yaml#/definitions/uint32-array
+-    items:
+-      - description: minimum X
+-      - description: minimum Y
+-      - description: maximum X
+-      - description: maximum Y
+-    description: Reported coordinate range of the touch firmware.
+-
+-  focaltech,max-touch-number:
+-    $ref: /schemas/types.yaml#/definitions/uint32
+-    description: Maximum number of simultaneous touch points.
+-
+-  vcc_i2c-supply:
+-    description: I2C bus pull-up supply.
+-
+-required:
+-  - compatible
+-  - reg
+-  - interrupts
+-
+-additionalProperties: false
+-
+-examples:
+-  - |
+-    #include <dt-bindings/gpio/gpio.h>
+-    #include <dt-bindings/interrupt-controller/irq.h>
+-
+-    i2c {
+-        #address-cells = <1>;
+-        #size-cells = <0>;
+-
+-        touchscreen@38 {
+-            compatible = "focaltech,fts";
+-            reg = <0x38>;
+-            interrupt-parent = <&tlmm>;
+-            interrupts = <80 IRQ_TYPE_EDGE_FALLING>;
+-            focaltech,irq-gpio = <&tlmm 80 GPIO_ACTIVE_LOW>;
+-            focaltech,reset-gpio = <&tlmm 86 GPIO_ACTIVE_LOW>;
+-            focaltech,avdd-gpio = <&tlmm 36 GPIO_ACTIVE_HIGH>;
+-            focaltech,display-coords = <0 0 10799 23999>;
+-            focaltech,max-touch-number = <10>;
+-        };
+-    };
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 72988d61c9fc..eb513cc680fa 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -33,6 +33,14 @@ chosen {
+ 		stdout-path = "serial0:115200n8";
+ 	};
+ 
++	/* Touch AVDD: load switch on TLMM GPIO36 (focaltech,avdd-gpio). */
++	touch_avdd: regulator-touch-avdd {
++		compatible = "regulator-fixed";
++		regulator-name = "touch_avdd";
++		gpio = <&tlmm 36 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++	};
++
+ 	/*
+ 	 * ERM vibrator driven from PM6125 GPIO8 (downstream
+ 	 * qcom,qpnp-vibrator-ldo-tz with vib,en-gpio active
+@@ -298,26 +306,37 @@ &i2c2 {
+ 	status = "okay";
+ 
+ 	/*
+-	 * FocalTech FT5452 (chip id 0x5452), pins/coords from
+-	 * the live FDT. NOTE: there is no driver in this tree
+-	 * for "focaltech,fts" yet (downstream/Xiaomi driver
+-	 * and the mainline port use this compatible); node
+-	 * describes the hardware ready for that import.
++	 * FocalTech FT3519T, the on-cell controller of the
++	 * Samsung M7 panel. Identified from the device
++	 * itself: vendor firmware file
++	 * focaltech_ts_fw_samsung_ft3519t.bin + the loaded
++	 * focaltech_ts_i2c module. The chip IDs read 0x54/0x52
++	 * (hence the "FT5452" name in sibling projects), but
++	 * it is not the FT5452 of the upstream binding (10
++	 * points and packed 15-bit coordinates here, handled
++	 * by the focaltech,ft3519 addition to edt-ft5x06 in
++	 * this series). No firmware update or gestures;
++	 * position reporting only, unverified on hardware.
++	 * IOVCC rail: L9 is the panel 1.8 V I/O rail on this
++	 * board; downstream treats touch IOVCC as always-on
++	 * and the exact rail is unconfirmed.
+ 	 */
+ 	touchscreen@38 {
+-		compatible = "focaltech,fts";
++		compatible = "focaltech,ft3519";
+ 		reg = <0x38>;
++
+ 		interrupt-parent = <&tlmm>;
+ 		interrupts = <80 IRQ_TYPE_EDGE_FALLING>;
+-		focaltech,irq-gpio = <&tlmm 80 GPIO_ACTIVE_LOW>;
+-		focaltech,reset-gpio = <&tlmm 86 GPIO_ACTIVE_LOW>;
+-		focaltech,avdd-gpio = <&tlmm 36 GPIO_ACTIVE_HIGH>;
+-		focaltech,display-coords = <0 0 10799 23999>;
+-		focaltech,max-touch-number = <10>;
+-		pinctrl-names = "default", "suspend";
+-		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+-		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+-		vcc_i2c-supply = <&pm6125_l9>;
++		reset-gpios = <&tlmm 86 GPIO_ACTIVE_LOW>;
++
++		vcc-supply = <&touch_avdd>;
++		iovcc-supply = <&pm6125_l9>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&ts_int_active &ts_reset_active &ts_avdd_active>;
++
++		touchscreen-size-x = <10800>;
++		touchscreen-size-y = <24000>;
+ 	};
+ };
+ 
+@@ -562,20 +581,21 @@ &mdss_dsi0_phy {
+ };
+ 
+ &tlmm {
+-	ts_int_active: ts-int-active-state {
+-		pins = "gpio80";
++	ts_avdd_active: ts-avdd-active-state {
++		pins = "gpio36";
+ 		function = "gpio";
+ 		drive-strength = <8>;
+ 		bias-pull-up;
+ 	};
+ 
+-	ts_int_suspend: ts-int-suspend-state {
++	ts_int_active: ts-int-active-state {
+ 		pins = "gpio80";
+ 		function = "gpio";
+-		drive-strength = <2>;
+-		bias-pull-down;
++		drive-strength = <8>;
++		bias-pull-up;
+ 	};
+ 
++
+ 	ts_reset_active: ts-reset-active-state {
+ 		pins = "gpio86";
+ 		function = "gpio";
+@@ -583,12 +603,6 @@ ts_reset_active: ts-reset-active-state {
+ 		bias-pull-up;
+ 	};
+ 
+-	ts_reset_suspend: ts-reset-suspend-state {
+-		pins = "gpio86";
+-		function = "gpio";
+-		drive-strength = <2>;
+-		bias-pull-down;
+-	};
+ 
+ 	nfc_default: nfc-default-state {
+ 		pins = "gpio69", "gpio70", "gpio71";
+-- 
+2.39.5
+
