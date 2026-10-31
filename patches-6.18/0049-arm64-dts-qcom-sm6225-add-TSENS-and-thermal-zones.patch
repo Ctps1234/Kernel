@@ -1,0 +1,410 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 18:13:50 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: add TSENS and thermal zones
+
+Second patch of slice S5:
+
+- binding: qcom,sm6225-tsens added to the tsens-v2
+  family (driver side the generic v2 match is enough).
+- thermal-sensor@4411000 (TM + SROT), 16 sensors, uplow
+  SPI 275 / critical SPI 190 as upstream bengal (khaje
+  downstream routes the critical line via MPM).
+- 16 thermal zones ported from sm6115 minus
+  cooling-maps (CPU cooling cells do not exist yet);
+  sensor indices verified to match the downstream
+  bengal thermal map 1:1 (mapss=0 ... gpu=15).
+
+Calibration runs in the driver's calibrationless mode
+when no nvmem cells are given, same as upstream
+sm6115; QFPROM calibration cells are a later refinement.
+---
+ .../bindings/thermal/qcom-tsens.yaml          |   1 +
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 354 ++++++++++++++++++
+ 2 files changed, 355 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/thermal/qcom-tsens.yaml b/Documentation/devicetree/bindings/thermal/qcom-tsens.yaml
+index 78e2f6573..7de0134f1 100644
+--- a/Documentation/devicetree/bindings/thermal/qcom-tsens.yaml
++++ b/Documentation/devicetree/bindings/thermal/qcom-tsens.yaml
+@@ -66,6 +66,7 @@ properties:
+               - qcom,sdm630-tsens
+               - qcom,sdm845-tsens
+               - qcom,sm6115-tsens
++              - qcom,sm6225-tsens
+               - qcom,sm6350-tsens
+               - qcom,sm6375-tsens
+               - qcom,sm8150-tsens
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 148e00e5d..b646a206d 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -724,6 +724,25 @@ spmi_bus: spmi@1c40000 {
+ 			#interrupt-cells = <4>;
+ 		};
+ 
++		/*
++		 * TSENS v2 (16 sensors), register windows and IRQs
++		 * as sm6115 and as the downstream qcom,tsens24xx
++		 * data (uplow GIC SPI 275 is direct; the critical
++		 * IRQ downstream is MPM-routed, GIC SPI 190 as on
++		 * upstream bengal). Sensor indices match the
++		 * downstream bengal thermal map 1:1.
++		 */
++		tsens0: thermal-sensor@4411000 {
++			compatible = "qcom,sm6225-tsens", "qcom,tsens-v2";
++			reg = <0x0 0x04411000 0x0 0x1ff>, /* TM */
++			      <0x0 0x04410000 0x0 0x8>; /* SROT */
++			#qcom,sensors = <16>;
++			interrupts = <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
++			interrupt-names = "uplow", "critical";
++			#thermal-sensor-cells = <1>;
++		};
++
+ 		bimc: interconnect@4480000 {
+ 			compatible = "qcom,bengal-bimc";
+ 			reg = <0x0 0x04480000 0x0 0x80000>;
+@@ -1589,4 +1608,339 @@ intc: interrupt-controller@f200000 {
+ 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+ 		};
+ 	};
++
++	thermal-zones {
++		mapss-thermal {
++			thermal-sensors = <&tsens0 0>;
++
++			trips {
++				trip-point0 {
++					temperature = <115000>;
++					hysteresis = <5000>;
++					type = "passive";
++				};
++
++				trip-point1 {
++					temperature = <125000>;
++					hysteresis = <1000>;
++					type = "passive";
++				};
++			};
++		};
++
++		cdsp-hvx-thermal {
++			thermal-sensors = <&tsens0 1>;
++
++			trips {
++				trip-point0 {
++					temperature = <115000>;
++					hysteresis = <5000>;
++					type = "passive";
++				};
++
++				trip-point1 {
++					temperature = <125000>;
++					hysteresis = <1000>;
++					type = "passive";
++				};
++			};
++		};
++
++		wlan-thermal {
++			thermal-sensors = <&tsens0 2>;
++
++			trips {
++				trip-point0 {
++					temperature = <115000>;
++					hysteresis = <5000>;
++					type = "passive";
++				};
++
++				trip-point1 {
++					temperature = <125000>;
++					hysteresis = <1000>;
++					type = "passive";
++				};
++			};
++		};
++
++		camera-thermal {
++			thermal-sensors = <&tsens0 3>;
++
++			trips {
++				trip-point0 {
++					temperature = <115000>;
++					hysteresis = <5000>;
++					type = "passive";
++				};
++
++				trip-point1 {
++					temperature = <125000>;
++					hysteresis = <1000>;
++					type = "passive";
++				};
++			};
++		};
++
++		video-thermal {
++			thermal-sensors = <&tsens0 4>;
++
++			trips {
++				trip-point0 {
++					temperature = <115000>;
++					hysteresis = <5000>;
++					type = "passive";
++				};
++
++				trip-point1 {
++					temperature = <125000>;
++					hysteresis = <1000>;
++					type = "passive";
++				};
++			};
++		};
++
++		modem1-thermal {
++			thermal-sensors = <&tsens0 5>;
++
++			trips {
++				trip-point0 {
++					temperature = <115000>;
++					hysteresis = <5000>;
++					type = "passive";
++				};
++
++				trip-point1 {
++					temperature = <125000>;
++					hysteresis = <1000>;
++					type = "passive";
++				};
++			};
++		};
++
++		cpu4-thermal {
++			thermal-sensors = <&tsens0 6>;
++
++			trips {
++				cpu4_alert0: trip-point0 {
++					temperature = <90000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu4_alert1: trip-point1 {
++					temperature = <95000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu4_crit: cpu-crit {
++					temperature = <110000>;
++					hysteresis = <1000>;
++					type = "critical";
++				};
++			};
++		};
++
++		cpu5-thermal {
++			thermal-sensors = <&tsens0 7>;
++
++			trips {
++				cpu5_alert0: trip-point0 {
++					temperature = <90000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu5_alert1: trip-point1 {
++					temperature = <95000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu5_crit: cpu-crit {
++					temperature = <110000>;
++					hysteresis = <1000>;
++					type = "critical";
++				};
++			};
++		};
++
++		cpu6-thermal {
++			thermal-sensors = <&tsens0 8>;
++
++			trips {
++				cpu6_alert0: trip-point0 {
++					temperature = <90000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu6_alert1: trip-point1 {
++					temperature = <95000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu6_crit: cpu-crit {
++					temperature = <110000>;
++					hysteresis = <1000>;
++					type = "critical";
++				};
++			};
++		};
++
++		cpu7-thermal {
++			thermal-sensors = <&tsens0 9>;
++
++			trips {
++				cpu7_alert0: trip-point0 {
++					temperature = <90000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu7_alert1: trip-point1 {
++					temperature = <95000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu7_crit: cpu-crit {
++					temperature = <110000>;
++					hysteresis = <1000>;
++					type = "critical";
++				};
++			};
++		};
++
++		cpu45-thermal {
++			thermal-sensors = <&tsens0 10>;
++
++			trips {
++				cpu45_alert0: trip-point0 {
++					temperature = <90000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu45_alert1: trip-point1 {
++					temperature = <95000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu45_crit: cpu-crit {
++					temperature = <110000>;
++					hysteresis = <1000>;
++					type = "critical";
++				};
++			};
++		};
++
++		cpu67-thermal {
++			thermal-sensors = <&tsens0 11>;
++
++			trips {
++				cpu67_alert0: trip-point0 {
++					temperature = <90000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu67_alert1: trip-point1 {
++					temperature = <95000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu67_crit: cpu-crit {
++					temperature = <110000>;
++					hysteresis = <1000>;
++					type = "critical";
++				};
++			};
++		};
++
++		cpu0123-thermal {
++			thermal-sensors = <&tsens0 12>;
++
++			trips {
++				cpu0123_alert0: trip-point0 {
++					temperature = <90000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu0123_alert1: trip-point1 {
++					temperature = <95000>;
++					hysteresis = <2000>;
++					type = "passive";
++				};
++
++				cpu0123_crit: cpu-crit {
++					temperature = <110000>;
++					hysteresis = <1000>;
++					type = "critical";
++				};
++			};
++		};
++
++		modem0-thermal {
++			thermal-sensors = <&tsens0 13>;
++
++			trips {
++				trip-point0 {
++					temperature = <115000>;
++					hysteresis = <5000>;
++					type = "passive";
++				};
++
++				trip-point1 {
++					temperature = <125000>;
++					hysteresis = <1000>;
++					type = "passive";
++				};
++			};
++		};
++
++		display-thermal {
++			thermal-sensors = <&tsens0 14>;
++
++			trips {
++				trip-point0 {
++					temperature = <115000>;
++					hysteresis = <5000>;
++					type = "passive";
++				};
++
++				trip-point1 {
++					temperature = <125000>;
++					hysteresis = <1000>;
++					type = "passive";
++				};
++			};
++		};
++
++		gpu-thermal {
++			polling-delay-passive = <250>;
++
++			thermal-sensors = <&tsens0 15>;
++
++
++			trips {
++				gpu_alert0: trip-point0 {
++					temperature = <85000>;
++					hysteresis = <1000>;
++					type = "passive";
++				};
++
++				trip-point1 {
++					temperature = <110000>;
++					hysteresis = <1000>;
++					type = "critical";
++				};
++			};
++		};
++	};
+ };
+-- 
+2.39.5
+
