@@ -1,0 +1,311 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 06:20:48 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: describe the ADSP remoteproc
+
+First half of slice S4 (audio/ADSP): the DSP itself.
+
+- smp2p-adsp edge (smem 443/429, IRQ 279, apcs mbox 10 -
+  downstream values, identical to sm6115).
+- The ADSP PAS driver data in this series votes the LPI rails
+  through regulators, so add the rwlc/rwlm RPM level resources
+  (pm6125_l3_level/l2_level, effective values from the live
+  FDT) as cx-supply/mx-supply.
+- remoteproc@ab00000 (qcom,sm6225-adsp-pas): downstream
+  register window (khaje differs from sm6115 here), wdog SPI
+  282 + smp2p inputs, XO clock, pil memory (stock reserved
+  region, now labelled), glink edge (SPI 277, apcs mbox 8,
+  remote-pid 2) with the APR/Q6 services and FastRPC context
+  banks - node shape follows sm6115, stream ids (q6asmdai
+  0x1c1, fastrpc 0x1c3-0x1c6) confirmed in the downstream FDT.
+- Board: firmware-name + enable.
+
+The LPASS hardware blocks (VA/RX/TX/WSA macros, lpasscc,
+SoundWire, LPI pinctrl, LPASS-CPU) and the sound card are the
+next patch of the slice. CI-only; the ADSP firmware is not
+part of this series.
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |   7 +-
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 220 ++++++++++++++++++
+ 2 files changed, 226 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index a56fbd40a..7de598d41 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -83,7 +83,7 @@ cdsp_regions@51a00000 {
+ 			reg = <0x0 0x51a00000 0x0 0x1a00000>;
+ 		};
+ 
+-		pil_adsp_region@53800000 {
++		pil_adsp_mem: pil_adsp_region@53800000 {
+ 			no-map;
+ 			reg = <0x0 0x53800000 0x0 0x2300000>;
+ 		};
+@@ -222,6 +222,11 @@ &qupv3_id_0 {
+ 	status = "okay";
+ };
+ 
++&remoteproc_adsp {
++	firmware-name = "qcom/sm6225/xiaomi/topaz/adsp.mbn";
++	status = "okay";
++};
++
+ &uart4 {
+ 	status = "okay";
+ };
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 5c346d89c..f6a1f2dae 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -20,6 +20,8 @@
+ #include <dt-bindings/interrupt-controller/arm-gic.h>
+ #include <dt-bindings/power/qcom-rpmpd.h>
+ #include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
++#include <dt-bindings/soc/qcom,apr.h>
++#include <dt-bindings/sound/qcom,q6asm.h>
+ 
+ / {
+ 	interrupt-parent = <&intc>;
+@@ -378,6 +380,53 @@ regulator-s5-level-ao {
+ 					};
+ 				};
+ 
++				/*
++				 * LPI CX/MX voltage levels (PM6125 L3/L2
++				 * through the rwlc/rwlm RPM resources),
++				 * supplies of the ADSP PAS node. Effective
++				 * values from the downstream
++				 * bengal-regulator.dtsi and the live FDT.
++				 */
++				rpm-regulator-ldoa2 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "rwlm";
++					qcom,resource-id = <0>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l2_level: regulator-l2-level {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l2_level";
++						qcom,set = <3>;
++						regulator-min-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_RETENTION>;
++						regulator-max-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_BINNING>;
++						qcom,use-voltage-level;
++					};
++				};
++
++				rpm-regulator-ldoa3 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "rwlc";
++					qcom,resource-id = <0>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l3_level: regulator-l3-level {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l3_level";
++						qcom,set = <3>;
++						regulator-min-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_RETENTION>;
++						regulator-max-microvolt =
++							<RPM_SMD_REGULATOR_LEVEL_BINNING>;
++						qcom,use-voltage-level;
++					};
++				};
++
+ 				/*
+ 				 * Physical PM6125 LDO rails consumed by
+ 				 * the UFS HC/PHY (slice S2). Resource
+@@ -483,6 +532,29 @@ pm6125_l24: regulator-l24 {
+ 		};
+ 	};
+ 
++	smp2p-adsp {
++		compatible = "qcom,smp2p";
++		qcom,smem = <443>, <429>;
++
++		interrupts = <GIC_SPI 279 IRQ_TYPE_EDGE_RISING>;
++
++		mboxes = <&apcs_glb 10>;
++
++		qcom,local-pid = <0>;
++		qcom,remote-pid = <2>;
++
++		adsp_smp2p_out: master-kernel {
++			qcom,entry-name = "master-kernel";
++			#qcom,smem-state-cells = <1>;
++		};
++
++		adsp_smp2p_in: slave-kernel {
++			qcom,entry-name = "slave-kernel";
++			interrupt-controller;
++			#interrupt-cells = <2>;
++		};
++	};
++
+ 	soc: soc@0 {
+ 		compatible = "simple-bus";
+ 		#address-cells = <2>;
+@@ -1096,6 +1168,154 @@ dispcc: clock-controller@5f00000 {
+ 			#power-domain-cells = <1>;
+ 		};
+ 
++		/*
++		 * ADSP (LPASS Hexagon) via PAS. Register window,
++		 * supplies and IRQs come from the downstream
++		 * adsp_pas node (khaje.dtsi) and the live FDT; the
++		 * node shape follows the in-tree qcom,sm6225-pas
++		 * binding (its driver data uses the cx/mx regulator
++		 * supply path with TURBO level votes). The APR/Q6
++		 * services and FastRPC context banks mirror sm6115
++		 * with the stream ids confirmed in the downstream
++		 * FDT. The LPASS hardware blocks (macros, lpasscc,
++		 * soundwire) land in the next slice.
++		 */
++		remoteproc_adsp: remoteproc@ab00000 {
++			compatible = "qcom,sm6225-adsp-pas";
++			reg = <0x0 0x0ab00000 0x0 0x100>;
++
++			interrupts-extended = <&intc GIC_SPI 282 IRQ_TYPE_EDGE_RISING>,
++					      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
++					      <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
++					      <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
++					      <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
++			interrupt-names = "wdog", "fatal", "ready",
++					  "handover", "stop-ack";
++
++			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>;
++			clock-names = "xo";
++
++			cx-supply = <&pm6125_l3_level>;
++			mx-supply = <&pm6125_l2_level>;
++
++			memory-region = <&pil_adsp_mem>;
++
++			qcom,smem-states = <&adsp_smp2p_out 0>;
++			qcom,smem-state-names = "stop";
++
++			status = "disabled";
++
++			glink-edge {
++				interrupts = <GIC_SPI 277 IRQ_TYPE_EDGE_RISING>;
++				label = "lpass";
++				qcom,remote-pid = <2>;
++				mboxes = <&apcs_glb 8>;
++
++				apr {
++					compatible = "qcom,apr-v2";
++					qcom,glink-channels = "apr_audio_svc";
++					qcom,domain = <APR_DOMAIN_ADSP>;
++					#address-cells = <1>;
++					#size-cells = <0>;
++
++					service@3 {
++						reg = <APR_SVC_ADSP_CORE>;
++						compatible = "qcom,q6core";
++						qcom,protection-domain = "avs/audio",
++									 "msm/adsp/audio_pd";
++					};
++
++					q6afe: service@4 {
++						compatible = "qcom,q6afe";
++						reg = <APR_SVC_AFE>;
++						qcom,protection-domain = "avs/audio",
++									 "msm/adsp/audio_pd";
++						q6afedai: dais {
++							compatible = "qcom,q6afe-dais";
++							#address-cells = <1>;
++							#size-cells = <0>;
++							#sound-dai-cells = <1>;
++						};
++
++						q6afecc: clock-controller {
++							compatible = "qcom,q6afe-clocks";
++							#clock-cells = <2>;
++						};
++					};
++
++					q6asm: service@7 {
++						compatible = "qcom,q6asm";
++						reg = <APR_SVC_ASM>;
++						qcom,protection-domain = "avs/audio",
++									 "msm/adsp/audio_pd";
++						q6asmdai: dais {
++							compatible = "qcom,q6asm-dais";
++							#address-cells = <1>;
++							#size-cells = <0>;
++							#sound-dai-cells = <1>;
++							iommus = <&apps_smmu 0x1c1 0x0>;
++
++							dai@0 {
++								reg = <MSM_FRONTEND_DAI_MULTIMEDIA1>;
++							};
++
++							dai@1 {
++								reg = <MSM_FRONTEND_DAI_MULTIMEDIA2>;
++							};
++
++							dai@2 {
++								reg = <MSM_FRONTEND_DAI_MULTIMEDIA3>;
++							};
++						};
++					};
++
++					q6adm: service@8 {
++						compatible = "qcom,q6adm";
++						reg = <APR_SVC_ADM>;
++						qcom,protection-domain = "avs/audio",
++									 "msm/adsp/audio_pd";
++						q6routing: routing {
++							compatible = "qcom,q6adm-routing";
++							#sound-dai-cells = <0>;
++						};
++					};
++				};
++
++				fastrpc {
++					compatible = "qcom,fastrpc";
++					qcom,glink-channels = "fastrpcglink-apps-dsp";
++					label = "adsp";
++					qcom,non-secure-domain;
++					#address-cells = <1>;
++					#size-cells = <0>;
++
++					compute-cb@3 {
++						compatible = "qcom,fastrpc-compute-cb";
++						reg = <3>;
++						iommus = <&apps_smmu 0x1c3 0x0>;
++					};
++
++					compute-cb@4 {
++						compatible = "qcom,fastrpc-compute-cb";
++						reg = <4>;
++						iommus = <&apps_smmu 0x1c4 0x0>;
++					};
++
++					compute-cb@5 {
++						compatible = "qcom,fastrpc-compute-cb";
++						reg = <5>;
++						iommus = <&apps_smmu 0x1c5 0x0>;
++					};
++
++					compute-cb@6 {
++						compatible = "qcom,fastrpc-compute-cb";
++						reg = <6>;
++						iommus = <&apps_smmu 0x1c6 0x0>;
++					};
++				};
++			};
++		};
++
+ 		/*
+ 		 * Apps SMMU (MMU-500). Address and IRQs are identical to
+ 		 * sm6115 and to the live FDT (apps-smmu@0xc600000). The
+-- 
+2.39.5
+
