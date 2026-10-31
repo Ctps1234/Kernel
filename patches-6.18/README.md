@@ -124,13 +124,18 @@ O **0053** corrigiu a identificacao do touch: e o
 do aparelho), nao FT5452 — e o driver ja existia na serie
 (0022, edt-ft5x06 `focaltech,ft3519`, 15-bit, `=y`); o no
 foi reescrito para o binding edt sem importar driver
-vendor. Serie com **52 patches** (0001-0053 sem o 0029).
-Vereditos: runs `41226732607`, `41228370915`, `41231928129`,
-`41233199069`, `41243173565` verdes — `dtbs_check` sem
+vendor. O **0054** fecha a fatia de **CPU**: cpufreq-hw
+(`qcom,sm6225-cpufreq-hw`, LUT de hardware), CPUs
+`qcom,kryo260` e PSCI/OSI com os idle-states do FDT
+(+ config `ARM_QCOM_CPUFREQ_HW=y`). Serie com
+**53 patches** (0001-0054 sem o 0029). Vereditos: runs
+`41226732607`, `41228370915`, `41231928129`, `41233199069`,
+`41243173565`, `41247264596` verdes — `dtbs_check` sem
 reportes. Dividas: identify/resume do edt no FT3519T e
 rail IOVCC sem confirmacao, clock/clkreq do NFC fora do
 binding, I2C sem GPI DMA (modo FIFO), flash LED com a
-fatia de cameras; boot sem evidencia.
+fatia de cameras, `dynamic-power-coefficient` estimado;
+boot sem evidencia.
 
 ## Estado (2026-10-29)
 

@@ -223,6 +223,18 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   FIFO); flash LED ficou com a fatia de câmeras;
   calibração TSENS opera no modo "calibrationless"
   (como o sm6115 upstream).
+- **CPU – cpufreq/idle**: completo no lado DT (2026-10-31,
+  patch 0054, run `41247264596`): `cpufreq@f521000`
+  (`qcom,sm6225-cpufreq-hw`, OPPs da LUT do hardware como
+  upstream), CPUs `qcom,kryo260` com clocks/freq-domain, e
+  PSCI em modo **OSI** com a hierarquia de domínios e os
+  idle-states copiados do FDT vivo (params khaje diferem do
+  sm6115: cluster PC `0x41000043`, níveis CCI/sistema).
+  Cooling-map da GPU restaurado; CPU sem cooling-maps como
+  upstream. Driver embutido via fragmento
+  (`ARM_QCOM_CPUFREQ_HW`, erro de nome corrigido no caminho).
+  **Dívidas**: `dynamic-power-coefficient` herdado do sm6115
+  (estimativa), sem verificação de DVFS/idle em hardware.
 - **S6 – Câmeras**: só após decisão CAMSS vs Spectra.
 
 ## Gate de CI a adicionar (junto da S1)
