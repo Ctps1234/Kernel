@@ -1,0 +1,136 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Android Port <arena@arena.ai>
+Date: Sat, 31 Oct 2026 17:53:45 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225/topaz: add SPMI bus and PM6125
+
+First patch of slice S5 (board):
+
+- spmi@1c40000 PMIC arbiter in the SoC dtsi (windows
+  identical to sm6115 and to downstream; IRQ straight to
+  the GIC, SPI 183, as upstream bengal does instead of the
+  downstream MPM wakeup routing).
+- Board includes the upstream pm6125.dtsi (PON, temp-alarm
+  with its thermal zone, ADC5 + ADC-TM, RTC, PMIC gpios),
+  serving the non-regulator side of the same PMIC whose
+  rails are RPM-controlled (already described).
+- Keys: PON power key, PON resin as volume-down, and
+  volume-up on PM6125 GPIO5 (active-low, pull-up) - from
+  the downstream khaje-idp/topaz data.
+- RTC enabled.
+
+Still to come in S5: TSENS + thermal zones, the QUP I2C
+controllers with touch/NFC, and LEDs/flash.
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 44 +++++++++++++++++++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 24 ++++++++++
+ 2 files changed, 68 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index d41c98a8a..d175aef40 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -15,8 +15,10 @@
+ /dts-v1/;
+ 
+ #include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
+ 
+ #include "sm6225.dtsi"
++#include "pm6125.dtsi"
+ 
+ / {
+ 	model = "Xiaomi Redmi Note 12 4G";
+@@ -31,6 +33,25 @@ chosen {
+ 		stdout-path = "serial0:115200n8";
+ 	};
+ 
++	/* Volume-up is on PM6125 GPIO5 (volume-down uses PON resin). */
++	gpio-keys {
++		compatible = "gpio-keys";
++		label = "gpio-keys";
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&key_vol_up_default>;
++
++		key-vol-up {
++			label = "volume_up";
++			gpios = <&pm6125_gpios 5 GPIO_ACTIVE_LOW>;
++			linux,input-type = <1>;
++			linux,code = <KEY_VOLUMEUP>;
++			linux,can-disable;
++			debounce-interval = <15>;
++			wakeup-source;
++		};
++	};
++
+ 	memory@40000000 {
+ 		device_type = "memory";
+ 		reg = <0x0 0x40000000 0x0 0x3dd00000>,
+@@ -214,6 +235,29 @@ &sleep_clk {
+ 	clock-frequency = <32764>;
+ };
+ 
++&pm6125_gpios {
++	key_vol_up_default: key-vol-up-default-state {
++		pins = "gpio5";
++		function = "normal";
++		input-enable;
++		bias-pull-up;
++		power-source = <0>;
++	};
++};
++
++&pon_pwrkey {
++	status = "okay";
++};
++
++&pon_resin {
++	linux,code = <KEY_VOLUMEDOWN>;
++	status = "okay";
++};
++
++&pm6125_rtc {
++	status = "okay";
++};
++
+ &xo_board {
+ 	clock-frequency = <19200000>;
+ };
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 3db79f986..148e00e5d 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -700,6 +700,30 @@ gpu_speed_bin: gpu-speed-bin@6006 {
+ 			};
+ 		};
+ 
++		/*
++		 * SPMI PMIC arbiter; register windows identical to
++		 * sm6115 and to the downstream qcom,spmi@1c40000
++		 * (downstream routes the IRQ through MPM; upstream
++		 * bengal connects it to the GIC directly, SPI 183).
++		 */
++		spmi_bus: spmi@1c40000 {
++			compatible = "qcom,spmi-pmic-arb";
++			reg = <0x0 0x01c40000 0x0 0x1100>,
++			      <0x0 0x01e00000 0x0 0x2000000>,
++			      <0x0 0x03e00000 0x0 0x100000>,
++			      <0x0 0x03f00000 0x0 0xa0000>,
++			      <0x0 0x01c0a000 0x0 0x26000>;
++			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
++			interrupt-names = "periph_irq";
++			interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
++			qcom,ee = <0>;
++			qcom,channel = <0>;
++			#address-cells = <2>;
++			#size-cells = <0>;
++			interrupt-controller;
++			#interrupt-cells = <4>;
++		};
++
+ 		bimc: interconnect@4480000 {
+ 			compatible = "qcom,bengal-bimc";
+ 			reg = <0x0 0x04480000 0x0 0x80000>;
+-- 
+2.39.5
+
