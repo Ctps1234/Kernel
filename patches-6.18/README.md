@@ -116,16 +116,21 @@ serie; boot sem evidencia.
 Atualizacao (2026-10-31, **S5 placa**): entram **0048-0052** —
 SPMI + PM6125 (`pm6125.dtsi` upstream: PON/teclas/RTC/
 temp-alarm/ADC), TSENS `qcom,sm6225-tsens` + 16 zonas,
-I2C SE2/SE4 com touch **FT5452** e NFC **ST21NFC**, vibrador
-no PMIC GPIO8 — e a **correcao do console: SE3**
-(`uart3@4a8c000`, alias `hsuart0` do FDT; o SE4 da S1 e o
-barramento do NFC). Serie com **51 patches** (0001-0052
-sem o 0029). Vereditos: runs `41226732607`, `41228370915`,
-`41231928129`, `41233199069` verdes — `dtbs_check` sem
-reportes. Dividas: driver `focaltech,fts` nao importado,
-clock/clkreq do NFC fora do binding, I2C sem GPI DMA
-(modo FIFO), flash LED com a fatia de cameras; boot sem
-evidencia.
+I2C SE2/SE4 com touch e NFC **ST21NFC**, vibrador no PMIC
+GPIO8 — e a **correcao do console: SE3** (`uart3@4a8c000`,
+alias `hsuart0` do FDT; o SE4 da S1 e o barramento do NFC).
+O **0053** corrigiu a identificacao do touch: e o
+**FT3519T** (firmware `..._samsung_ft3519t.bin` no vendor
+do aparelho), nao FT5452 — e o driver ja existia na serie
+(0022, edt-ft5x06 `focaltech,ft3519`, 15-bit, `=y`); o no
+foi reescrito para o binding edt sem importar driver
+vendor. Serie com **52 patches** (0001-0053 sem o 0029).
+Vereditos: runs `41226732607`, `41228370915`, `41231928129`,
+`41233199069`, `41243173565` verdes — `dtbs_check` sem
+reportes. Dividas: identify/resume do edt no FT3519T e
+rail IOVCC sem confirmacao, clock/clkreq do NFC fora do
+binding, I2C sem GPI DMA (modo FIFO), flash LED com a
+fatia de cameras; boot sem evidencia.
 
 ## Estado (2026-10-29)
 

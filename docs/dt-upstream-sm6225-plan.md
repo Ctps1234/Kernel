@@ -208,11 +208,21 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   - 0051: `input-enable` removido dos estados do touch
     (TLMM não aceita a propriedade).
   - 0052: vibrador `gpio-vibrator` no PM6125 GPIO8.
-  **Dívidas**: driver do touch (`focaltech,fts`) ainda não
-  importado; clkreq/clock de RF do NFC fora do binding
-  upstream; GPI DMA não descrito (I2C em modo FIFO); flash
-  LED ficou com a fatia de câmeras; calibração TSENS opera
-  no modo "calibrationless" (como o sm6115 upstream).
+  **Correção pós-S5 (0053, run `41243173565`)**: o touch
+  não é FT5452 — é o **FT3519T** (evidência de runtime:
+  `focaltech_ts_fw_samsung_ft3519t.bin`; os chip IDs
+  0x54/0x52 enganam). O driver já estava na série
+  (0022: edt-ft5x06 `focaltech,ft3519`, coordenadas
+  15-bit, `=y`); o nó da S5c (`focaltech,fts`+binding
+  mínimo) foi reescrito para o binding edt
+  (AVDD=GPIO36 fixo, IOVCC=L9 por confirmar) — **nenhum
+  driver vendor precisou ser importado**.
+  **Dívidas**: identify()/resume do edt no FT3519T e rail
+  IOVCC não verificados; clkreq/clock de RF do NFC fora
+  do binding upstream; GPI DMA não descrito (I2C em modo
+  FIFO); flash LED ficou com a fatia de câmeras;
+  calibração TSENS opera no modo "calibrationless"
+  (como o sm6115 upstream).
 - **S6 – Câmeras**: só após decisão CAMSS vs Spectra.
 
 ## Gate de CI a adicionar (junto da S1)
