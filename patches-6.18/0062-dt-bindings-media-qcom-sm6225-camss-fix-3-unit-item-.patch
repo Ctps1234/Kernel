@@ -1,0 +1,61 @@
+From 2db5a51d5733cee321a79e2bc34c6898297e53dd Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sun, 1 Nov 2026 15:47:13 +0000
+Subject: [PATCH] dt-bindings: media: qcom,sm6225-camss: fix 3-unit item counts
+
+The binding cloned from qcm2290 truncated several lists one
+unit short of khaje's three CSIPHY/CSID/VFE units: reg-names
+and interrupt-names lacked the vfe2 entry and clock-names
+lacked vfe2/vfe2_cphy_rx, so dtbs_check reported the node
+lists as 'too long'. Similarly interconnects counts two
+specifier items per path (3 paths = 6), and khaje CAMSS
+uses two SMMU stream IDs, not four.
+---
+ .../devicetree/bindings/media/qcom,sm6225-camss.yaml      | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml b/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml
+index 74e35e5ffb4c..b6454c60cb80 100644
+--- a/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml
++++ b/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml
+@@ -33,6 +33,7 @@ properties:
+       - const: csiphy2
+       - const: vfe0
+       - const: vfe1
++      - const: vfe2
+ 
+   clocks:
+     maxItems: 20
+@@ -57,6 +58,8 @@ properties:
+       - const: vfe0_cphy_rx
+       - const: vfe1
+       - const: vfe1_cphy_rx
++      - const: vfe2
++      - const: vfe2_cphy_rx
+ 
+   interrupts:
+     maxItems: 9
+@@ -71,9 +74,10 @@ properties:
+       - const: csiphy2
+       - const: vfe0
+       - const: vfe1
++      - const: vfe2
+ 
+   interconnects:
+-    maxItems: 3
++    maxItems: 6
+ 
+   interconnect-names:
+     items:
+@@ -82,7 +86,7 @@ properties:
+       - const: sf_mnoc
+ 
+   iommus:
+-    maxItems: 4
++    maxItems: 2
+ 
+   power-domains:
+     items:
+-- 
+2.39.5
+
