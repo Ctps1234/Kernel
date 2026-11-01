@@ -1,0 +1,31 @@
+From 5103c6f608d73b35bed882bc99f3673754c6da68 Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sun, 1 Nov 2026 15:17:16 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: include rpm-icc tag macros
+
+The CAMSS interconnect paths (0056) use RPM_ACTIVE_TAG /
+RPM_ALWAYS_TAG, defined in dt-bindings/interconnect/
+qcom,rpm-icc.h, which sm6225.dtsi never included. CPP left
+the unknown identifiers in place and dtc failed lexically
+on the barewords. Add the include. This only surfaced once
+the preceding C build failures were fixed and the workflow
+reached the dtbs step.
+---
+ arch/arm64/boot/dts/qcom/sm6225.dtsi | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index fbda0a23b115..e3803c1469d1 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -17,6 +17,7 @@
+ #include <dt-bindings/clock/qcom,gpucc-khaje.h>
+ #include <dt-bindings/clock/qcom,rpmcc.h>
+ #include <dt-bindings/interconnect/qcom,bengal.h>
++#include <dt-bindings/interconnect/qcom,rpm-icc.h>
+ #include <dt-bindings/interrupt-controller/arm-gic.h>
+ #include <dt-bindings/power/qcom-rpmpd.h>
+ #include <dt-bindings/regulator/qcom,rpm-smd-regulator.h>
+-- 
+2.39.5
+
