@@ -1,4 +1,4 @@
-From a5e3addd421381cac4367c0f8f05be97c7c48f97 Mon Sep 17 00:00:00 2001
+From 4c9714751fad9e11aed0308d6870ac4cd2b59640 Mon Sep 17 00:00:00 2001
 From: Arena Agent <agent@arena.local>
 Date: Sun, 1 Nov 2026 19:06:47 +0000
 Subject: [PATCH 67/68] arm64: dts: qcom: sm6225: fix interconnect cell count
@@ -19,11 +19,11 @@ phandle argument counts against the provider cell count.
 
 Signed-off-by: Arena Agent <agent@arena.local>
 ---
- arch/arm64/boot/dts/qcom/sm6225.dtsi | 104 +++++++++++++--------------
- 1 file changed, 52 insertions(+), 52 deletions(-)
+ arch/arm64/boot/dts/qcom/sm6225.dtsi | 84 ++++++++++++++--------------
+ 1 file changed, 42 insertions(+), 42 deletions(-)
 
 diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
-index 975fd19e9e60..62ff9bf4f8eb 100644
+index 975fd19e9e60..716eeb9b9b53 100644
 --- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
 +++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
 @@ -935,14 +935,14 @@ system_noc: interconnect@1880000 {
@@ -181,21 +181,6 @@ index 975fd19e9e60..62ff9bf4f8eb 100644
  				interconnect-names = "qup-core", "qup-config";
  				status = "disabled";
  			};
-@@ -1308,10 +1308,10 @@ usb_1: usb@4ef8800 {
- 
- 			qcom,select-utmi-as-pipe-clk;
- 
--			interconnects = <&system_noc MASTER_USB3 RPM_ALWAYS_TAG
--					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>,
--					<&bimc MASTER_AMPSS_M0 RPM_ALWAYS_TAG
--					 &config_noc SLAVE_USB3 RPM_ALWAYS_TAG>;
-+			interconnects = <&system_noc MASTER_USB RPM_ALWAYS_TAG3 RPM_ALWAYS_TAG
-+					 &bimc SLAVE_EBI_CH RPM_ALWAYS_TAG0 RPM_ALWAYS_TAG>,
-+					<&bimc MASTER_AMPSS_M RPM_ALWAYS_TAG0 RPM_ALWAYS_TAG
-+					 &config_noc SLAVE_USB RPM_ALWAYS_TAG3 RPM_ALWAYS_TAG>;
- 			interconnect-names = "usb-ddr", "apps-usb";
- 
- 			#address-cells = <2>;
 @@ -1373,8 +1373,8 @@ gpu: gpu@5900000 {
  			power-domains = <&rpmpd SM6225_VDDCX>;
  			qcom,gmu = <&gmu_wrapper>;
@@ -207,25 +192,6 @@ index 975fd19e9e60..62ff9bf4f8eb 100644
  			interconnect-names = "gfx-mem";
  
  			nvmem-cells = <&gpu_speed_bin>;
-@@ -1637,12 +1637,12 @@ camss: camss@5c6e000 {
- 					    "vfe1",
- 					    "vfe2";
- 
--			interconnects = <&bimc MASTER_AMPSS_M0 RPM_ACTIVE_TAG
--					 &config_noc SLAVE_CAMERA_CFG RPM_ACTIVE_TAG>,
--					<&mmrt_virt MASTER_CAMNOC_HF RPM_ALWAYS_TAG
--					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>,
--					<&mmnrt_virt MASTER_CAMNOC_SF RPM_ALWAYS_TAG
--					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>;
-+			interconnects = <&bimc MASTER_AMPSS_M RPM_ALWAYS_TAG0 RPM_ACTIVE_TAG
-+					 &config_noc SLAVE_CAMERA_CF RPM_ALWAYS_TAGG RPM_ACTIVE_TAG>,
-+					<&mmrt_virt MASTER_CAMNOC_H RPM_ALWAYS_TAGF RPM_ALWAYS_TAG
-+					 &bimc SLAVE_EBI_CH RPM_ALWAYS_TAG0 RPM_ALWAYS_TAG>,
-+					<&mmnrt_virt MASTER_CAMNOC_S RPM_ALWAYS_TAGF RPM_ALWAYS_TAG
-+					 &bimc SLAVE_EBI_CH RPM_ALWAYS_TAG0 RPM_ALWAYS_TAG>;
- 			interconnect-names = "ahb",
- 					     "hf_mnoc",
- 					     "sf_mnoc";
 @@ -1686,10 +1686,10 @@ mdss: display-subsystem@5e00000 {
  			iommus = <&apps_smmu 0x420 0x2>,
  				 <&apps_smmu 0x421 0x0>;
