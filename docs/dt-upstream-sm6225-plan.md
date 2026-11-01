@@ -256,10 +256,21 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
     supplies CSIPHY na placa (L18/L4). **Premissa não
     verificada**: identidade de registradores com o
     qcm2290 (CSIPHY downstream é "v1.2.1").
-  - **S6c (a fazer)**: sensores na placa (mclk/reset/
-    trilhos via WL2866D): OV08D10 (frontal, driver ok)
-    primeiro; S5KJN1 (principal) e GC02M1 (macro) exigem
-    drivers novos; flash PM6125 no USID1 fecha a fatia.
+  - **S6c sensores (em curso)**:
+    - **S6c-1 (0057)**, run `41296845168`: **OV08D10**
+      frontal — o driver upstream era ACPI-only; ganhou
+      match OF + binding novo (`ovti,ov08d10.yaml`) +
+      sequenciamento de probe opcional (reset/supplies),
+      sem tocar o caminho ACPI. Nó no CCI1 @0x36
+      (endereço = default de datasheet, sem XML p/
+      confirmar), MCLK1 19,2 MHz (gpio21), reset gpio24,
+      2 lanes @720 Mbps → **CSIPHY2/port@2**; CAMSS
+      habilitado. **Dívidas**: trilhos do sensor são do
+      WL2866D (hoje só API misc, sem reguladores);
+      endereço I2C e o power-on real não verificados.
+    - **S6c-2 (a fazer)**: S5KJN1 (principal, 50 MP) e
+      GC02M1 (macro) exigem drivers novos/portados;
+      flash PM6125 no USID1 fecha a fatia.
 
 ## Gate de CI a adicionar (junto da S1)
 

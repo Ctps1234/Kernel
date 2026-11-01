@@ -135,16 +135,22 @@ CAMCC separado — o GCC khaje ja trazia todos os
 **nucleo CAMSS**: binding `qcom,sm6225-camss`, recursos
 no driver (geracoes do `CAMSS_2290` em 3 unidades) e
 `camss@5c6e000` desabilitado, com os supplies do CSIPHY
-(L18/L4) na placa. Serie com **55 patches** (0001-0056
-sem o 0029). Vereditos: runs `41226732607`, `41228370915`,
-`41231928129`, `41233199069`, `41243173565`, `41247264596`,
-`41250221213`, `41258294792` verdes — `dtbs_check` sem
-reportes. Dividas: identify/resume do edt no FT3519T e
-rail IOVCC sem confirmacao, clock/clkreq do NFC fora do
-binding, I2C sem GPI DMA (modo FIFO),
-`dynamic-power-coefficient` estimado; identidade de
-registradores CAMSS vs qcm2290 presumida; sensores/flash
-na S6c; boot sem evidencia.
+(L18/L4) na placa. O **0057** traz o primeiro sensor, a
+frontal **OV08D10**: o driver upstream (ACPI-only) ganhou
+match OF, binding novo e sequenciamento de probe opcional
+(reset/supplies), e o no (CCI1 @0x36, MCLK1, 2 lanes ->
+CSIPHY2) habilita o CAMSS. Serie com **56 patches**
+(0001-0057 sem o 0029). Vereditos: runs `41226732607`,
+`41228370915`, `41231928129`, `41233199069`, `41243173565`,
+`41247264596`, `41250221213`, `41258294792`, `41296845168`
+verdes — `dtbs_check` sem reportes. Dividas:
+identify/resume do edt no FT3519T e rail IOVCC sem
+confirmacao, clock/clkreq do NFC fora do binding, I2C sem
+GPI DMA (modo FIFO), `dynamic-power-coefficient`
+estimado; identidade de registradores CAMSS vs qcm2290
+presumida; trilhos dos sensores via WL2866D sem modelo
+de regulador e endereco I2C do OV08D10 por confirmar;
+S5KJN1/GC02M1/flash pendentes; boot sem evidencia.
 
 ## Estado (2026-10-29)
 
