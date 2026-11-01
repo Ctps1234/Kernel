@@ -344,6 +344,15 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   FSA4480/SBU, VBUS (charger), wakeups DP/DM via MPM
   (sem no MPM/IPCC ainda), tensao inicial dos LDOs da
   PHY e rates fora do downstream.
+- **microSD/SDHCI2 (0069-0071)**, run **`41349310964`**
+  (serie inteira, 70 patches, 0 reportes): host
+  0x4784000 (IRQ350/353, SID 0xa0, clocks/reset SDCC2),
+  DLL/DDR das listas downstream, OPP 100/202 MHz +
+  CX do rpmpd, estados SDC2; placa com L22 (vmmc),
+  L5 (vqmmc), CD GPIO88 ativo-alto, SDR104. O trilho
+  io-bias L7 ficou fora de proposito (sem consumidor
+  upstream). **Dividas**: taxas/polaridades nao
+  verificadas em hardware; io-bias e DLL fino.
 
 ## Gate de CI a adicionar (junto da S1)
 
