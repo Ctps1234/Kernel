@@ -1,0 +1,453 @@
+From a1960582c60f833a08b3686310ad8d2121f08fbe Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Sun, 1 Nov 2026 18:36:28 +0000
+Subject: [PATCH] misc: wl2866d: expose outputs as voltage regulators
+
+Register DVDD1/DVDD2/AVDD1/AVDD2 with the regulator framework in
+addition to the preserved downstream helper and misc device. The
+regulator enable path reuses the downstream sequencing (discharge
+register first, voltage selector programmed before enabling) but
+remembers the selected voltage instead of restoring the default
+on every enable, so DVDD1 can stay at its alternate 1.05 V
+operating point. The other outputs are fixed at the downstream
+programmed voltages.
+
+Downstream chooses which output powers which sensor from
+userspace: the camera power helper has no in-kernel callers and
+the downstream sensor power settings only contain the generic
+cam_clk and cam_vio slots, so no sensor is wired to these
+regulators yet. The board DT declares the rails with their
+downstream voltage ranges and the binding gains the matching
+child nodes.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../bindings/misc/ovti,wl2866d-i2c.yaml       |  36 ++-
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  33 ++-
+ drivers/misc/Kconfig                          |   4 +-
+ drivers/misc/wl2866d.c                        | 244 +++++++++++++++++-
+ 4 files changed, 311 insertions(+), 6 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/misc/ovti,wl2866d-i2c.yaml b/Documentation/devicetree/bindings/misc/ovti,wl2866d-i2c.yaml
+index 75d40c1a23b2..67970099f84d 100644
+--- a/Documentation/devicetree/bindings/misc/ovti,wl2866d-i2c.yaml
++++ b/Documentation/devicetree/bindings/misc/ovti,wl2866d-i2c.yaml
+@@ -62,6 +62,16 @@ properties:
+       default register sequence.  The array must contain exactly twice
+       as many entries as init_num.
+ 
++patternProperties:
++  "^(dvdd|avdd)[12]$":
++    type: object
++    $ref: /schemas/regulator/regulator.yaml#
++    unevaluatedProperties: false
++    description: |
++      One of the four output regulators (dvdd1, dvdd2, avdd1, avdd2).
++      DVDD1 supports 1.05 V and 1.2 V; the other outputs are fixed at
++      the voltages programmed by the driver (DVDD2 1.05 V, AVDD 2.8 V).
++
+ required:
+   - compatible
+   - reg
+@@ -87,7 +97,7 @@ examples:
+         #address-cells = <1>;
+         #size-cells = <0>;
+ 
+-        power-controller@28 {
++        pmic@28 {
+             compatible = "ovti,wl2866d-i2c";
+             reg = <0x28>;
+             en-gpio = <&gpio 26 GPIO_ACTIVE_HIGH>;
+@@ -96,5 +106,29 @@ examples:
+             id_val1 = <85>;
+             init_num = <2>;
+             inits = <4 75 14 15>;
++
++            dvdd1 {
++                regulator-name = "WL2866D_DVDD1";
++                regulator-min-microvolt = <1050000>;
++                regulator-max-microvolt = <1200000>;
++            };
++
++            dvdd2 {
++                regulator-name = "WL2866D_DVDD2";
++                regulator-min-microvolt = <1050000>;
++                regulator-max-microvolt = <1050000>;
++            };
++
++            avdd1 {
++                regulator-name = "WL2866D_AVDD1";
++                regulator-min-microvolt = <2800000>;
++                regulator-max-microvolt = <2800000>;
++            };
++
++            avdd2 {
++                regulator-name = "WL2866D_AVDD2";
++                regulator-min-microvolt = <2800000>;
++                regulator-max-microvolt = <2800000>;
++            };
+         };
+     };
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index d1dbce70cc0b..c2c6dd4cf0de 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -309,9 +309,12 @@ &i2c1 {
+ 	/*
+ 	 * WL2866D camera PMIC, with the identification and
+ 	 * board init pairs from the downstream camera overlay.
+-	 * The present driver leaves all four outputs disabled
+-	 * after probe; no sensor consumes them as regulators
+-	 * yet, so this only establishes the device on its bus.
++	 * The driver leaves all four outputs disabled after
++	 * probe and exposes them as regulators. Downstream
++	 * selects the sensor power rails from userspace, so
++	 * which output feeds which sensor is not recorded in
++	 * any accessible kernel source; until that mapping is
++	 * known the sensor nodes keep no regulator supplies.
+ 	 */
+ 	wl2866d: pmic@28 {
+ 		compatible = "ovti,wl2866d-i2c";
+@@ -323,6 +326,30 @@ wl2866d: pmic@28 {
+ 		id_val1 = <85>;
+ 		init_num = <2>;
+ 		inits = <4 75 14 15>;
++
++		wl2866d_dvdd1: dvdd1 {
++			regulator-name = "WL2866D_DVDD1";
++			regulator-min-microvolt = <1050000>;
++			regulator-max-microvolt = <1200000>;
++		};
++
++		wl2866d_dvdd2: dvdd2 {
++			regulator-name = "WL2866D_DVDD2";
++			regulator-min-microvolt = <1050000>;
++			regulator-max-microvolt = <1050000>;
++		};
++
++		wl2866d_avdd1: avdd1 {
++			regulator-name = "WL2866D_AVDD1";
++			regulator-min-microvolt = <2800000>;
++			regulator-max-microvolt = <2800000>;
++		};
++
++		wl2866d_avdd2: avdd2 {
++			regulator-name = "WL2866D_AVDD2";
++			regulator-min-microvolt = <2800000>;
++			regulator-max-microvolt = <2800000>;
++		};
+ 	};
+ 
+ 	/*
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index 2e6b25a589d5..9a2c227e46da 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -170,11 +170,13 @@ config WL2866D
+ 	depends on GPIOLIB
+ 	depends on I2C
+ 	depends on OF
++	depends on REGULATOR
+ 	help
+ 	  If you say yes here you get support for the WL2866D
+ 	  I2C-controlled power management IC used to supply camera
+ 	  sensors. The driver provides the downstream in-kernel power
+-	  control helper and a root-only misc device for register access.
++	  control helper, a root-only misc device for register access,
++	  and the four outputs as voltage regulators.
+ 
+ 	  This driver can also be built as a module. If so, the module
+ 	  will be called wl2866d.
+diff --git a/drivers/misc/wl2866d.c b/drivers/misc/wl2866d.c
+index e9fc9816cd5c..2fe399a5be1a 100644
+--- a/drivers/misc/wl2866d.c
++++ b/drivers/misc/wl2866d.c
+@@ -8,7 +8,8 @@
+  * sequences and vendor interfaces are preserved: the default register
+  * table is written first, the DT supplied identity is checked, the
+  * board-specific init pairs are applied, and all outputs are left off.
+- * The misc device keeps the downstream textual register format, but uses
++ * The four outputs are also exposed to the regulator framework. The misc
++ * device keeps the downstream textual register format, but uses
+  * normal byte-count semantics and fully validated user input.
+  */
+ 
+@@ -24,6 +25,8 @@
+ #include <linux/module.h>
+ #include <linux/mutex.h>
+ #include <linux/property.h>
++#include <linux/regulator/driver.h>
++#include <linux/regulator/of_regulator.h>
+ #include <linux/slab.h>
+ #include <linux/types.h>
+ #include <linux/uaccess.h>
+@@ -38,6 +41,7 @@
+ #define WL2866D_REG_ENABLE		0x0e
+ #define WL2866D_DISCHARGE_ENABLE	0x8f
+ #define WL2866D_DVDD1_1V05_VALUE	0x4b
++#define WL2866D_DVDD1_1V2_VALUE		0x64
+ #define WL2866D_REQUEST_1V05		1050000
+ 
+ struct wl2866d_output_config {
+@@ -97,6 +101,8 @@ struct wl2866d {
+ 	u8 id_val1;
+ 	unsigned int init_count;
+ 	struct wl2866d_reg_setting inits[WL2866D_MAX_INIT_PAIRS];
++	/* Voltage selector register value chosen per output. */
++	u8 vsel[WL2866D_OUTPUT_COUNT];
+ 	bool ready;
+ };
+ 
+@@ -254,6 +260,221 @@ int wl2866d_camera_power_control(unsigned int output, int request)
+ }
+ EXPORT_SYMBOL_GPL(wl2866d_camera_power_control);
+ 
++/*
++ * Regulator provider view of the same four outputs. The enable
++ * sequencing mirrors the downstream helper (discharge first,
++ * program the voltage selector while enabling), except that the
++ * selected voltage is remembered instead of being reprogrammed
++ * to the downstream default on every enable, so DVDD1 can stay
++ * at its alternate 1.05 V operating point.
++ */
++
++/* The caller must hold wl->lock and the output index must be valid. */
++static int wl2866d_reg_output_locked(struct wl2866d *wl,
++				     unsigned int output, bool enable)
++{
++	const struct wl2866d_output_config *config = &wl2866d_outputs[output];
++	u8 enable_reg;
++	u8 value;
++	int ret;
++
++	ret = wl2866d_read_reg(wl, WL2866D_REG_ENABLE, &enable_reg);
++	if (ret)
++		return ret;
++
++	/* Enable discharge mode to avoid leakage, as downstream does. */
++	ret = wl2866d_write_reg(wl, WL2866D_REG_DISCHARGE,
++				WL2866D_DISCHARGE_ENABLE);
++	if (ret)
++		return ret;
++
++	if (enable) {
++		ret = wl2866d_read_reg(wl, config->reg, &value);
++		if (ret || value != wl->vsel[output]) {
++			ret = wl2866d_write_reg(wl, config->reg,
++						wl->vsel[output]);
++			if (ret)
++				return ret;
++		}
++
++		enable_reg |= BIT(output);
++	} else {
++		enable_reg &= ~BIT(output);
++	}
++
++	return wl2866d_write_reg(wl, WL2866D_REG_ENABLE, enable_reg);
++}
++
++static int wl2866d_reg_enable(struct regulator_dev *rdev)
++{
++	struct wl2866d *wl = rdev_get_drvdata(rdev);
++	int ret;
++
++	mutex_lock(&wl->lock);
++	if (!wl->ready)
++		ret = -ENODEV;
++	else
++		ret = wl2866d_reg_output_locked(wl, rdev->desc->id, true);
++	mutex_unlock(&wl->lock);
++
++	return ret;
++}
++
++static int wl2866d_reg_disable(struct regulator_dev *rdev)
++{
++	struct wl2866d *wl = rdev_get_drvdata(rdev);
++	int ret;
++
++	mutex_lock(&wl->lock);
++	if (!wl->ready)
++		ret = -ENODEV;
++	else
++		ret = wl2866d_reg_output_locked(wl, rdev->desc->id, false);
++	mutex_unlock(&wl->lock);
++
++	return ret;
++}
++
++static int wl2866d_reg_is_enabled(struct regulator_dev *rdev)
++{
++	struct wl2866d *wl = rdev_get_drvdata(rdev);
++	u8 enable;
++	int ret;
++
++	mutex_lock(&wl->lock);
++	if (!wl->ready)
++		ret = -ENODEV;
++	else {
++		ret = wl2866d_read_reg(wl, WL2866D_REG_ENABLE, &enable);
++		if (!ret)
++			ret = !!(enable & BIT(rdev->desc->id));
++	}
++	mutex_unlock(&wl->lock);
++
++	return ret;
++}
++
++/* DVDD1 is the only output downstream ever runs at two voltages. */
++static const unsigned int wl2866d_dvdd1_voltages[] = {
++	1050000,
++	1200000,
++};
++
++static const u8 wl2866d_dvdd1_values[] = {
++	WL2866D_DVDD1_1V05_VALUE,
++	WL2866D_DVDD1_1V2_VALUE,
++};
++
++static int wl2866d_reg_set_voltage_sel(struct regulator_dev *rdev,
++				       unsigned int selector)
++{
++	struct wl2866d *wl = rdev_get_drvdata(rdev);
++	unsigned int output = rdev->desc->id;
++	int ret;
++
++	if (selector >= ARRAY_SIZE(wl2866d_dvdd1_values))
++		return -EINVAL;
++
++	mutex_lock(&wl->lock);
++	if (!wl->ready)
++		ret = -ENODEV;
++	else {
++		ret = wl2866d_write_reg(wl, wl2866d_outputs[output].reg,
++					wl2866d_dvdd1_values[selector]);
++		if (!ret)
++			wl->vsel[output] = wl2866d_dvdd1_values[selector];
++	}
++	mutex_unlock(&wl->lock);
++
++	return ret;
++}
++
++static int wl2866d_reg_get_voltage_sel(struct regulator_dev *rdev)
++{
++	struct wl2866d *wl = rdev_get_drvdata(rdev);
++	unsigned int output = rdev->desc->id;
++	unsigned int i;
++	u8 value;
++	int ret;
++
++	mutex_lock(&wl->lock);
++	if (!wl->ready)
++		ret = -ENODEV;
++	else
++		ret = wl2866d_read_reg(wl, wl2866d_outputs[output].reg,
++				       &value);
++	mutex_unlock(&wl->lock);
++	if (ret)
++		return ret;
++
++	for (i = 0; i < ARRAY_SIZE(wl2866d_dvdd1_values); i++) {
++		if (value == wl2866d_dvdd1_values[i])
++			return i;
++	}
++
++	return -EINVAL;
++}
++
++static const struct regulator_ops wl2866d_fixed_ops = {
++	.enable = wl2866d_reg_enable,
++	.disable = wl2866d_reg_disable,
++	.is_enabled = wl2866d_reg_is_enabled,
++};
++
++static const struct regulator_ops wl2866d_dvdd1_ops = {
++	.list_voltage = regulator_list_voltage_table,
++	.map_voltage = regulator_map_voltage_iterate,
++	.set_voltage_sel = wl2866d_reg_set_voltage_sel,
++	.get_voltage_sel = wl2866d_reg_get_voltage_sel,
++	.enable = wl2866d_reg_enable,
++	.disable = wl2866d_reg_disable,
++	.is_enabled = wl2866d_reg_is_enabled,
++};
++
++static const struct regulator_desc
++wl2866d_regulators[WL2866D_OUTPUT_COUNT] = {
++	[WL2866D_OUTPUT_DVDD1] = {
++		.name = "dvdd1",
++		.of_match = "dvdd1",
++		.ops = &wl2866d_dvdd1_ops,
++		.id = WL2866D_OUTPUT_DVDD1,
++		.type = REGULATOR_VOLTAGE,
++		.volt_table = wl2866d_dvdd1_voltages,
++		.n_voltages = ARRAY_SIZE(wl2866d_dvdd1_voltages),
++		.owner = THIS_MODULE,
++	},
++	[WL2866D_OUTPUT_DVDD2] = {
++		.name = "dvdd2",
++		.of_match = "dvdd2",
++		.ops = &wl2866d_fixed_ops,
++		.id = WL2866D_OUTPUT_DVDD2,
++		.type = REGULATOR_VOLTAGE,
++		.fixed_uV = 1050000,
++		.n_voltages = 1,
++		.owner = THIS_MODULE,
++	},
++	[WL2866D_OUTPUT_AVDD1] = {
++		.name = "avdd1",
++		.of_match = "avdd1",
++		.ops = &wl2866d_fixed_ops,
++		.id = WL2866D_OUTPUT_AVDD1,
++		.type = REGULATOR_VOLTAGE,
++		.fixed_uV = 2800000,
++		.n_voltages = 1,
++		.owner = THIS_MODULE,
++	},
++	[WL2866D_OUTPUT_AVDD2] = {
++		.name = "avdd2",
++		.of_match = "avdd2",
++		.ops = &wl2866d_fixed_ops,
++		.id = WL2866D_OUTPUT_AVDD2,
++		.type = REGULATOR_VOLTAGE,
++		.fixed_uV = 2800000,
++		.n_voltages = 1,
++		.owner = THIS_MODULE,
++	},
++};
++
+ static int wl2866d_open(struct inode *inode, struct file *file)
+ {
+ 	struct wl2866d_file *state;
+@@ -658,6 +879,27 @@ static int wl2866d_probe(struct i2c_client *client)
+ 		goto err_deregister_misc;
+ 	}
+ 
++	for (output = 0; output < WL2866D_OUTPUT_COUNT; output++)
++		wl->vsel[output] = wl2866d_outputs[output].value;
++
++	for (output = 0; output < WL2866D_OUTPUT_COUNT; output++) {
++		struct regulator_config cfg = { };
++		struct regulator_dev *rdev;
++
++		cfg.dev = dev;
++		cfg.driver_data = wl;
++
++		rdev = devm_regulator_register(dev,
++					       &wl2866d_regulators[output],
++					       &cfg);
++		if (IS_ERR(rdev)) {
++			ret = dev_err_probe(dev, PTR_ERR(rdev),
++					    "failed to register %s regulator\n",
++					    wl2866d_regulators[output].name);
++			goto err_deregister_misc;
++		}
++	}
++
+ 	dev_info(dev, "registered with outputs disabled\n");
+ 
+ 	return 0;
+-- 
+2.39.5
+
