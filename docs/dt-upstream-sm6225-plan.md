@@ -246,11 +246,16 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   - **S6a (0055)**, run `41250221213`: CCI
     (`cci@5c1b000`, 2 mestres, IRQ 206, clocks/GDSC do
     GCC) + `I2C_QCOM_CCI=y`.
-  - **S6b (a fazer)**: binding + recursos `sm6225` no
-    driver CAMSS + nó `camss@5c6e000` — khaje tem **3×
-    CSIPHY** e CSID/TFE cujas gerações precisam ser
-    conferidas contra o `CAMSS_2290` (csiphy-3ph-1.0,
-    csid/vfe) usando o mapa do FDT.
+  - **S6b (0056)**, run `41258294792`: binding
+    `qcom,sm6225-camss` + recursos no driver (tabelas
+    `csiphy/csid/vfe_res_6225`: gerações do `CAMSS_2290`
+    — csiphy-3ph-1.0/csid-340/vfe-340 — estendidas a
+    **3 unidades**, versão mantida `CAMSS_2290`) + nó
+    `camss@5c6e000` (10 janelas/9 IRQs/20 clocks GCC,
+    ICC bengal, SIDs 0x400/0x800) **desabilitado**;
+    supplies CSIPHY na placa (L18/L4). **Premissa não
+    verificada**: identidade de registradores com o
+    qcm2290 (CSIPHY downstream é "v1.2.1").
   - **S6c (a fazer)**: sensores na placa (mclk/reset/
     trilhos via WL2866D): OV08D10 (frontal, driver ok)
     primeiro; S5KJN1 (principal) e GC02M1 (macro) exigem

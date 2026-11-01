@@ -131,15 +131,20 @@ vendor. O **0054** fecha a fatia de **CPU**: cpufreq-hw
 **S6 (cameras, rota CAMSS upstream)**: CCI
 `cci@5c1b000` com clocks/GDSC do GCC (bengal nao tem
 CAMCC separado — o GCC khaje ja trazia todos os
-`GCC_CAMSS_*`) + `I2C_QCOM_CCI=y`. Serie com
-**54 patches** (0001-0055 sem o 0029). Vereditos: runs
-`41226732607`, `41228370915`, `41231928129`, `41233199069`,
-`41243173565`, `41247264596`, `41250221213` verdes —
-`dtbs_check` sem reportes. Dividas: identify/resume do
-edt no FT3519T e rail IOVCC sem confirmacao, clock/clkreq
-do NFC fora do binding, I2C sem GPI DMA (modo FIFO),
-`dynamic-power-coefficient` estimado; CAMSS/sensores/
-flash nas sub-fatias S6b/S6c; boot sem evidencia.
+`GCC_CAMSS_*`) + `I2C_QCOM_CCI=y`. O **0056** traz o
+**nucleo CAMSS**: binding `qcom,sm6225-camss`, recursos
+no driver (geracoes do `CAMSS_2290` em 3 unidades) e
+`camss@5c6e000` desabilitado, com os supplies do CSIPHY
+(L18/L4) na placa. Serie com **55 patches** (0001-0056
+sem o 0029). Vereditos: runs `41226732607`, `41228370915`,
+`41231928129`, `41233199069`, `41243173565`, `41247264596`,
+`41250221213`, `41258294792` verdes — `dtbs_check` sem
+reportes. Dividas: identify/resume do edt no FT3519T e
+rail IOVCC sem confirmacao, clock/clkreq do NFC fora do
+binding, I2C sem GPI DMA (modo FIFO),
+`dynamic-power-coefficient` estimado; identidade de
+registradores CAMSS vs qcm2290 presumida; sensores/flash
+na S6c; boot sem evidencia.
 
 ## Estado (2026-10-29)
 
