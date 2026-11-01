@@ -279,7 +279,10 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
       @0x2d (datasheet), MCLK0 **24 MHz** (exigencia do
       driver; downstream usa 19,2 MHz), reset gpio18,
       4 lanes @700 MHz -> **CSIPHY0/port@0**. GC02M1
-      (macro) e flash PM6125 continuam pendentes.
+      (macro) e o flash I2C continuam pendentes: o
+      downstream declara `CAM_FLASH_TYPE_I2C` via CCI,
+      nao o periferico flash SPMI do PM6125, e o IC
+      externo ainda nao foi identificado.
     - **Fechamento da S6 (0059-0062)**, run
       **`41322986183`** (serie inteira, 61 patches,
       0 reportes): correcoes que a S6 arrastava sem
@@ -294,11 +297,27 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
       bug de clobber (grep codigo 2 c/ log faltante)
       que escondia os diagnosticos — corrigido no
       workflow. **Dividas S6 restantes**: GC02M1 sem
-      driver, flash LED PM6125, WL2866D ainda sem virar
-      regulador (sensores sem supplies no DT), enderecos
-      I2C dos sensores por datasheet, MCLK 24 MHz do
-      S5KJN1 nao verificado no GCC, identidade de
-      registradores CAMSS=qcm2290 presumida.
+      driver, flash I2C com IC nao identificado,
+      WL2866D ainda sem virar regulador (o no entrou no
+      0063, mas os sensores seguem sem supplies no DT),
+      enderecos I2C dos sensores por datasheet, MCLK
+      24 MHz do S5KJN1 nao verificado no GCC,
+      identidade de registradores CAMSS=qcm2290
+      presumida.
+- **Barramento SE1 / USB-C (0063)**, run
+  **`41328560854`** (serie inteira, 62 patches,
+  0 reportes): QUPV3 SE1 (`i2c@4a84000`, GPIO4/5,
+  GIC SPI 328) habilitado a 400 kHz. Nele entram o
+  WL2866D `pmic@28` (EN no GPIO26; driver misc atual
+  desliga as saidas apos o probe) e o RT1711H @0x4e.
+  O **GPIO93 do topaz e o CHG_PD_INT_N ativo-baixo do
+  RT1711H**, com pull-up/drive 2; os estados genericos
+  downstream `cam_flash_tx_*` que reaproveitam o mesmo
+  pino nao sao a ligacao desta placa. Os PDOs fixos de
+  5 V (fonte 0,5 A, dreno 2 A) espelham o downstream.
+  **Dividas**: DWC3/PHY, FSA4480, VBUS, PM8008 e os
+  carregadores da SE1 ainda nao modelados; conector
+  sem endpoints ate o USB existir na DT.
 
 ## Gate de CI a adicionar (junto da S1)
 

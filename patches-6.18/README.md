@@ -143,10 +143,16 @@ CSIPHY2) habilita o CAMSS. O **0058** importa o driver
 mainline do **S5KJN1** (50 MP, traseiro principal,
 mergeado upstream depois do corte da base) com binding,
 e o no (CCI0 @0x2d, MCLK0 24 MHz, 4 lanes 700 MHz ->
-CSIPHY0). Serie com **61 patches**
-(0001-0062 sem o 0029). Vereditos: runs `41226732607`,
-`41228370915`, `41231928129`, `41233199069`, `41243173565`,
-`41250221213` e **`41322986183`** (serie inteira, 61
+CSIPHY0). O **0063** adiciona o barramento GENI I2C da
+QUP SE1 e descreve dois dispositivos downstream nele: o
+PMIC de camera **WL2866D** @0x28 (ainda pelo driver misc
+do 0033, saidas desligadas apos o probe) e o controlador
+USB-C/PD **RT1711H** @0x4e, cujo interrupt ativo-baixo e
+o CHG_PD_INT_N no **GPIO93** do topaz. Serie com **62
+patches** (0001-0063 sem o 0029). Vereditos: runs
+`41226732607`, `41228370915`, `41231928129`,
+`41233199069`, `41243173565`, `41250221213`,
+`41322986183` e **`41328560854`** (serie inteira, 62
 patches) verdes no workflow 6.18 — `dtbs_check` sem
 reportes. Correcao de registro: os runs `41247264596`,
 `41258294792` e `41296845168`, citados como verdes dos
@@ -160,11 +166,14 @@ identify/resume do edt no FT3519T e rail IOVCC sem
 confirmacao, clock/clkreq do NFC fora do binding, I2C sem
 GPI DMA (modo FIFO), `dynamic-power-coefficient`
 estimado; identidade de registradores CAMSS vs qcm2290
-presumida; trilhos dos sensores via WL2866D sem modelo
-de regulador e endereco I2C do OV08D10 por confirmar;
-S5KJN1 com MCLK reprogramado p/ 24 MHz e endereco novo
-por confirmar; GC02M1/flash pendentes; boot sem
-evidencia.
+presumida; trilhos dos sensores via WL2866D agora
+descrito na SE1, mas ainda sem modelo de regulador, e
+endereco I2C do OV08D10 por confirmar; S5KJN1 com MCLK
+reprogramado p/ 24 MHz e endereco por confirmar;
+GC02M1 e o flash I2C (IC ainda nao identificado)
+pendentes; RT1711H sem DWC3/PHY, FSA4480 ou VBUS
+modelados, e PM8008/carregadores da SE1 pendentes;
+boot sem evidencia.
 
 ## Estado (2026-10-29)
 
