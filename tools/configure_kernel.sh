@@ -60,6 +60,14 @@ else
     echo "arvore sem DWC3/Femto: pulando exigencia do USB primario"
 fi
 
+# QCOM_MPM: agregador de wakeup usado por USB/SPMI no DT do SoC.
+if grep -q "^config QCOM_MPM" drivers/irqchip/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED QCOM_MPM"
+    echo "arvore com QCOM_MPM: exigindo MPM built-in"
+else
+    echo "arvore sem QCOM_MPM: pulando exigencia do MPM"
+fi
+
 # SDHCI-MSM do SDHCI2 (microSD, DT do SoC na serie 6.18).
 if grep -q "^config MMC_SDHCI_MSM" drivers/mmc/host/Kconfig 2>/dev/null; then
     REQUIRED="$REQUIRED MMC MMC_SDHCI MMC_SDHCI_PLTFM MMC_SDHCI_MSM"
