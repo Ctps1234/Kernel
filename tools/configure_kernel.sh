@@ -50,6 +50,16 @@ else
     echo "arvore sem TYPEC_RT1711H: pulando exigencia da pilha USB-C"
 fi
 
+# DWC3 + PHY Femto do USB primario (DT do SoC na serie 6.18): exigidos
+# onde a arvore oferece os simbolos.
+if grep -q "^config USB_DWC3_QCOM" drivers/usb/dwc3/Kconfig 2>/dev/null &&
+   grep -q "^config PHY_QCOM_USB_SNPS_FEMTO_V2" drivers/phy/qualcomm/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED USB_DWC3 USB_DWC3_QCOM USB_DWC3_DUAL_ROLE PHY_QCOM_USB_SNPS_FEMTO_V2"
+    echo "arvore com DWC3/Femto: exigindo USB primario built-in"
+else
+    echo "arvore sem DWC3/Femto: pulando exigencia do USB primario"
+fi
+
 # O kconfig e o build precisam saber a arquitetura-alvo.
 export ARCH=arm64
 

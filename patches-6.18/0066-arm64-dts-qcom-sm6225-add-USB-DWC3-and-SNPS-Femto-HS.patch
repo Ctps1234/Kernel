@@ -1,0 +1,201 @@
+From 8b84d9989cf45249773e3b838f658557c181be3b Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Sun, 1 Nov 2026 19:06:18 +0000
+Subject: [PATCH 66/68] arm64: dts: qcom: sm6225: add USB DWC3 and SNPS Femto
+ HS PHY
+
+Describe the primary USB3 controller and its HS PHY from the
+downstream Khaje definitions: QSCRATCH glue at 0x4ef8800, DWC3
+core at 0x4e00000 (GIC SPI 255, SMMU SID 0x120, power event
+GIC SPI 302), Femto PHY at 0x1613000. The downstream QMP
+USB3/DP combo PHY is not modeled yet, so cap the core to
+high-speed and select UTMI as pipe clock. The DP/DM wakeups
+route through the MPM block downstream and stay unwired.
+
+Also add the PM6125 L12/L15 RPM regulators feeding the PHY
+1.8 V and 3.3 V rails, with the downstream voltage windows.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ arch/arm64/boot/dts/qcom/sm6225.dtsi | 144 +++++++++++++++++++++++++++
+ 1 file changed, 144 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 170cd320ca6f..975fd19e9e60 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -679,6 +679,28 @@ pm6125_l11: regulator-l11 {
+ 					};
+ 				};
+ 
++				/*
++				 * L12: USB HS PHY 1.8 V rail (window/init
++				 * from downstream bengal-regulator).
++				 */
++				rpm-regulator-ldoa12 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "ldoa";
++					qcom,resource-id = <12>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l12: regulator-l12 {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l12";
++						qcom,set = <3>;
++						regulator-min-microvolt = <1624000>;
++						regulator-max-microvolt = <1984000>;
++						qcom,init-voltage = <1624000>;
++					};
++				};
++
+ 				/*
+ 				 * L14: WCD937x codec buck/mic-bias rail
+ 				 * (window/init from the live FDT).
+@@ -701,6 +723,28 @@ pm6125_l14: regulator-l14 {
+ 					};
+ 				};
+ 
++				/*
++				 * L15: USB HS PHY 3.3 V rail (window/init
++				 * from downstream bengal-regulator).
++				 */
++				rpm-regulator-ldoa15 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "ldoa";
++					qcom,resource-id = <15>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l15: regulator-l15 {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l15";
++						qcom,set = <3>;
++						regulator-min-microvolt = <2920000>;
++						regulator-max-microvolt = <3232000>;
++						qcom,init-voltage = <2920000>;
++					};
++				};
++
+ 				rpm-regulator-ldoa18 {
+ 					compatible = "qcom,rpm-smd-regulator-resource";
+ 					qcom,resource-name = "ldoa";
+@@ -868,6 +912,21 @@ gcc: clock-controller@1400000 {
+ 			#power-domain-cells = <1>;
+ 		};
+ 
++		usb_1_hsphy: phy@1613000 {
++			compatible = "qcom,sm6225-usb-hs-phy",
++				     "qcom,usb-snps-hs-7nm-phy";
++			reg = <0x0 0x01613000 0x0 0x400>;
++
++			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>;
++			clock-names = "ref";
++
++			resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
++
++			#phy-cells = <0>;
++
++			status = "disabled";
++		};
++
+ 		system_noc: interconnect@1880000 {
+ 			compatible = "qcom,bengal-system_noc";
+ 			reg = <0x0 0x01880000 0x0 0x5f080>;
+@@ -1208,6 +1267,91 @@ &clk_virt SLAVE_QUP_CORE_0>,
+ 		 * the A610 table in a6xx_catalog) with the RPM level
+ 		 * of each pwrlevel as required-opp.
+ 		 */
++		/*
++		 * Primary USB3 controller, HS only for now: the
++		 * QMP USB3/DP combo PHY downstream is not modeled
++		 * yet, so the DWC3 core is capped to high-speed
++		 * on the SNPS Femto PHY and the pipe clock is
++		 * substituted by UTMI, as on other Bengal-class
++		 * SoCs. The DP/DM and SS wakeup lines downstream
++		 * route through the MPM block, which is not
++		 * described yet; only the GIC power event is
++		 * wired.
++		 */
++		usb_1: usb@4ef8800 {
++			compatible = "qcom,sm6225-dwc3", "qcom,dwc3";
++			reg = <0x0 0x04ef8800 0x0 0x400>;
++
++			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
++				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
++				 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
++				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
++				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
++				 <&gcc GCC_USB3_PRIM_CLKREF_CLK>;
++			clock-names = "cfg_noc",
++				      "core",
++				      "iface",
++				      "sleep",
++				      "mock_utmi",
++				      "xo";
++
++			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
++					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;
++			assigned-clock-rates = <19200000>, <133333333>;
++
++			interrupts = <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>;
++			interrupt-names = "pwr_event";
++
++			power-domains = <&gcc GCC_USB30_PRIM_GDSC>;
++
++			resets = <&gcc GCC_USB30_PRIM_BCR>;
++
++			qcom,select-utmi-as-pipe-clk;
++
++			interconnects = <&system_noc MASTER_USB3 RPM_ALWAYS_TAG
++					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>,
++					<&bimc MASTER_AMPSS_M0 RPM_ALWAYS_TAG
++					 &config_noc SLAVE_USB3 RPM_ALWAYS_TAG>;
++			interconnect-names = "usb-ddr", "apps-usb";
++
++			#address-cells = <2>;
++			#size-cells = <2>;
++			ranges;
++
++			status = "disabled";
++
++			usb_1_dwc3: usb@4e00000 {
++				compatible = "snps,dwc3";
++				reg = <0x0 0x04e00000 0x0 0xe000>;
++				interrupts = <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>;
++				maximum-speed = "high-speed";
++				phys = <&usb_1_hsphy>;
++				phy-names = "usb2-phy";
++				iommus = <&apps_smmu 0x120 0x0>;
++
++				snps,has-lpm-erratum;
++				snps,hird-threshold = /bits/ 8 <0x10>;
++				snps,dis-u1-entry-quirk;
++				snps,dis-u2-entry-quirk;
++				snps,usb3_lpm_capable;
++				tx-fifo-resize;
++
++				usb-role-switch;
++
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++
++					port@0 {
++						reg = <0>;
++
++						usb_1_dwc3_hs: endpoint {
++						};
++					};
++				};
++			};
++		};
++
+ 		gpu: gpu@5900000 {
+ 			compatible = "qcom,adreno-610.0", "qcom,adreno";
+ 			reg = <0x0 0x05900000 0x0 0x90000>;
+-- 
+2.39.5
+

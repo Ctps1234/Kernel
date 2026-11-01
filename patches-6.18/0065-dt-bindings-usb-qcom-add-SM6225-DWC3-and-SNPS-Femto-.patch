@@ -1,0 +1,80 @@
+From c5c243c2f5f591a7acec9d868c3209102b722545 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Sun, 1 Nov 2026 19:04:27 +0000
+Subject: [PATCH 65/68] dt-bindings: usb: qcom: add SM6225 DWC3 and SNPS Femto
+ HS PHY
+
+Document the SM6225 (Khaje) USB3 primary controller in the
+Qualcomm DWC3 binding and its SNPS Femto HS PHY in the Femto
+V2 binding. The controller takes the same six clocks as
+SM6115/SM6125. Its glue interrupts downstream are the power
+event on the GIC plus DP/DM and SuperSpeed wakeups routed
+through the MPM block, so allow between one and four of them.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../bindings/phy/qcom,usb-snps-femto-v2.yaml  |  1 +
+ .../devicetree/bindings/usb/qcom,dwc3.yaml    | 21 +++++++++++++++++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/phy/qcom,usb-snps-femto-v2.yaml b/Documentation/devicetree/bindings/phy/qcom,usb-snps-femto-v2.yaml
+index 661759b25064..6cb91eb9ca24 100644
+--- a/Documentation/devicetree/bindings/phy/qcom,usb-snps-femto-v2.yaml
++++ b/Documentation/devicetree/bindings/phy/qcom,usb-snps-femto-v2.yaml
+@@ -28,6 +28,7 @@ properties:
+               - qcom,sc8180x-usb-hs-phy
+               - qcom,sdx55-usb-hs-phy
+               - qcom,sdx65-usb-hs-phy
++              - qcom,sm6225-usb-hs-phy
+               - qcom,sm6375-usb-hs-phy
+               - qcom,sm8150-usb-hs-phy
+               - qcom,sm8250-usb-hs-phy
+diff --git a/Documentation/devicetree/bindings/usb/qcom,dwc3.yaml b/Documentation/devicetree/bindings/usb/qcom,dwc3.yaml
+index a792434c59db..6781ae8fdbca 100644
+--- a/Documentation/devicetree/bindings/usb/qcom,dwc3.yaml
++++ b/Documentation/devicetree/bindings/usb/qcom,dwc3.yaml
+@@ -58,6 +58,7 @@ properties:
+           - qcom,sm4250-dwc3
+           - qcom,sm6115-dwc3
+           - qcom,sm6125-dwc3
++          - qcom,sm6225-dwc3
+           - qcom,sm6350-dwc3
+           - qcom,sm6375-dwc3
+           - qcom,sm8150-dwc3
+@@ -361,6 +362,7 @@ allOf:
+               - qcom,sc8180x-dwc3-mp
+               - qcom,sm6115-dwc3
+               - qcom,sm6125-dwc3
++              - qcom,sm6225-dwc3
+               - qcom,sm8150-dwc3
+               - qcom,sm8250-dwc3
+               - qcom,sm8450-dwc3
+@@ -462,6 +464,25 @@ allOf:
+             - const: dp_hs_phy_irq
+             - const: dm_hs_phy_irq
+ 
++  - if:
++      properties:
++        compatible:
++          contains:
++            enum:
++              - qcom,sm6225-dwc3
++    then:
++      properties:
++        interrupts:
++          minItems: 1
++          maxItems: 4
++        interrupt-names:
++          minItems: 1
++          items:
++            - const: pwr_event
++            - const: dp_hs_phy_irq
++            - const: dm_hs_phy_irq
++            - const: ss_phy_irq
++
+   - if:
+       properties:
+         compatible:
+-- 
+2.39.5
+

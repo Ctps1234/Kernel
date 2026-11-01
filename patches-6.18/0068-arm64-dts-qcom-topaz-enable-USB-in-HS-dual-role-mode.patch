@@ -1,0 +1,94 @@
+From 3652b985039bc5c12ee7ff3fcbfd32cc46f6837b Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Sun, 1 Nov 2026 19:07:51 +0000
+Subject: [PATCH 68/68] arm64: dts: qcom: topaz: enable USB in HS dual-role
+ mode
+
+Enable the primary USB controller and its HS PHY with the
+PM6125 rails downstream assigns to the PHY (L4/L12/L15), set
+the DWC3 core to OTG and wire the High-Speed endpoints
+between the DWC3 port and the RT1711H USB-C connector so the
+TCPM can drive data-role switching. VBUS stays charger-side
+(the TCPC falls back to the dummy regulator) and SuperSpeed
+waits for the QMP combo PHY and the FSA4480 switch.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 47 +++++++++++++++++--
+ 1 file changed, 44 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index c2c6dd4cf0de..6880fc219430 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -358,9 +358,10 @@ wl2866d_avdd2: avdd2 {
+ 	 * assignment wins over the generic Khaje camera-flash
+ 	 * TX state that also names GPIO93 downstream. The sole
+ 	 * fixed 5 V PDOs mirror the downstream PD data (source
+-	 * 0.5 A, sink 2 A). There is no USB controller/PHY or
+-	 * FSA4480 switch in the DT yet, so the connector has no
+-	 * graph endpoints and VBUS control remains unmodeled.
++	 * 0.5 A, sink 2 A). The High-Speed lines are wired to
++	 * the DWC3 port for data-role switching; SuperSpeed and
++	 * SBU switching (QMP combo PHY, FSA4480) and VBUS
++	 * control remain unmodeled.
+ 	 */
+ 	rt1711h: rt1711h@4e {
+ 		compatible = "richtek,rt1711h";
+@@ -384,6 +385,19 @@ connector {
+ 			sink-pdos = <PDO_FIXED(5000, 2000,
+ 					       PDO_FIXED_USB_COMM)>;
+ 			op-sink-microwatt = <10000000>;
++
++			ports {
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				port@0 {
++					reg = <0>;
++
++					rt1711h_hs: endpoint {
++						remote-endpoint = <&usb_1_dwc3_hs>;
++					};
++				};
++			};
+ 		};
+ 	};
+ };
+@@ -742,6 +756,33 @@ &ufs_mem_phy {
+ 	status = "okay";
+ };
+ 
++/*
++ * USB primary port in HS-only dual-role. The HS PHY rails
++ * are the PM6125 LDOs downstream assigns to it (0.88 V core
++ * on L4, 1.8 V on L12, 3.3 V on L15). Data-role switching is
++ * wired to the RT1711H port controller; VBUS switching and
++ * SuperSpeed/alt-mode remain unmodeled (charger-controlled
++ * VBUS, no QMP combo PHY or FSA4480 switch described yet).
++ */
++&usb_1 {
++	status = "okay";
++};
++
++&usb_1_dwc3 {
++	dr_mode = "otg";
++};
++
++&usb_1_dwc3_hs {
++	remote-endpoint = <&rt1711h_hs>;
++};
++
++&usb_1_hsphy {
++	vdda-pll-supply = <&pm6125_l4>;
++	vdda18-supply = <&pm6125_l12>;
++	vdda33-supply = <&pm6125_l15>;
++	status = "okay";
++};
++
+ &gpu {
+ 	status = "okay";
+ 
+-- 
+2.39.5
+
