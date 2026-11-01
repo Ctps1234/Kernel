@@ -1,4 +1,4 @@
-From 8b84d9989cf45249773e3b838f658557c181be3b Mon Sep 17 00:00:00 2001
+From b75933203630810cdeb7a04674f6afb57b2e3326 Mon Sep 17 00:00:00 2001
 From: Arena Agent <agent@arena.local>
 Date: Sun, 1 Nov 2026 19:06:18 +0000
 Subject: [PATCH 66/68] arm64: dts: qcom: sm6225: add USB DWC3 and SNPS Femto
@@ -21,7 +21,7 @@ Signed-off-by: Arena Agent <agent@arena.local>
  1 file changed, 144 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
-index 170cd320ca6f..975fd19e9e60 100644
+index 170cd320ca6f..41f3683e7531 100644
 --- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
 +++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
 @@ -679,6 +679,28 @@ pm6125_l11: regulator-l11 {
@@ -149,10 +149,10 @@ index 170cd320ca6f..975fd19e9e60 100644
 +
 +			qcom,select-utmi-as-pipe-clk;
 +
-+			interconnects = <&system_noc MASTER_USB3 RPM_ALWAYS_TAG
-+					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>,
-+					<&bimc MASTER_AMPSS_M0 RPM_ALWAYS_TAG
-+					 &config_noc SLAVE_USB3 RPM_ALWAYS_TAG>;
++			interconnects = <&system_noc MASTER_USB3
++					 &bimc SLAVE_EBI_CH0>,
++					<&bimc MASTER_AMPSS_M0
++					 &config_noc SLAVE_USB3>;
 +			interconnect-names = "usb-ddr", "apps-usb";
 +
 +			#address-cells = <2>;

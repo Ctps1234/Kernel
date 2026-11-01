@@ -1,0 +1,47 @@
+From 2f23b582ab17af9abac854252ca58a7e7d7ad140 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Sun, 1 Nov 2026 19:06:47 +0000
+Subject: [PATCH 67/68] arm64: dts: qcom: sm6225: drop interconnect tags to
+ match the bengal binding
+
+The bengal interconnect providers in this tree are bound with
+a single specifier cell, but the CAMSS node used the two-cell
+form with RPM bucket tags from the qcm2290 convention, which
+neither the binding nor the OF parser can read back against
+those providers. Drop the tags so every consumer uses the
+one-cell form. qcom_icc_xlate_extended treats a missing tag
+as bucket-all (RPM_ALWAYS_TAG), so this is functionally
+neutral.
+
+Found while wiring the USB interconnects in the same
+one-cell form.
+---
+ arch/arm64/boot/dts/qcom/sm6225.dtsi | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 41f3683e7531..617ab94eed8b 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -1637,12 +1637,12 @@ camss: camss@5c6e000 {
+ 					    "vfe1",
+ 					    "vfe2";
+ 
+-			interconnects = <&bimc MASTER_AMPSS_M0 RPM_ACTIVE_TAG
+-					 &config_noc SLAVE_CAMERA_CFG RPM_ACTIVE_TAG>,
+-					<&mmrt_virt MASTER_CAMNOC_HF RPM_ALWAYS_TAG
+-					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>,
+-					<&mmnrt_virt MASTER_CAMNOC_SF RPM_ALWAYS_TAG
+-					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>;
++			interconnects = <&bimc MASTER_AMPSS_M0
++					 &config_noc SLAVE_CAMERA_CFG>,
++					<&mmrt_virt MASTER_CAMNOC_HF
++					 &bimc SLAVE_EBI_CH0>,
++					<&mmnrt_virt MASTER_CAMNOC_SF
++					 &bimc SLAVE_EBI_CH0>;
+ 			interconnect-names = "ahb",
+ 					     "hf_mnoc",
+ 					     "sf_mnoc";
+-- 
+2.39.5
+
