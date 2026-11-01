@@ -1,0 +1,562 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sun, 1 Nov 2026 00:47:30 +0000
+Subject: [PATCH] media: qcom: camss: add SM6225 (khaje) support; dts node
+
+S6b, the CAMSS core, going the upstream CAMSS route:
+
+- New binding qcom,sm6225-camss modeled on qcm2290
+  with the khaje counts (3x CSIPHY/CSID/VFE, no TPG -
+  downstream TPG blocks have no IRQs and the driver
+  has no TPG subdevs in this family).
+- Driver: csiphy/csid/vfe resource tables cloned from
+  the 2290 ones (CSIPHY 3ph-1.0, CSID-340, VFE-340)
+  extended with the third unit, ICC table shared, and
+  version kept at CAMSS_2290 so all code paths are the
+  qcm2290 ones. Sub-IP register identity with 2290 is
+  a downstream-data-based assumption (CSIPHY is
+  'v1.2.1' downstream); not yet hardware-verified.
+- SoC node camss@5c6e000 (disabled): 10 register
+  windows / 9 IRQs / 20 clocks from the GCC CAMSS set
+  (already defined in gcc-khaje), TOP GDSC, bengal
+  interconnect paths (ahb/hf_mnoc/sf_mnoc) and the two
+  downstream ISP IOMMU contexts (0x400, 0x800).
+- Board wires the CSIPHY analog supplies
+  (pm6125_l18 on the historical '1p2' name, pm6125_l4
+  on '1p8' - downstream mipi-csi-vdd2/vdd1 resp.).
+  Node stays disabled until the sensors land (S6c).
+---
+ .../bindings/media/qcom,sm6225-camss.yaml     | 142 +++++++++++++
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  13 ++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 121 +++++++++++
+ drivers/media/platform/qcom/camss/camss.c     | 195 ++++++++++++++++++
+ 4 files changed, 471 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml
+
+diff --git a/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml b/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml
+new file mode 100644
+index 000000000000..74e35e5ffb4c
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml
+@@ -0,0 +1,142 @@
++# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/qcom,sm6225-camss.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Qualcomm SM6225 Camera Subsystem (CAMSS)
++
++maintainers:
++  - Porting Team <noreply@localhost>
++
++# SM6225 carries three CSIPHY/CSID/VFE ("TFE") units where
++# QCM2290 has two; unit generations are otherwise the same.
++
++description:
++  The CAMSS IP is a CSI decoder and ISP present on Qualcomm platforms.
++
++properties:
++  compatible:
++    const: qcom,sm6225-camss
++
++  reg:
++    maxItems: 10
++
++  reg-names:
++    items:
++      - const: top
++      - const: csid0
++      - const: csid1
++      - const: csid2
++      - const: csiphy0
++      - const: csiphy1
++      - const: csiphy2
++      - const: vfe0
++      - const: vfe1
++
++  clocks:
++    maxItems: 20
++
++  clock-names:
++    items:
++      - const: ahb
++      - const: axi
++      - const: camnoc_nrt_axi
++      - const: camnoc_rt_axi
++      - const: csi0
++      - const: csi1
++      - const: csi2
++      - const: csiphy0
++      - const: csiphy0_timer
++      - const: csiphy1
++      - const: csiphy1_timer
++      - const: csiphy2
++      - const: csiphy2_timer
++      - const: top_ahb
++      - const: vfe0
++      - const: vfe0_cphy_rx
++      - const: vfe1
++      - const: vfe1_cphy_rx
++
++  interrupts:
++    maxItems: 9
++
++  interrupt-names:
++    items:
++      - const: csid0
++      - const: csid1
++      - const: csid2
++      - const: csiphy0
++      - const: csiphy1
++      - const: csiphy2
++      - const: vfe0
++      - const: vfe1
++
++  interconnects:
++    maxItems: 3
++
++  interconnect-names:
++    items:
++      - const: ahb
++      - const: hf_mnoc
++      - const: sf_mnoc
++
++  iommus:
++    maxItems: 4
++
++  power-domains:
++    items:
++      - description: GDSC CAMSS Block, Global Distributed Switch Controller.
++
++  vdd-csiphy-1p2-supply:
++    description:
++      Phandle to a 1.2V regulator supply to CSI PHYs.
++
++  vdd-csiphy-1p8-supply:
++    description:
++      Phandle to 1.8V regulator supply to CSI PHYs pll block.
++
++  ports:
++    $ref: /schemas/graph.yaml#/properties/ports
++
++    description:
++      CSI input ports.
++
++    patternProperties:
++      "^port@[0-3]+$":
++        $ref: /schemas/graph.yaml#/$defs/port-base
++        unevaluatedProperties: false
++
++        description:
++          Input port for receiving CSI data from a CSIPHY.
++
++        properties:
++          endpoint:
++            $ref: video-interfaces.yaml#
++            unevaluatedProperties: false
++
++            properties:
++              data-lanes:
++                minItems: 1
++                maxItems: 4
++
++            required:
++              - data-lanes
++
++required:
++  - compatible
++  - reg
++  - reg-names
++  - clocks
++  - clock-names
++  - interrupts
++  - interrupt-names
++  - interconnects
++  - interconnect-names
++  - iommus
++  - power-domains
++  - vdd-csiphy-1p2-supply
++  - vdd-csiphy-1p8-supply
++
++additionalProperties: false
++
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 8ba37d1cc04d..135a7ee5e07e 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -516,6 +516,19 @@ &cci {
+ 	status = "okay";
+ };
+ 
++/*
++ * CSIPHY analog supplies (downstream mipi-csi-vdd1 =
++ * pm6125_l4, mipi-csi-vdd2 = pm6125_l18). The upstream
++ * names are historical: on this board the "1p2" rail is
++ * L18 (1.1-1.3 V) and the "1p8" slot carries L4 (0.72-
++ * 1.05 V). CAMSS itself stays disabled until the sensor
++ * endpoints are described.
++ */
++&camss {
++	vdd-csiphy-1p2-supply = <&pm6125_l18>;
++	vdd-csiphy-1p8-supply = <&pm6125_l4>;
++};
++
+ &ufs_mem_hc {
+ 	reset-gpios = <&tlmm 113 GPIO_ACTIVE_LOW>;
+ 	/* Ref-clk pad supply; the downstream name is vddp-ref-clk. */
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index ec0929cd71ce..fbda0a23b115 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -1365,6 +1365,127 @@ cci_i2c1: i2c-bus@1 {
+ 			};
+ 		};
+ 
++		/*
++		 * CAMSS: three CSIPHY/CSID/VFE("TFE") units.
++		 * (The TPG/PPI blocks downstream has are unused
++		 * by this driver and are not described.) Register
++		 * windows/IRQs from the downstream cam-isp/csiphy
++		 * nodes (live FDT); per-unit layout matches the
++		 * qcm2290 upstream model (CSID at the start of
++		 * each compound block, VFE at +0x1000). The
++		 * CSIPHYs are downstream "v1.2.1"; the CSIPHY
++		 * register offsets used upstream (3ph-1.0) are
++		 * assumed to carry over - hardware verification
++		 * is still owed. The PPI blocks downstream has
++		 * no counterpart here and are omitted.
++		 */
++		camss: camss@5c6e000 {
++			compatible = "qcom,sm6225-camss";
++
++			reg = <0x0 0x5c11000 0x0 0x1000>,
++			      <0x0 0x5c6e000 0x0 0x1000>,
++			      <0x0 0x5c75000 0x0 0x1000>,
++			      <0x0 0x5c7c000 0x0 0x1000>,
++			      <0x0 0x5c52000 0x0 0x1000>,
++			      <0x0 0x5c54000 0x0 0x1000>,
++			      <0x0 0x5c56000 0x0 0x1000>,
++			      <0x0 0x5c6f000 0x0 0x4000>,
++			      <0x0 0x5c76000 0x0 0x4000>,
++			      <0x0 0x5c7d000 0x0 0x4000>;
++			reg-names = "top",
++				    "csid0",
++				    "csid1",
++				    "csid2",
++				    "csiphy0",
++				    "csiphy1",
++				    "csiphy2",
++				    "vfe0",
++				    "vfe1",
++				    "vfe2";
++
++			clocks = <&gcc GCC_CAMSS_TOP_AHB_CLK>,
++				 <&gcc GCC_CAMSS_AXI_CLK>,
++				 <&gcc GCC_CAMSS_NRT_AXI_CLK>,
++				 <&gcc GCC_CAMSS_RT_AXI_CLK>,
++				 <&gcc GCC_CAMSS_TFE_0_CSID_CLK>,
++				 <&gcc GCC_CAMSS_TFE_1_CSID_CLK>,
++				 <&gcc GCC_CAMSS_TFE_2_CSID_CLK>,
++				 <&gcc GCC_CAMSS_CPHY_0_CLK>,
++				 <&gcc GCC_CAMSS_CSI0PHYTIMER_CLK>,
++				 <&gcc GCC_CAMSS_CPHY_1_CLK>,
++				 <&gcc GCC_CAMSS_CSI1PHYTIMER_CLK>,
++				 <&gcc GCC_CAMSS_CPHY_2_CLK>,
++				 <&gcc GCC_CAMSS_CSI2PHYTIMER_CLK>,
++				 <&gcc GCC_CAMSS_TOP_AHB_CLK>,
++				 <&gcc GCC_CAMSS_TFE_0_CLK>,
++				 <&gcc GCC_CAMSS_TFE_0_CPHY_RX_CLK>,
++				 <&gcc GCC_CAMSS_TFE_1_CLK>,
++				 <&gcc GCC_CAMSS_TFE_1_CPHY_RX_CLK>,
++				 <&gcc GCC_CAMSS_TFE_2_CLK>,
++				 <&gcc GCC_CAMSS_TFE_2_CPHY_RX_CLK>;
++			clock-names = "ahb",
++				      "axi",
++				      "camnoc_nrt_axi",
++				      "camnoc_rt_axi",
++				      "csi0",
++				      "csi1",
++				      "csi2",
++				      "csiphy0",
++				      "csiphy0_timer",
++				      "csiphy1",
++				      "csiphy1_timer",
++				      "csiphy2",
++				      "csiphy2_timer",
++				      "top_ahb",
++				      "vfe0",
++				      "vfe0_cphy_rx",
++				      "vfe1",
++				      "vfe1_cphy_rx",
++				      "vfe2",
++				      "vfe2_cphy_rx";
++
++			interrupts = <GIC_SPI 210 IRQ_TYPE_EDGE_RISING>,
++				     <GIC_SPI 212 IRQ_TYPE_EDGE_RISING>,
++				     <GIC_SPI 77 IRQ_TYPE_EDGE_RISING>,
++				     <GIC_SPI 72 IRQ_TYPE_EDGE_RISING>,
++				     <GIC_SPI 73 IRQ_TYPE_EDGE_RISING>,
++				     <GIC_SPI 74 IRQ_TYPE_EDGE_RISING>,
++				     <GIC_SPI 211 IRQ_TYPE_EDGE_RISING>,
++				     <GIC_SPI 213 IRQ_TYPE_EDGE_RISING>,
++				     <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>;
++			interrupt-names = "csid0",
++					    "csid1",
++					    "csid2",
++					    "csiphy0",
++					    "csiphy1",
++					    "csiphy2",
++					    "vfe0",
++					    "vfe1",
++					    "vfe2";
++
++			interconnects = <&bimc MASTER_AMPSS_M0 RPM_ACTIVE_TAG
++					 &config_noc SLAVE_CAMERA_CFG RPM_ACTIVE_TAG>,
++					<&mmrt_virt MASTER_CAMNOC_HF RPM_ALWAYS_TAG
++					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>,
++					<&mmnrt_virt MASTER_CAMNOC_SF RPM_ALWAYS_TAG
++					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>;
++			interconnect-names = "ahb",
++					     "hf_mnoc",
++					     "sf_mnoc";
++
++			iommus = <&apps_smmu 0x400 0x0>,
++				 <&apps_smmu 0x800 0x0>;
++
++			power-domains = <&gcc GCC_CAMSS_TOP_GDSC>;
++
++			status = "disabled";
++
++			ports {
++				#address-cells = <1>;
++				#size-cells = <0>;
++			};
++		};
++
+ 		/*
+ 		 * MDSS (DPU 6.10 + single DSI). Addresses/IRQs from the
+ 		 * downstream khaje-sde-common.dtsi and the live FDT; shape
+diff --git a/drivers/media/platform/qcom/camss/camss.c b/drivers/media/platform/qcom/camss/camss.c
+index 2fbcd0e343aa..a755cd994360 100644
+--- a/drivers/media/platform/qcom/camss/camss.c
++++ b/drivers/media/platform/qcom/camss/camss.c
+@@ -649,6 +649,187 @@ static const struct resources_icc icc_res_2290[] = {
+ 	},
+ };
+ 
++/*
++ * SM6225 (khaje) carries the same sub-IP generations as
++ * QCM2290 (CSIPHY 3ph-1.0, CSID-340, VFE-340 "TFE") but
++ * three units of each. The tables below extend the 2290
++ * ones by the third unit and the resources wrapper keeps
++ * CAMSS_2290 so every code path is identical; the third
++ * CSID/VFE pair is only exercised by a third sensor.
++ * Register-level identity with 2290 is a downstream-data
++ * based assumption, not hardware-verified here.
++ */
++static const struct camss_subdev_resources csiphy_res_6225[] = {
++	/* CSIPHY0 */
++	{
++		.regulators = { "vdd-csiphy-1p2", "vdd-csiphy-1p8" },
++		.clock = { "top_ahb", "ahb", "csiphy0", "csiphy0_timer" },
++		.clock_rate = { { 0 },
++				{ 0 },
++				{ 240000000, 341330000, 384000000 },
++				{ 100000000, 200000000, 268800000 }  },
++		.reg = { "csiphy0" },
++		.interrupt = { "csiphy0" },
++		.csiphy = {
++			.id = 0,
++			.hw_ops = &csiphy_ops_3ph_1_0,
++			.formats = &csiphy_formats_sdm845
++		}
++	},
++
++	/* CSIPHY1 */
++	{
++		.regulators = { "vdd-csiphy-1p2", "vdd-csiphy-1p8" },
++		.clock = { "top_ahb", "ahb", "csiphy1", "csiphy1_timer" },
++		.clock_rate = { { 0 },
++				{ 0 },
++				{ 240000000, 341330000, 384000000 },
++				{ 100000000, 200000000, 268800000 }  },
++		.reg = { "csiphy1" },
++		.interrupt = { "csiphy1" },
++		.csiphy = {
++			.id = 1,
++			.hw_ops = &csiphy_ops_3ph_1_0,
++			.formats = &csiphy_formats_sdm845
++		}
++	},
++
++	/* CSIPHY2 */
++	{
++		.regulators = { "vdd-csiphy-1p2", "vdd-csiphy-1p8" },
++		.clock = { "top_ahb", "ahb", "csiphy2", "csiphy2_timer" },
++		.clock_rate = { { 0 },
++				{ 0 },
++				{ 240000000, 341330000, 384000000 },
++				{ 100000000, 200000000, 268800000 }  },
++		.reg = { "csiphy2" },
++		.interrupt = { "csiphy2" },
++		.csiphy = {
++			.id = 2,
++			.hw_ops = &csiphy_ops_3ph_1_0,
++			.formats = &csiphy_formats_sdm845
++		}
++	}
++};
++
++static const struct camss_subdev_resources csid_res_6225[] = {
++	/* CSID0 */
++	{
++		.regulators = {},
++		.clock = { "top_ahb", "ahb", "csi0", "vfe0_cphy_rx", "vfe0" },
++		.clock_rate = { { 0 },
++				{ 0 },
++				{ 192000000, 240000000, 384000000, 426400000 },
++				{ 0 },
++				{ 0 } },
++		.reg = { "csid0" },
++		.interrupt = { "csid0" },
++		.csid = {
++			.hw_ops = &csid_ops_340,
++			.parent_dev_ops = &vfe_parent_dev_ops,
++			.formats = &csid_formats_gen2
++		}
++	},
++
++	/* CSID1 */
++	{
++		.regulators = {},
++		.clock = { "top_ahb", "ahb", "csi1", "vfe1_cphy_rx", "vfe1" },
++		.clock_rate = { { 0 },
++				{ 0 },
++				{ 192000000, 240000000, 384000000, 426400000 },
++				{ 0 },
++				{ 0 } },
++		.reg = { "csid1" },
++		.interrupt = { "csid1" },
++		.csid = {
++			.hw_ops = &csid_ops_340,
++			.parent_dev_ops = &vfe_parent_dev_ops,
++			.formats = &csid_formats_gen2
++		}
++	},
++
++	/* CSID2 */
++	{
++		.regulators = {},
++		.clock = { "top_ahb", "ahb", "csi2", "vfe2_cphy_rx", "vfe2" },
++		.clock_rate = { { 0 },
++				{ 0 },
++				{ 192000000, 240000000, 384000000, 426400000 },
++				{ 0 },
++				{ 0 } },
++		.reg = { "csid2" },
++		.interrupt = { "csid2" },
++		.csid = {
++			.hw_ops = &csid_ops_340,
++			.parent_dev_ops = &vfe_parent_dev_ops,
++			.formats = &csid_formats_gen2
++		}
++	}
++};
++
++static const struct camss_subdev_resources vfe_res_6225[] = {
++	/* VFE0 */
++	{
++		.regulators = {},
++		.clock = { "top_ahb", "ahb", "axi", "vfe0", "camnoc_rt_axi", "camnoc_nrt_axi" },
++		.clock_rate = { { 0 },
++				{ 0 },
++				{ 0 },
++				{ 19200000, 153600000, 192000000, 256000000, 384000000, 460800000 },
++				{ 0 },
++				{ 0 }, },
++		.reg = { "vfe0" },
++		.interrupt = { "vfe0" },
++		.vfe = {
++			.line_num = 4,
++			.hw_ops = &vfe_ops_340,
++			.formats_rdi = &vfe_formats_rdi_845,
++			.formats_pix = &vfe_formats_pix_845
++		}
++	},
++
++	/* VFE1 */
++	{
++		.regulators = {},
++		.clock = { "top_ahb", "ahb", "axi", "vfe1", "camnoc_rt_axi", "camnoc_nrt_axi" },
++		.clock_rate = { { 0 },
++				{ 0 },
++				{ 0 },
++				{ 19200000, 153600000, 192000000, 256000000, 384000000, 460800000 },
++				{ 0 },
++				{ 0 }, },
++		.reg = { "vfe1" },
++		.interrupt = { "vfe1" },
++		.vfe = {
++			.line_num = 4,
++			.hw_ops = &vfe_ops_340,
++			.formats_rdi = &vfe_formats_rdi_845,
++			.formats_pix = &vfe_formats_pix_845
++		}
++	},
++
++	/* VFE2 */
++	{
++		.regulators = {},
++		.clock = { "top_ahb", "ahb", "axi", "vfe2", "camnoc_rt_axi", "camnoc_nrt_axi" },
++		.clock_rate = { { 0 },
++				{ 0 },
++				{ 0 },
++				{ 19200000, 153600000, 192000000, 256000000, 384000000, 460800000 },
++				{ 0 },
++				{ 0 }, },
++		.reg = { "vfe2" },
++		.interrupt = { "vfe2" },
++		.vfe = {
++			.line_num = 4,
++			.hw_ops = &vfe_ops_340,
++			.formats_rdi = &vfe_formats_rdi_845,
++			.formats_pix = &vfe_formats_pix_845
++		}
++	},
++};
++
+ static const struct camss_subdev_resources csiphy_res_660[] = {
+ 	/* CSIPHY0 */
+ 	{
+@@ -4338,6 +4519,19 @@ static const struct camss_resources qcm2290_resources = {
+ 	.vfe_num = ARRAY_SIZE(vfe_res_2290),
+ };
+ 
++/* Same IP generations as QCM2290, three units of each. */
++static const struct camss_resources sm6225_resources = {
++	.version = CAMSS_2290,
++	.csiphy_res = csiphy_res_6225,
++	.csid_res = csid_res_6225,
++	.vfe_res = vfe_res_6225,
++	.icc_res = icc_res_2290,
++	.icc_path_num = ARRAY_SIZE(icc_res_2290),
++	.csiphy_num = ARRAY_SIZE(csiphy_res_6225),
++	.csid_num = ARRAY_SIZE(csid_res_6225),
++	.vfe_num = ARRAY_SIZE(vfe_res_6225),
++};
++
+ static const struct camss_resources qcs8300_resources = {
+ 	.version = CAMSS_8300,
+ 	.pd_name = "top",
+@@ -4478,6 +4672,7 @@ static const struct of_device_id camss_dt_match[] = {
+ 	{ .compatible = "qcom,sdm660-camss", .data = &sdm660_resources },
+ 	{ .compatible = "qcom,sdm670-camss", .data = &sdm670_resources },
+ 	{ .compatible = "qcom,sdm845-camss", .data = &sdm845_resources },
++	{ .compatible = "qcom,sm6225-camss", .data = &sm6225_resources },
+ 	{ .compatible = "qcom,sm8250-camss", .data = &sm8250_resources },
+ 	{ .compatible = "qcom,sm8550-camss", .data = &sm8550_resources },
+ 	{ .compatible = "qcom,x1e80100-camss", .data = &x1e80100_resources },
+-- 
+2.39.5
+
