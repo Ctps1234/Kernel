@@ -1,0 +1,37 @@
+From b0f1b41344a286c2d52760d3976400a8c662541a Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sun, 1 Nov 2026 14:31:43 +0000
+Subject: [PATCH] media: i2c: s5kjn1: adapt pad ops to the 6.18 subdev API
+
+The imported driver tracks current mainline, where
+.set_fmt and .get_selection gained a v4l2_subdev_client_info
+parameter. This base predates that change and the parameter
+is unused in both callbacks, so drop it to match the 6.18
+v4l2_subdev_pad_ops signatures.
+---
+ drivers/media/i2c/s5kjn1.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/drivers/media/i2c/s5kjn1.c b/drivers/media/i2c/s5kjn1.c
+index 80d713ba3a1e..274d4a158f30 100644
+--- a/drivers/media/i2c/s5kjn1.c
++++ b/drivers/media/i2c/s5kjn1.c
+@@ -985,7 +985,6 @@ static void s5kjn1_update_pad_format(struct s5kjn1 *s5kjn1,
+ }
+ 
+ static int s5kjn1_set_pad_format(struct v4l2_subdev *sd,
+-				 const struct v4l2_subdev_client_info *ci,
+ 				 struct v4l2_subdev_state *state,
+ 				 struct v4l2_subdev_format *fmt)
+ {
+@@ -1066,7 +1065,6 @@ static int s5kjn1_enum_frame_size(struct v4l2_subdev *sd,
+ }
+ 
+ static int s5kjn1_get_selection(struct v4l2_subdev *sd,
+-				const struct v4l2_subdev_client_info *ci,
+ 				struct v4l2_subdev_state *sd_state,
+ 				struct v4l2_subdev_selection *sel)
+ {
+-- 
+2.39.5
+
