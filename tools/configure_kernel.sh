@@ -40,6 +40,16 @@ else
     echo "arvore sem VIDEO_S5KJN1: pulando exigencia do sensor traseiro"
 fi
 
+# TYPEC_RT1711H (TCPC do topaz no I2C SE1, IRQ no GPIO93) e exigido
+# onde a arvore oferece o driver; o restante da pilha TCPM/TCPCI vem
+# junto no fragmento.
+if grep -q "^config TYPEC_RT1711H" drivers/usb/typec/tcpm/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED TYPEC TYPEC_TCPM TYPEC_TCPCI TYPEC_RT1711H"
+    echo "arvore com TYPEC_RT1711H: exigindo pilha USB-C built-in"
+else
+    echo "arvore sem TYPEC_RT1711H: pulando exigencia da pilha USB-C"
+fi
+
 # O kconfig e o build precisam saber a arquitetura-alvo.
 export ARCH=arm64
 

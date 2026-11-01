@@ -1,0 +1,165 @@
+From 61a5791bc9387c01cd1abc949f8a4b058052a97b Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sun, 1 Nov 2026 16:35:56 +0000
+Subject: [PATCH] arm64: dts: qcom: topaz: add QUP SE1 I2C devices
+
+Add the QUPV3 SE1 GENI I2C controller (GPIO4/5, GIC SPI 328) to sm6225.dtsi and enable it on topaz at 19.2 MHz/400 kHz.
+
+Describe the two downstream devices on that bus whose drivers are already in the series/base: the WL2866D camera PMIC at 0x28 (EN on TLMM GPIO26, vendor ID/init pairs; its driver still leaves the rails off and exposes no regulators) and the Richtek RT1711H USB-C/PD controller at 0x4e. The RT1711H interrupt is the board's CHG_PD_INT_N on TLMM GPIO93, which overrides the generic downstream camera-flash TX pin state naming the same GPIO. Its only fixed 5 V PDOs mirror downstream (source 0.5 A, sink 2 A); the USB controller/PHY, FSA4480 switch and VBUS regulator are not modeled yet, so the connector has no endpoints.
+
+The PM8008 and charging ICs sharing SE1 downstream remain for later slices.
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 75 +++++++++++++++++++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 29 +++++++
+ 2 files changed, 104 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index d981519bf09a..0a1454272c8a 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -16,6 +16,7 @@
+ 
+ #include <dt-bindings/gpio/gpio.h>
+ #include <dt-bindings/input/input.h>
++#include <dt-bindings/usb/pd.h>
+ 
+ #include "sm6225.dtsi"
+ #include "pm6125.dtsi"
+@@ -293,6 +294,73 @@ &qupv3_id_0 {
+ 	status = "okay";
+ };
+ 
++/*
++ * QUP SE1 carries the camera PMIC and USB-C port controller
++ * downstream (the same bus also carries the PM8008, FSA4480
++ * and charging ICs, which are not described yet). As with the
++ * other GENI I2C buses here, pin the SE source to 19.2 MHz.
++ */
++&i2c1 {
++	assigned-clocks = <&gcc GCC_QUPV3_WRAP0_S1_CLK>;
++	assigned-clock-rates = <19200000>;
++	clock-frequency = <400000>;
++	status = "okay";
++
++	/*
++	 * WL2866D camera PMIC, with the identification and
++	 * board init pairs from the downstream camera overlay.
++	 * The present driver leaves all four outputs disabled
++	 * after probe; no sensor consumes them as regulators
++	 * yet, so this only establishes the device on its bus.
++	 */
++	wl2866d: power-controller@28 {
++		compatible = "ovti,wl2866d-i2c";
++		reg = <0x28>;
++
++		en-gpio = <&tlmm 26 GPIO_ACTIVE_HIGH>;
++		id_reg = <3>;
++		id_val = <100>;
++		id_val1 = <85>;
++		init_num = <2>;
++		inits = <4 75 14 15>;
++	};
++
++	/*
++	 * Richtek RT1711H USB-C/PD controller. Its active-low
++	 * interrupt is CHG_PD_INT_N on TLMM GPIO93; that board
++	 * assignment wins over the generic Khaje camera-flash
++	 * TX state that also names GPIO93 downstream. The sole
++	 * fixed 5 V PDOs mirror the downstream PD data (source
++	 * 0.5 A, sink 2 A). There is no USB controller/PHY or
++	 * FSA4480 switch in the DT yet, so the connector has no
++	 * graph endpoints and VBUS control remains unmodeled.
++	 */
++	rt1711h: rt1711h@4e {
++		compatible = "richtek,rt1711h";
++		reg = <0x4e>;
++
++		interrupt-parent = <&tlmm>;
++		interrupts = <93 IRQ_TYPE_LEVEL_LOW>;
++		wakeup-source;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&rt1711h_int_default>;
++
++		connector {
++			compatible = "usb-c-connector";
++			label = "USB-C";
++			data-role = "dual";
++			power-role = "dual";
++			try-power-role = "sink";
++			source-pdos = <PDO_FIXED(5000, 500,
++						 PDO_FIXED_USB_COMM)>;
++			sink-pdos = <PDO_FIXED(5000, 2000,
++					       PDO_FIXED_USB_COMM)>;
++			op-sink-microwatt = <10000000>;
++		};
++	};
++};
++
+ /*
+  * Touchscreen on SE2. The GENI SE clock must be pinned to
+  * XO 19.2 MHz: geni_i2c rejects any SE source that is not
+@@ -700,6 +768,13 @@ &mdss_dsi0_phy {
+ };
+ 
+ &tlmm {
++	rt1711h_int_default: rt1711h-int-default-state {
++		pins = "gpio93";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++	};
++
+ 	cam_mclk1_default: cam-mclk1-default-state {
+ 		pins = "gpio21";
+ 		function = "cam_mclk";
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index e3803c1469d1..170cd320ca6f 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -814,6 +814,13 @@ cci1_default: cci1-default-state {
+ 				bias-disable;
+ 			};
+ 
++			qup_i2c1_default: qup-i2c1-default-state {
++				pins = "gpio4", "gpio5";
++				function = "qup1";
++				drive-strength = <2>;
++				bias-disable;
++			};
++
+ 			qup_i2c2_default: qup-i2c2-default-state {
+ 				pins = "gpio6", "gpio7";
+ 				function = "qup2";
+@@ -1091,6 +1098,28 @@ qupv3_id_0: geniqup@4ac0000 {
+ 			 * (GPI DMA not described yet; GENI falls back
+ 			 * to FIFO mode without dmas).
+ 			 */
++			i2c1: i2c@4a84000 {
++				compatible = "qcom,geni-i2c";
++				reg = <0x0 0x04a84000 0x0 0x4000>;
++				clock-names = "se";
++				clocks = <&gcc GCC_QUPV3_WRAP0_S1_CLK>;
++				pinctrl-names = "default";
++				pinctrl-0 = <&qup_i2c1_default>;
++				interrupts = <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>;
++				interconnects = <&clk_virt MASTER_QUP_CORE_0
++						 &clk_virt SLAVE_QUP_CORE_0>,
++						<&bimc MASTER_AMPSS_M0
++						 &config_noc SLAVE_QUP_0>,
++						<&system_noc MASTER_QUP_0
++						 &bimc SLAVE_EBI_CH0>;
++				interconnect-names = "qup-core",
++						     "qup-config",
++						     "qup-memory";
++				#address-cells = <1>;
++				#size-cells = <0>;
++				status = "disabled";
++			};
++
+ 			i2c2: i2c@4a88000 {
+ 				compatible = "qcom,geni-i2c";
+ 				reg = <0x0 0x04a88000 0x0 0x4000>;
+-- 
+2.39.5
+
