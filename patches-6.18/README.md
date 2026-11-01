@@ -148,12 +148,18 @@ QUP SE1 e descreve dois dispositivos downstream nele: o
 PMIC de camera **WL2866D** @0x28 (ainda pelo driver misc
 do 0033, saidas desligadas apos o probe) e o controlador
 USB-C/PD **RT1711H** @0x4e, cujo interrupt ativo-baixo e
-o CHG_PD_INT_N no **GPIO93** do topaz. Serie com **62
-patches** (0001-0063 sem o 0029). Vereditos: runs
+o CHG_PD_INT_N no **GPIO93** do topaz. O **0064** expoe as
+quatro saidas do WL2866D como reguladores (DVDD1 com
+1,05/1,2 V; DVDD2 1,05 V; AVDDx 2,8 V), mantendo o helper
+downstream e o misc device; os sensores continuam sem
+supplies porque o mapeamento saida->sensor era decisao do
+userspace downstream e nao consta em nenhuma fonte de
+kernel acessivel. Serie com **63 patches** (0001-0064 sem
+o 0029). Vereditos: runs
 `41226732607`, `41228370915`, `41231928129`,
 `41233199069`, `41243173565`, `41250221213`,
-`41322986183` e **`41328560854`** (serie inteira, 62
-patches) verdes no workflow 6.18 — `dtbs_check` sem
+`41322986183`, `41328560854` e **`41337536375`** (serie
+inteira, 63 patches) verdes no workflow 6.18 — `dtbs_check` sem
 reportes. Correcao de registro: os runs `41247264596`,
 `41258294792` e `41296845168`, citados como verdes dos
 marcos 0054/0056/0057, eram na verdade do workflow 6.12

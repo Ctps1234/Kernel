@@ -298,8 +298,9 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
       que escondia os diagnosticos — corrigido no
       workflow. **Dividas S6 restantes**: GC02M1 sem
       driver, flash I2C com IC nao identificado,
-      WL2866D ainda sem virar regulador (o no entrou no
-      0063, mas os sensores seguem sem supplies no DT),
+      sensores sem supplies do WL2866D no DT (reguladores
+      expostos no 0064, mas o mapeamento saida->sensor
+      era do userspace downstream),
       enderecos I2C dos sensores por datasheet, MCLK
       24 MHz do S5KJN1 nao verificado no GCC,
       identidade de registradores CAMSS=qcm2290
@@ -318,6 +319,18 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   **Dividas**: DWC3/PHY, FSA4480, VBUS, PM8008 e os
   carregadores da SE1 ainda nao modelados; conector
   sem endpoints ate o USB existir na DT.
+- **WL2866D regulador (0064)**, run **`41337536375`**
+  (serie inteira, 63 patches, 0 reportes): as quatro
+  saidas viram reguladores (`dvdd1`/`dvdd2`/`avdd1`/
+  `avdd2`), com a sequencia de enable downstream
+  (descarga, seletor de tensao, bit de enable) e a
+  tensao selecionada lembrada entre enables. DVDD1
+  aceita 1,05/1,2 V; DVDD2 fixo 1,05 V; AVDD fixos
+  2,8 V. Binding ganha os nos filhos; sensors seguem
+  sem supplies por falta de evidencia do mapeamento
+  (o helper `wl2866d_camera_power_control` nao tem
+  chamadores de kernel downstream e o DT de camera so
+  lista `cam_clk`/`cam_vio`).
 
 ## Gate de CI a adicionar (junto da S1)
 
