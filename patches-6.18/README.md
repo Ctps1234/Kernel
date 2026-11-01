@@ -143,11 +143,19 @@ CSIPHY2) habilita o CAMSS. O **0058** importa o driver
 mainline do **S5KJN1** (50 MP, traseiro principal,
 mergeado upstream depois do corte da base) com binding,
 e o no (CCI0 @0x2d, MCLK0 24 MHz, 4 lanes 700 MHz ->
-CSIPHY0). Serie com **57 patches**
-(0001-0058 sem o 0029). Vereditos: runs `41226732607`,
+CSIPHY0). Serie com **61 patches**
+(0001-0062 sem o 0029). Vereditos: runs `41226732607`,
 `41228370915`, `41231928129`, `41233199069`, `41243173565`,
-`41247264596`, `41250221213`, `41258294792`, `41296845168`
-verdes — `dtbs_check` sem reportes. Dividas:
+`41250221213` e **`41322986183`** (serie inteira, 61
+patches) verdes no workflow 6.18 — `dtbs_check` sem
+reportes. Correcao de registro: os runs `41247264596`,
+`41258294792` e `41296845168`, citados como verdes dos
+marcos 0054/0056/0057, eram na verdade do workflow 6.12
+congelado; no workflow 6.18 esses marcos quebravam (API de
+regulator inexistente no ov08d10, include rpm-icc faltando
+no CAMSS, listas do binding truncadas) e so ficaram
+verdes com os fixes 0059-0062, validados pelo run
+`41322986183`. Dividas:
 identify/resume do edt no FT3519T e rail IOVCC sem
 confirmacao, clock/clkreq do NFC fora do binding, I2C sem
 GPI DMA (modo FIFO), `dynamic-power-coefficient`

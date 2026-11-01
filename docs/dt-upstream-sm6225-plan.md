@@ -246,7 +246,8 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   - **S6a (0055)**, run `41250221213`: CCI
     (`cci@5c1b000`, 2 mestres, IRQ 206, clocks/GDSC do
     GCC) + `I2C_QCOM_CCI=y`.
-  - **S6b (0056)**, run `41258294792`: binding
+  - **S6b (0056)**, validado de fato no run
+    `41322986183` (ver "Fechamento da S6" abaixo): binding
     `qcom,sm6225-camss` + recursos no driver (tabelas
     `csiphy/csid/vfe_res_6225`: gerações do `CAMSS_2290`
     — csiphy-3ph-1.0/csid-340/vfe-340 — estendidas a
@@ -257,7 +258,8 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
     verificada**: identidade de registradores com o
     qcm2290 (CSIPHY downstream é "v1.2.1").
   - **S6c sensores (em curso)**:
-    - **S6c-1 (0057)**, run `41296845168`: **OV08D10**
+    - **S6c-1 (0057)**, validado de fato no run
+      `41322986183` (idem): **OV08D10**
       frontal — o driver upstream era ACPI-only; ganhou
       match OF + binding novo (`ovti,ov08d10.yaml`) +
       sequenciamento de probe opcional (reset/supplies),
@@ -268,9 +270,35 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
       habilitado. **Dívidas**: trilhos do sensor são do
       WL2866D (hoje só API misc, sem reguladores);
       endereço I2C e o power-on real não verificados.
-    - **S6c-2 (a fazer)**: S5KJN1 (principal, 50 MP) e
-      GC02M1 (macro) exigem drivers novos/portados;
-      flash PM6125 no USID1 fecha a fatia.
+    - **S6c-2 (0058+0060)**: **S5KJN1** (principal,
+      50 MP) — descoberto que o driver foi mergeado no
+      mainline (Linaro, 2025) depois do corte da base;
+      importado com o binding (`samsung,s5kjn1`) e
+      adaptado p/ a API 6.18 no 0060 (master ja usa
+      `v4l2_subdev_client_info` nas pad ops). No no CCI0
+      @0x2d (datasheet), MCLK0 **24 MHz** (exigencia do
+      driver; downstream usa 19,2 MHz), reset gpio18,
+      4 lanes @700 MHz -> **CSIPHY0/port@0**. GC02M1
+      (macro) e flash PM6125 continuam pendentes.
+    - **Fechamento da S6 (0059-0062)**, run
+      **`41322986183`** (serie inteira, 61 patches,
+      0 reportes): correcoes que a S6 arrastava sem
+      ninguem ver — os runs citados nos marcos 0056/0057
+      (e no 0054) eram do **workflow 6.12**, nao do 6.18
+      (licao: sempre filtrar por nome do workflow). No
+      6.18 quebravam: `devm_regulator_bulk_get_optional`
+      inexistente no ov08d10 (0059), include
+      `qcom,rpm-icc.h` faltando p/ os ICC do CAMSS
+      (0061) e listas do binding CAMSS truncadas na
+      3a unidade (0062). O laudo `falhas.txt` tinha um
+      bug de clobber (grep codigo 2 c/ log faltante)
+      que escondia os diagnosticos — corrigido no
+      workflow. **Dividas S6 restantes**: GC02M1 sem
+      driver, flash LED PM6125, WL2866D ainda sem virar
+      regulador (sensores sem supplies no DT), enderecos
+      I2C dos sensores por datasheet, MCLK 24 MHz do
+      S5KJN1 nao verificado no GCC, identidade de
+      registradores CAMSS=qcm2290 presumida.
 
 ## Gate de CI a adicionar (junto da S1)
 
