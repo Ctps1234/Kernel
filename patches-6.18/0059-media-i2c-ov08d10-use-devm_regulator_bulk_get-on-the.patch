@@ -1,0 +1,76 @@
+From 0e1eb05ab092a1c03936d33588d7c235d66ac5ce Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sun, 1 Nov 2026 14:06:54 +0000
+Subject: [PATCH] media: i2c: ov08d10: use devm_regulator_bulk_get on the DT
+ path
+
+The devm_regulator_bulk_get_optional() helper used by the
+0057 power-sequencing code does not exist in this base
+(it is a newer upstream API), so the driver never actually
+compiled here; the earlier 'green' run attributed to 0057
+was the frozen 6.12 workflow, not this one.
+
+Use the classic pattern instead: on DT, allocate the bulk
+array and devm_regulator_bulk_get() the rails (missing
+supply properties resolve to dummy regulators, so boards
+whose rails are not DT-described yet keep probing). On
+ACPI, firmware owns power as before and supplies stays
+NULL.
+---
+ drivers/media/i2c/ov08d10.c | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/i2c/ov08d10.c b/drivers/media/i2c/ov08d10.c
+index 4ba80d1f1935..96982ce39f17 100644
+--- a/drivers/media/i2c/ov08d10.c
++++ b/drivers/media/i2c/ov08d10.c
+@@ -1455,6 +1455,7 @@ static int ov08d10_probe(struct i2c_client *client)
+ {
+ 	struct ov08d10 *ov08d10;
+ 	unsigned long freq;
++	unsigned int i;
+ 	int ret;
+ 
+ 	ov08d10 = devm_kzalloc(&client->dev, sizeof(*ov08d10), GFP_KERNEL);
+@@ -1480,13 +1481,31 @@ static int ov08d10_probe(struct i2c_client *client)
+ 				     PTR_ERR(ov08d10->reset_gpio),
+ 				     "failed to get reset gpio\n");
+ 
+-	ret = devm_regulator_bulk_get_optional(ov08d10->dev,
+-						ARRAY_SIZE(ov08d10_supply_names),
+-						ov08d10_supply_names,
+-						&ov08d10->supplies);
+-	if (ret)
+-		return dev_err_probe(ov08d10->dev, ret,
+-				     "failed to get regulators\n");
++	/*
++	 * On DT, manage the sensor rails if described (missing
++	 * supply properties yield dummy regulators, so rails
++	 * that are not DT-described are left alone). On ACPI
++	 * the firmware owns power management, keep supplies
++	 * NULL as before.
++	 */
++	if (ov08d10->dev->of_node) {
++		ov08d10->supplies = devm_kcalloc(ov08d10->dev,
++				ARRAY_SIZE(ov08d10_supply_names),
++				sizeof(*ov08d10->supplies), GFP_KERNEL);
++		if (!ov08d10->supplies)
++			return -ENOMEM;
++
++		for (i = 0; i < ARRAY_SIZE(ov08d10_supply_names); i++)
++			ov08d10->supplies[i].supply =
++				ov08d10_supply_names[i];
++
++		ret = devm_regulator_bulk_get(ov08d10->dev,
++				ARRAY_SIZE(ov08d10_supply_names),
++				ov08d10->supplies);
++		if (ret)
++			return dev_err_probe(ov08d10->dev, ret,
++					     "failed to get regulators\n");
++	}
+ 
+ 	ret = ov08d10_power_on(ov08d10);
+ 	if (ret)
+-- 
+2.39.5
+
