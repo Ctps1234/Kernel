@@ -167,11 +167,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -o pipefail
-          grep -hE 'FALTANDO|^ERRO|error:|undefined|multiple definition|treated as errors|No rule to make|s5kjn1|ov08d10|sm6225-xiaomi-topaz\.dtb:' \
+          # NB: grep sai com codigo 2 se algum log nao existe (etapa
+          # anterior falhou); sem o "|| true" o pipefail apagava os
+          # matches validos grava o fallback por cima.
+          { grep -hE 'FALTANDO|^ERRO|error:|Error:|undefined|multiple definition|treated as errors|No rule to make|Error [0-9]|drivers/media.*(warning|error)|s5kjn1|ov08d10|sm6225-xiaomi-topaz\.dtb:' \
               basegoogle/configure.log basegoogle/kernel-build-618.log \
-              basegoogle/dtbs-check-618.log \
-              | sort -u > basegoogle/falhas.txt 2>/dev/null \
-              || echo "(nenhuma falha grepada)" > basegoogle/falhas.txt
+              basegoogle/dtbs-check-618.log || true; } 2>/dev/null \
+              | sort -u > basegoogle/falhas.txt
           [ -s basegoogle/falhas.txt ] \
               || echo "(nenhuma falha grepada)" > basegoogle/falhas.txt
           bash tools/ci_publish_report.sh \
