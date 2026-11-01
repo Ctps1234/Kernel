@@ -154,12 +154,19 @@ quatro saidas do WL2866D como reguladores (DVDD1 com
 downstream e o misc device; os sensores continuam sem
 supplies porque o mapeamento saida->sensor era decisao do
 userspace downstream e nao consta em nenhuma fonte de
-kernel acessivel. Serie com **63 patches** (0001-0064 sem
+kernel acessivel. Os **0065-0068** trazem o USB primario
+em HS: bindings (`qcom,sm6225-dwc3`, PHY Femto), DWC3
+(0x4e00000, glue 0x4ef8800) + PHY Femto (0x1613000) no
+SoC com os LDOs L12/L15, correcao de tags ICC (o binding
+bengal da arvore fixa 1 celula; o CAMSS usava tags de
+2 celulas) e a placa em dual-role com o endpoint
+DWC3<->RT1711H. Serie com **67 patches** (0001-0068 sem
 o 0029). Vereditos: runs
 `41226732607`, `41228370915`, `41231928129`,
 `41233199069`, `41243173565`, `41250221213`,
-`41322986183`, `41328560854` e **`41337536375`** (serie
-inteira, 63 patches) verdes no workflow 6.18 — `dtbs_check` sem
+`41322986183`, `41328560854`, `41337536375` e
+**`41346999641`** (serie inteira, 67 patches) verdes no
+workflow 6.18 — `dtbs_check` sem
 reportes. Correcao de registro: os runs `41247264596`,
 `41258294792` e `41296845168`, citados como verdes dos
 marcos 0054/0056/0057, eram na verdade do workflow 6.12

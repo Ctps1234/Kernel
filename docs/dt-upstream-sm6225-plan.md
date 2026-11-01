@@ -331,6 +331,19 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   (o helper `wl2866d_camera_power_control` nao tem
   chamadores de kernel downstream e o DT de camera so
   lista `cam_clk`/`cam_vio`).
+- **USB HS (0065-0068)**, run **`41346999641`** (serie
+  inteira, 67 patches, 0 reportes): DWC3 primario (core
+  0x4e00000 IRQ255, glue 0x4ef8800 pwr_event IRQ302,
+  SID 0x120) + PHY SNPS Femto 0x1613000, teto
+  high-speed, dual-role com endpoint p/ o RT1711H;
+  PHY alimentada por L4/L12/L15 do PM6125. De quebra:
+  as tags RPM de 2 celulas do CAMSS foram removidas
+  (o binding bengal da arvore fixa 1 celula) e o
+  binding do CAMSS corrigido p/ 3 interconnects.
+  **Dividas USB**: QMP combo USB3/DP (SuperSpeed),
+  FSA4480/SBU, VBUS (charger), wakeups DP/DM via MPM
+  (sem no MPM/IPCC ainda), tensao inicial dos LDOs da
+  PHY e rates fora do downstream.
 
 ## Gate de CI a adicionar (junto da S1)
 
