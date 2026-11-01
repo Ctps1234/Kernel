@@ -1,0 +1,28 @@
+From 354bb9c39f895f1855a091839f436050a48c6f16 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Sun, 1 Nov 2026 20:54:02 +0000
+Subject: [PATCH 69/71] dt-bindings: mmc: sdhci-msm: add SM6225 compatible
+
+Document qcom,sm6225-sdhci as an SDHCI MSM v5 variant,
+matching the downstream sdhci@4784000 controller.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ Documentation/devicetree/bindings/mmc/sdhci-msm.yaml | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Documentation/devicetree/bindings/mmc/sdhci-msm.yaml b/Documentation/devicetree/bindings/mmc/sdhci-msm.yaml
+index 594bd174ff21..e634b1ac042d 100644
+--- a/Documentation/devicetree/bindings/mmc/sdhci-msm.yaml
++++ b/Documentation/devicetree/bindings/mmc/sdhci-msm.yaml
+@@ -61,6 +61,7 @@ properties:
+               - qcom,sdx75-sdhci
+               - qcom,sm6115-sdhci
+               - qcom,sm6125-sdhci
++              - qcom,sm6225-sdhci
+               - qcom,sm6350-sdhci
+               - qcom,sm6375-sdhci
+               - qcom,sm7150-sdhci
+-- 
+2.39.5
+

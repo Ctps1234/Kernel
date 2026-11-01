@@ -1,0 +1,50 @@
+From 847656fdf7a9f85fdf2f0eec8f63e72d30b8d2d8 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Sun, 1 Nov 2026 20:54:59 +0000
+Subject: [PATCH 71/71] arm64: dts: qcom: topaz: enable microSD on SDHCI2
+
+Enable the SDHC2 host with the PM6125 rails downstream
+assigns to the slot (L22 vmmc, L5 vqmmc), card-detect on
+TLMM GPIO88 as wired by the Xiaomi board layer
+(active-high, overriding the IDP setting) and UHS SDR104
+support matching the 202 MHz OPP. The downstream io-bias
+rail (L7) has no upstream consumer and is left unmodeled.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 6880fc219430..2206c010480c 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -756,6 +756,25 @@ &ufs_mem_phy {
+ 	status = "okay";
+ };
+ 
++/*
++ * microSD on SDHCI2. The card rails are the PM6125 LDOs
++ * downstream assigns (L22 vdd, L5 vdd-io); the downstream
++ * io-bias rail (L7, 1.256 V) has no upstream consumer and
++ * is deliberately left unmodeled so the regulator core
++ * does not turn it off. Card detect is TLMM GPIO88; the
++ * Xiaomi board layer drives it active-high, overriding
++ * the Khaje IDP active-low setting.
++ */
++&sdhc_2 {
++	vmmc-supply = <&pm6125_l22>;
++	vqmmc-supply = <&pm6125_l5>;
++	cd-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
++
++	sd-uhs-sdr104;
++
++	status = "okay";
++};
++
+ /*
+  * USB primary port in HS-only dual-role. The HS PHY rails
+  * are the PM6125 LDOs downstream assigns to it (0.88 V core
+-- 
+2.39.5
+

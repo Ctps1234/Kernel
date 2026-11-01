@@ -1,0 +1,193 @@
+From 8005642dbc189ed748670d04d2fb6ff9a54bcadf Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Sun, 1 Nov 2026 20:54:35 +0000
+Subject: [PATCH 70/71] arm64: dts: qcom: sm6225: add SDHCI2 controller
+
+Describe the SD/eMMC-v5 host at 0x4784000 (hc/pwr IRQs 350
+and 353, SDCC2 clocks and reset, SMMU SID 0xa0) with the
+downstream DLL/DDR configuration words extracted from the
+vendor dll-hsr-list, the Khaje OPP table (100/202 MHz)
+coupled to the RPMpd CX levels, SDC2 pin states, and the
+PM6125 L5/L22 rails that feed vqmmc/vmmc downstream.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ arch/arm64/boot/dts/qcom/sm6225.dtsi | 141 +++++++++++++++++++++++++++
+ 1 file changed, 141 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 617ab94eed8b..9cfd09afbf8a 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -639,6 +639,29 @@ pm6125_l4: regulator-l4 {
+ 					};
+ 				};
+ 
++				/*
++				 * L5: SDHCI2 vqmmc rail, switchable
++				 * 1.8/2.96 V (window/init from downstream
++				 * bengal-regulator).
++				 */
++				rpm-regulator-ldoa5 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "ldoa";
++					qcom,resource-id = <5>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l5: regulator-l5 {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l5";
++						qcom,set = <3>;
++						regulator-min-microvolt = <1648000>;
++						regulator-max-microvolt = <3056000>;
++						qcom,init-voltage = <1648000>;
++					};
++				};
++
+ 				/*
+ 				 * L9 @ 1.8 V: panel vddio rail on topaz
+ 				 * (downstream vddio -> pm6125_l9).
+@@ -763,6 +786,29 @@ pm6125_l18: regulator-l18 {
+ 					};
+ 				};
+ 
++				/*
++				 * L22: SDHCI2 vmmc rail at 2.96 V
++				 * (window/init from downstream
++				 * bengal-regulator).
++				 */
++				rpm-regulator-ldoa22 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "ldoa";
++					qcom,resource-id = <22>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l22: regulator-l22 {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l22";
++						qcom,set = <3>;
++						regulator-min-microvolt = <2952000>;
++						regulator-max-microvolt = <3304000>;
++						qcom,init-voltage = <2952000>;
++					};
++				};
++
+ 				rpm-regulator-ldoa24 {
+ 					compatible = "qcom,rpm-smd-regulator-resource";
+ 					qcom,resource-name = "ldoa";
+@@ -865,6 +911,46 @@ qup_i2c1_default: qup-i2c1-default-state {
+ 				bias-disable;
+ 			};
+ 
++			sdc2_state_on: sdc2-on-state {
++				clk-pins {
++					pins = "sdc2_clk";
++					drive-strength = <16>;
++					bias-disable;
++				};
++
++				cmd-pins {
++					pins = "sdc2_cmd";
++					drive-strength = <10>;
++					bias-pull-up;
++				};
++
++				data-pins {
++					pins = "sdc2_data";
++					drive-strength = <10>;
++					bias-pull-up;
++				};
++			};
++
++			sdc2_state_off: sdc2-off-state {
++				clk-pins {
++					pins = "sdc2_clk";
++					drive-strength = <2>;
++					bias-disable;
++				};
++
++				cmd-pins {
++					pins = "sdc2_cmd";
++					drive-strength = <2>;
++					bias-pull-up;
++				};
++
++				data-pins {
++					pins = "sdc2_data";
++					drive-strength = <2>;
++					bias-pull-up;
++				};
++			};
++
+ 			qup_i2c2_default: qup-i2c2-default-state {
+ 				pins = "gpio6", "gpio7";
+ 				function = "qup2";
+@@ -1053,6 +1139,61 @@ rpm_msg_ram: sram@45f0000 {
+ 		 * upstream DT equivalent; the 2-lane UFS 2.2 device
+ 		 * negotiates G3 on its own.
+ 		 */
++		sdhc_2: mmc@4784000 {
++			compatible = "qcom,sm6225-sdhci", "qcom,sdhci-msm-v5";
++			reg = <0x0 0x04784000 0x0 0x1000>;
++			reg-names = "hc";
++
++			interrupts = <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
++			interrupt-names = "hc_irq", "pwr_irq";
++
++			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
++				 <&gcc GCC_SDCC2_APPS_CLK>,
++				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
++			clock-names = "iface", "core", "xo";
++
++			resets = <&gcc GCC_SDCC2_BCR>;
++
++			pinctrl-names = "default", "sleep";
++			pinctrl-0 = <&sdc2_state_on>;
++			pinctrl-1 = <&sdc2_state_off>;
++
++			power-domains = <&rpmpd SM6225_VDDCX>;
++			operating-points-v2 = <&sdhc2_opp_table>;
++			iommus = <&apps_smmu 0xa0 0x0>;
++
++			interconnects = <&system_noc MASTER_SDCC_2
++					 &bimc SLAVE_EBI_CH0>,
++					<&bimc MASTER_AMPSS_M0
++					 &config_noc SLAVE_SDCC_2>;
++			interconnect-names = "sdhc-ddr", "cpu-sdhc";
++
++			qcom,dll-config = <0x0007642c>;
++			qcom,ddr-config = <0x80040868>;
++			bus-width = <4>;
++
++			status = "disabled";
++
++			sdhc2_opp_table: opp-table {
++				compatible = "operating-points-v2";
++
++				opp-100000000 {
++					opp-hz = /bits/ 64 <100000000>;
++					required-opps = <&rpmpd_opp_low_svs>;
++					opp-peak-kBps = <250000 133320>;
++					opp-avg-kBps = <50000 0>;
++				};
++
++				opp-202000000 {
++					opp-hz = /bits/ 64 <202000000>;
++					required-opps = <&rpmpd_opp_svs_plus>;
++					opp-peak-kBps = <800000 300000>;
++					opp-avg-kBps = <104000 0>;
++				};
++			};
++		};
++
+ 		ufs_mem_hc: ufshc@4804000 {
+ 			compatible = "qcom,sm6225-ufshc", "qcom,ufshc",
+ 				     "jedec,ufs-2.0";
+-- 
+2.39.5
+

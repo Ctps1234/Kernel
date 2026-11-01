@@ -60,6 +60,14 @@ else
     echo "arvore sem DWC3/Femto: pulando exigencia do USB primario"
 fi
 
+# SDHCI-MSM do SDHCI2 (microSD, DT do SoC na serie 6.18).
+if grep -q "^config MMC_SDHCI_MSM" drivers/mmc/host/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED MMC MMC_SDHCI MMC_SDHCI_PLTFM MMC_SDHCI_MSM"
+    echo "arvore com MMC_SDHCI_MSM: exigindo SDHCI2 built-in"
+else
+    echo "arvore sem MMC_SDHCI_MSM: pulando exigencia do SDHCI2"
+fi
+
 # O kconfig e o build precisam saber a arquitetura-alvo.
 export ARCH=arm64
 
