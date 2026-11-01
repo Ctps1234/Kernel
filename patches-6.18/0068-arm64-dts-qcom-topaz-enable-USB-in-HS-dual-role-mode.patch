@@ -1,4 +1,4 @@
-From a6e3aea138cf15f617481d9d8a10c65bc5418fb3 Mon Sep 17 00:00:00 2001
+From bea7c038942c197384ccb36812e36b687bfe1445 Mon Sep 17 00:00:00 2001
 From: Arena Agent <agent@arena.local>
 Date: Sun, 1 Nov 2026 19:07:51 +0000
 Subject: [PATCH 68/68] arm64: dts: qcom: topaz: enable USB in HS dual-role

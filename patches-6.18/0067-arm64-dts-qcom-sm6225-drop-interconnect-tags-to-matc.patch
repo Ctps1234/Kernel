@@ -1,4 +1,4 @@
-From 2f23b582ab17af9abac854252ca58a7e7d7ad140 Mon Sep 17 00:00:00 2001
+From 88170bf3b560e4293f4110cbc52e7f5831c9a916 Mon Sep 17 00:00:00 2001
 From: Arena Agent <agent@arena.local>
 Date: Sun, 1 Nov 2026 19:06:47 +0000
 Subject: [PATCH 67/68] arm64: dts: qcom: sm6225: drop interconnect tags to
@@ -16,9 +16,24 @@ neutral.
 Found while wiring the USB interconnects in the same
 one-cell form.
 ---
- arch/arm64/boot/dts/qcom/sm6225.dtsi | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ .../devicetree/bindings/media/qcom,sm6225-camss.yaml |  3 ++-
+ arch/arm64/boot/dts/qcom/sm6225.dtsi                 | 12 ++++++------
+ 2 files changed, 8 insertions(+), 7 deletions(-)
 
+diff --git a/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml b/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml
+index b6454c60cb80..1763bb37de2a 100644
+--- a/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml
++++ b/Documentation/devicetree/bindings/media/qcom,sm6225-camss.yaml
+@@ -77,7 +77,8 @@ properties:
+       - const: vfe2
+ 
+   interconnects:
+-    maxItems: 6
++    minItems: 3
++    maxItems: 3
+ 
+   interconnect-names:
+     items:
 diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
 index 41f3683e7531..617ab94eed8b 100644
 --- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
