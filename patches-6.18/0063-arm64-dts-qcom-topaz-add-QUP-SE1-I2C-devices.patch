@@ -1,4 +1,4 @@
-From 61a5791bc9387c01cd1abc949f8a4b058052a97b Mon Sep 17 00:00:00 2001
+From d0ff21b4f43fd67667950567e4fa47af87f4b2ac Mon Sep 17 00:00:00 2001
 From: Kernel <noreply@localhost>
 Date: Sun, 1 Nov 2026 16:35:56 +0000
 Subject: [PATCH] arm64: dts: qcom: topaz: add QUP SE1 I2C devices
@@ -14,7 +14,7 @@ The PM8008 and charging ICs sharing SE1 downstream remain for later slices.
  2 files changed, 104 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
-index d981519bf09a..0a1454272c8a 100644
+index d981519bf09a..d1dbce70cc0b 100644
 --- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
 +++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
 @@ -16,6 +16,7 @@
@@ -48,7 +48,7 @@ index d981519bf09a..0a1454272c8a 100644
 +	 * after probe; no sensor consumes them as regulators
 +	 * yet, so this only establishes the device on its bus.
 +	 */
-+	wl2866d: power-controller@28 {
++	wl2866d: pmic@28 {
 +		compatible = "ovti,wl2866d-i2c";
 +		reg = <0x28>;
 +
