@@ -1,0 +1,380 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sun, 1 Nov 2026 10:17:38 +0000
+Subject: [PATCH] media: i2c: ov08d10: add DT support; topaz front camera
+
+First sensor (S6c-1), the front OV08D10:
+
+Driver: the upstream ov08d10 is ACPI-only and relies on
+firmware PM for power. Add an OF match plus optional DT
+power sequencing (avdd/dovdd/dvdd regulator bulk, xvclk
+via the existing v4l2_sensor clock, XSHUTDOWN reset gpio)
+executed at probe before the chip-ID read, with a devm
+action for power-off. No resources present (ACPI) keeps
+the exact old behavior - helpers early-return.
+
+Binding: new ovti,ov08d10.yaml modeled on ov08x40,
+supply props optional, 2-lane endpoints with required
+link-frequencies.
+
+Board: camera@36 on CCI master 1 (downstream cell 1),
+MCLK1 at 19.2 MHz on TLMM 21, reset TLMM 24, feeding
+CSIPHY2 with data-lanes <1 2> at 720 Mbps/lane; CAMSS
+enabled. I2C address is the datasheet default
+(SID-strap) value - downstream sensor XMLs were not
+available to confirm; sensor power rails (WL2866D outputs)
+are not regulator-modeled yet, so power-on defaults to
+the rails' power-on state until WL2866D grows regulators.
+Rotation/orientation from the downstream sensor node.
+---
+ .../bindings/media/i2c/ovti,ov08d10.yaml      | 101 +++++++++++++++++
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  67 +++++++++++
+ drivers/media/i2c/ov08d10.c                   | 107 ++++++++++++++++++
+ 3 files changed, 275 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/media/i2c/ovti,ov08d10.yaml
+
+diff --git a/Documentation/devicetree/bindings/media/i2c/ovti,ov08d10.yaml b/Documentation/devicetree/bindings/media/i2c/ovti,ov08d10.yaml
+new file mode 100644
+index 000000000000..b430c3ab0a7e
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/ovti,ov08d10.yaml
+@@ -0,0 +1,101 @@
++# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/ovti,ov08d10.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Omnivision OV08D10 CMOS Sensor
++
++maintainers:
++  - Porting Team <noreply@localhost>
++
++description: |
++  The Omnivision OV08D10 is an 8 megapixel CMOS image sensor with
++  a 2-lane MIPI CSI-2 D-PHY (360/720 Mbps-per-lane link) and an
++  SCCB (I2C-compatible) control interface. The upstream driver was
++  originally written for ACPI platforms where firmware supplies
++  power; on devicetree platforms the optional supplies and reset
++  GPIO below let the driver run a plain power sequence at probe.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: ovti,ov08d10
++
++  reg:
++    maxItems: 1
++
++  clocks:
++    maxItems: 1
++    description: XVCLK input clock (19.2 MHz expected by the driver).
++
++  avdd-supply:
++    description: Analogue circuit voltage supply.
++
++  dovdd-supply:
++    description: I/O circuit voltage supply.
++
++  dvdd-supply:
++    description: Digital circuit voltage supply.
++
++  reset-gpios:
++    description: Active low GPIO connected to XSHUTDOWN pad of the sensor.
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++    additionalProperties: false
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        additionalProperties: false
++
++        properties:
++          data-lanes:
++            items:
++              - const: 1
++              - const: 2
++          link-frequencies: true
++          remote-endpoint: true
++
++        required:
++          - data-lanes
++          - link-frequencies
++          - remote-endpoint
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - port
++
++unevaluatedProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        ov08d10: camera@36 {
++            compatible = "ovti,ov08d10";
++            reg = <0x36>;
++
++            reset-gpios = <&tlmm 24 GPIO_ACTIVE_LOW>;
++
++            clocks = <&gcc 26>;
++
++            port {
++                ov08d10_ep: endpoint {
++                    remote-endpoint = <&csiphy2_ep>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <720000000>;
++                };
++            };
++        };
++    };
++...
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 135a7ee5e07e..8bf8c6454836 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -516,6 +516,59 @@ &cci {
+ 	status = "okay";
+ };
+ 
++/*
++ * Front camera: OmniVision OV08D10 (8 MP). CCI master 1,
++ * MCLK1 (TLMM 21, 19.2 MHz), reset TLMM 24, feeds CSIPHY2
++ * with 2 data lanes - all per the downstream camera
++ * description. The I2C address is the datasheet default
++ * (SID strap low); downstream sensor XMLs were not
++ * available to confirm. The sensor rails come from the
++ * WL2866D camera PMIC, which is not a regulator provider
++ * yet, so no supply props here - power sequencing is a
++ * known gap until WL2866D grows regulator outputs.
++ */
++&cci_i2c1 {
++	camera@36 {
++		compatible = "ovti,ov08d10";
++		reg = <0x36>;
++
++		clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
++		assigned-clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
++		assigned-clock-rates = <19200000>;
++
++		reset-gpios = <&tlmm 24 GPIO_ACTIVE_LOW>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam_mclk1_default &cam_front_reset_default>;
++
++		orientation = <2>;
++		rotation = <270>;
++
++		port {
++			ov08d10_ep: endpoint {
++				remote-endpoint = <&csiphy2_ep>;
++				link-frequencies = /bits/ 64 <720000000>;
++				data-lanes = <1 2>;
++			};
++		};
++	};
++};
++
++&camss {
++	status = "okay";
++
++	ports {
++		port@2 {
++			reg = <2>;
++
++			csiphy2_ep: endpoint {
++				remote-endpoint = <&ov08d10_ep>;
++				data-lanes = <1 2>;
++			};
++		};
++	};
++};
++
+ /*
+  * CSIPHY analog supplies (downstream mipi-csi-vdd1 =
+  * pm6125_l4, mipi-csi-vdd2 = pm6125_l18). The upstream
+@@ -599,6 +652,20 @@ &mdss_dsi0_phy {
+ };
+ 
+ &tlmm {
++	cam_mclk1_default: cam-mclk1-default-state {
++		pins = "gpio21";
++		function = "cam_mclk";
++		drive-strength = <4>;
++		bias-disable;
++	};
++
++	cam_front_reset_default: cam-front-reset-default-state {
++		pins = "gpio24";
++		function = "gpio";
++		drive-strength = <4>;
++		bias-disable;
++	};
++
+ 	ts_avdd_active: ts-avdd-active-state {
+ 		pins = "gpio36";
+ 		function = "gpio";
+diff --git a/drivers/media/i2c/ov08d10.c b/drivers/media/i2c/ov08d10.c
+index 43ec2a1f2fcf..4ba80d1f1935 100644
+--- a/drivers/media/i2c/ov08d10.c
++++ b/drivers/media/i2c/ov08d10.c
+@@ -4,6 +4,7 @@
+ #include <linux/acpi.h>
+ #include <linux/clk.h>
+ #include <linux/delay.h>
++#include <linux/gpio/consumer.h>
+ #include <linux/i2c.h>
+ #include <linux/module.h>
+ #include <linux/pm_runtime.h>
+@@ -518,6 +519,10 @@ struct ov08d10 {
+ 	struct device *dev;
+ 	struct clk *clk;
+ 
++	/* DT power sequencing resources (absent on ACPI) */
++	struct gpio_desc *reset_gpio;
++	struct regulator_bulk_data *supplies;
++
+ 	struct v4l2_subdev sd;
+ 	struct media_pad pad;
+ 	struct v4l2_ctrl_handler ctrl_handler;
+@@ -1375,6 +1380,77 @@ static void ov08d10_remove(struct i2c_client *client)
+ 	mutex_destroy(&ov08d10->mutex);
+ }
+ 
++static const char * const ov08d10_supply_names[] = {
++	"avdd",
++	"dovdd",
++	"dvdd",
++};
++
++/*
++ * Minimal DT power sequencing. On ACPI platforms the firmware
++ * PM domain powers the sensor and none of these resources
++ * exist; the helpers are no-ops there. There are no runtime
++ * PM ops: on DT the sensor stays powered while bound.
++ */
++static int ov08d10_power_on(struct ov08d10 *ov08d10)
++{
++	int ret;
++
++	if (!ov08d10->reset_gpio && !ov08d10->supplies)
++		return 0;
++
++	if (ov08d10->supplies) {
++		ret = regulator_bulk_enable(ARRAY_SIZE(ov08d10_supply_names),
++					      ov08d10->supplies);
++		if (ret) {
++			dev_err(ov08d10->dev, "failed to enable regulators: %d\n", ret);
++			return ret;
++		}
++	}
++
++	ret = clk_prepare_enable(ov08d10->clk);
++	if (ret) {
++		dev_err(ov08d10->dev, "failed to enable clock: %d\n", ret);
++		goto err_supplies;
++	}
++
++	if (ov08d10->reset_gpio) {
++		gpiod_set_value_cansleep(ov08d10->reset_gpio, 1);
++		usleep_range(1000, 2000);
++		gpiod_set_value_cansleep(ov08d10->reset_gpio, 0);
++		/* Sensor needs time to boot before SCCB traffic */
++		usleep_range(8000, 10000);
++	}
++
++	return 0;
++
++err_supplies:
++	if (ov08d10->supplies)
++		regulator_bulk_disable(ARRAY_SIZE(ov08d10_supply_names),
++					ov08d10->supplies);
++	return ret;
++}
++
++static void ov08d10_power_off(struct ov08d10 *ov08d10)
++{
++	if (!ov08d10->reset_gpio && !ov08d10->supplies)
++		return;
++
++	if (ov08d10->reset_gpio)
++		gpiod_set_value_cansleep(ov08d10->reset_gpio, 1);
++
++	clk_disable_unprepare(ov08d10->clk);
++
++	if (ov08d10->supplies)
++		regulator_bulk_disable(ARRAY_SIZE(ov08d10_supply_names),
++					ov08d10->supplies);
++}
++
++static void ov08d10_power_off_devm(void *data)
++{
++	ov08d10_power_off(data);
++}
++
+ static int ov08d10_probe(struct i2c_client *client)
+ {
+ 	struct ov08d10 *ov08d10;
+@@ -1397,6 +1473,30 @@ static int ov08d10_probe(struct i2c_client *client)
+ 		dev_warn(ov08d10->dev,
+ 			 "external clock rate %lu is not supported\n", freq);
+ 
++	ov08d10->reset_gpio = devm_gpiod_get_optional(ov08d10->dev, "reset",
++						      GPIOD_OUT_HIGH);
++	if (IS_ERR(ov08d10->reset_gpio))
++		return dev_err_probe(ov08d10->dev,
++				     PTR_ERR(ov08d10->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	ret = devm_regulator_bulk_get_optional(ov08d10->dev,
++						ARRAY_SIZE(ov08d10_supply_names),
++						ov08d10_supply_names,
++						&ov08d10->supplies);
++	if (ret)
++		return dev_err_probe(ov08d10->dev, ret,
++				     "failed to get regulators\n");
++
++	ret = ov08d10_power_on(ov08d10);
++	if (ret)
++		return ret;
++
++	ret = devm_add_action_or_reset(ov08d10->dev,
++				       ov08d10_power_off_devm, ov08d10);
++	if (ret)
++		return ret;
++
+ 	ret = ov08d10_get_hwcfg(ov08d10);
+ 	if (ret) {
+ 		dev_err(ov08d10->dev, "failed to get HW configuration: %d",
+@@ -1466,10 +1566,17 @@ static const struct acpi_device_id ov08d10_acpi_ids[] = {
+ MODULE_DEVICE_TABLE(acpi, ov08d10_acpi_ids);
+ #endif
+ 
++static const struct of_device_id ov08d10_of_match[] = {
++	{ .compatible = "ovti,ov08d10" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, ov08d10_of_match);
++
+ static struct i2c_driver ov08d10_i2c_driver = {
+ 	.driver = {
+ 		.name = "ov08d10",
+ 		.acpi_match_table = ACPI_PTR(ov08d10_acpi_ids),
++		.of_match_table = ov08d10_of_match,
+ 	},
+ 	.probe = ov08d10_probe,
+ 	.remove = ov08d10_remove,
+-- 
+2.39.5
+
