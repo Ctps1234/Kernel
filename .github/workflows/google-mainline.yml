@@ -167,7 +167,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -o pipefail
-          grep -hE 'FALTANDO|^ERRO|error:|undefined|multiple definition|sm6225-xiaomi-topaz\.dtb:' \
+          grep -hE 'FALTANDO|^ERRO|error:|undefined|multiple definition|treated as errors|No rule to make|s5kjn1|ov08d10|sm6225-xiaomi-topaz\.dtb:' \
               basegoogle/configure.log basegoogle/kernel-build-618.log \
               basegoogle/dtbs-check-618.log \
               | sort -u > basegoogle/falhas.txt 2>/dev/null \
