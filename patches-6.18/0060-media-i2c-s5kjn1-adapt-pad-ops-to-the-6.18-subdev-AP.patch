@@ -1,4 +1,4 @@
-From b0f1b41344a286c2d52760d3976400a8c662541a Mon Sep 17 00:00:00 2001
+From 758dd6d8be6bb59be1fc8be60df76b1336e6d53c Mon Sep 17 00:00:00 2001
 From: Kernel <noreply@localhost>
 Date: Sun, 1 Nov 2026 14:31:43 +0000
 Subject: [PATCH] media: i2c: s5kjn1: adapt pad ops to the 6.18 subdev API
@@ -9,11 +9,11 @@ parameter. This base predates that change and the parameter
 is unused in both callbacks, so drop it to match the 6.18
 v4l2_subdev_pad_ops signatures.
 ---
- drivers/media/i2c/s5kjn1.c | 2 --
- 1 file changed, 2 deletions(-)
+ drivers/media/i2c/s5kjn1.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
 diff --git a/drivers/media/i2c/s5kjn1.c b/drivers/media/i2c/s5kjn1.c
-index 80d713ba3a1e..274d4a158f30 100644
+index 80d713ba3a1e..a707cb740556 100644
 --- a/drivers/media/i2c/s5kjn1.c
 +++ b/drivers/media/i2c/s5kjn1.c
 @@ -985,7 +985,6 @@ static void s5kjn1_update_pad_format(struct s5kjn1 *s5kjn1,
@@ -32,6 +32,15 @@ index 80d713ba3a1e..274d4a158f30 100644
  				struct v4l2_subdev_state *sd_state,
  				struct v4l2_subdev_selection *sel)
  {
+@@ -1104,7 +1102,7 @@ static int s5kjn1_init_state(struct v4l2_subdev *sd,
+ 		},
+ 	};
+ 
+-	s5kjn1_set_pad_format(sd, NULL, state, &fmt);
++	s5kjn1_set_pad_format(sd, state, &fmt);
+ 
+ 	return 0;
+ }
 -- 
 2.39.5
 
