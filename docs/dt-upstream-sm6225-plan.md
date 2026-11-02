@@ -394,6 +394,12 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   mbox 12) do FDT vivo; firmware split modem.mdt.
   **Dividas**: IPA (dados moveis), servicos de PD
   em userspace (tqftpserv) p/ o Wi-Fi.
+- **CDSP PAS (0081-0083)**, run **`41530367079`**
+  (serie inteira, 82 patches, 0 reportes): binding
+  `qcom,sm6225-cdsp-pas`, recurso PAS 18/smem 601/cx,
+  smp2p-cdsp (SMEM 94/432, mbox 30) e
+  remoteproc@b300000 (wdog 265, glink 28). Trio
+  ADSP/CDSP/MPSS completo.
 
 ## Gate de CI a adicionar (junto da S1)
 
