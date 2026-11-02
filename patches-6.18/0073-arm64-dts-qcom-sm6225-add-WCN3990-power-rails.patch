@@ -1,0 +1,98 @@
+From 50ed0b278f290e2bc74b1b712d2e362b828af6f2 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 19:51:41 +0000
+Subject: [PATCH 73/74] arm64: dts: qcom: sm6225: add WCN3990 power rails
+
+Add the PM6125 L16 (XTAL), L17 (RF core) and L23 (PA) RPM
+regulators that downstream assigns to the WCN3990 combo
+chip, with the bengal-regulator voltage windows.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ arch/arm64/boot/dts/qcom/sm6225.dtsi | 63 ++++++++++++++++++++++++++++
+ 1 file changed, 63 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 1cdb7c5b0f30..2064c051f19c 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -793,6 +793,47 @@ pm6125_l15: regulator-l15 {
+ 					};
+ 				};
+ 
++				/*
++				 * L16/L17: WCN3990 XTAL/RF rails
++				 * (windows/init from downstream
++				 * bengal-regulator).
++				 */
++				rpm-regulator-ldoa16 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "ldoa";
++					qcom,resource-id = <16>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l16: regulator-l16 {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l16";
++						qcom,set = <3>;
++						regulator-min-microvolt = <1704000>;
++						regulator-max-microvolt = <1904000>;
++						qcom,init-voltage = <1704000>;
++					};
++				};
++
++				rpm-regulator-ldoa17 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "ldoa";
++					qcom,resource-id = <17>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l17: regulator-l17 {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l17";
++						qcom,set = <3>;
++						regulator-min-microvolt = <1152000>;
++						regulator-max-microvolt = <1384000>;
++						qcom,init-voltage = <1152000>;
++					};
++				};
++
+ 				rpm-regulator-ldoa18 {
+ 					compatible = "qcom,rpm-smd-regulator-resource";
+ 					qcom,resource-name = "ldoa";
+@@ -834,6 +875,28 @@ pm6125_l22: regulator-l22 {
+ 					};
+ 				};
+ 
++				/*
++				 * L23: WCN3990 PA rail (window/init
++				 * from downstream bengal-regulator).
++				 */
++				rpm-regulator-ldoa23 {
++					compatible = "qcom,rpm-smd-regulator-resource";
++					qcom,resource-name = "ldoa";
++					qcom,resource-id = <23>;
++					qcom,regulator-type = <0>;
++					qcom,regulator-hw-type = "pmic5-ldo";
++					qcom,hpm-min-load = <10000>;
++
++					pm6125_l23: regulator-l23 {
++						compatible = "qcom,rpm-smd-regulator";
++						regulator-name = "pm6125_l23";
++						qcom,set = <3>;
++						regulator-min-microvolt = <3200000>;
++						regulator-max-microvolt = <3400000>;
++						qcom,init-voltage = <3200000>;
++					};
++				};
++
+ 				rpm-regulator-ldoa24 {
+ 					compatible = "qcom,rpm-smd-regulator-resource";
+ 					qcom,resource-name = "ldoa";
+-- 
+2.39.5
+

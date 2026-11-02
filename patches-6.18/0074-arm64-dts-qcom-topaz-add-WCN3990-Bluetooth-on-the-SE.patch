@@ -1,0 +1,83 @@
+From 2a1da0246ddf07598825059f68ceddfabe7a7853 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 19:52:10 +0000
+Subject: [PATCH 74/74] arm64: dts: qcom: topaz: add WCN3990 Bluetooth on the
+ SE3 HS UART
+
+The QUP SE3 port is the WCN3990 Bluetooth HS UART on this
+board (hsuart0 in the stock firmware); repurpose it from
+the serial console an earlier slice had wrongly placed
+there. The downstream console SE (SE4) is the NFC I2C bus
+here, so the board has no usable console UART:
+stdout-path/serial0 go away and crash reporting stays with
+the ramoops backend. Supplies (L9/L16/L17/L23), the SW_CTRL
+enable line on GPIO87 and the 3.2 Mbaud cap come from the
+downstream bt_wcn3990 node.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 38 ++++++++++++++-----
+ 1 file changed, 28 insertions(+), 10 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 2206c010480c..1949ccaeec31 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -26,13 +26,13 @@ / {
+ 	compatible = "xiaomi,topaz", "qcom,sm6225";
+ 	chassis-type = "handset";
+ 
+-	aliases {
+-		serial0 = &uart3;
+-	};
+-
+-	chosen {
+-		stdout-path = "serial0:115200n8";
+-	};
++	/*
++	 * No serial console: the downstream console UART
++	 * (QUP SE4, 2-wire) is repurposed as the NFC I2C
++	 * bus on this board, and QUP SE3 (4-wire) is the
++	 * Bluetooth HS UART. Crash logs go through the
++	 * ramoops backend in reserved-memory instead.
++	 */
+ 
+ 	/* Touch AVDD: load switch on TLMM GPIO36 (focaltech,avdd-gpio). */
+ 	touch_avdd: regulator-touch-avdd {
+@@ -612,12 +612,30 @@ wcd937x: audio-codec {
+ };
+ 
+ /*
+- * Console comes out on SE3 (per the live FDT hsuart0
+- * alias) - S1 initially wrongly used SE4, which is the
+- * NFC I2C bus on this board. uart4 stays disabled.
++ * Bluetooth (WCN3990) on the QUP SE3 HS UART - the live
++ * FDT hsuart0 alias - with hardware flow control. An
++ * earlier slice misused this port as the serial console:
++ * the downstream console SE is SE4, which this board
++ * repurposes as the NFC I2C bus, so there is no usable
++ * console UART and SE3 belongs to the radio. The PM6125
++ * rails and the SW_CTRL line (GPIO87) match the
++ * downstream bt_wcn3990 node.
+  */
+ &uart3 {
+ 	status = "okay";
++
++	uart-has-rtscts;
++
++	bluetooth {
++		compatible = "qcom,wcn3990-bt";
++
++		vddio-supply = <&pm6125_l9>;
++		vddxo-supply = <&pm6125_l16>;
++		vddrf-supply = <&pm6125_l17>;
++		vddch0-supply = <&pm6125_l23>;
++		enable-gpios = <&tlmm 87 GPIO_ACTIVE_HIGH>;
++		max-speed = <3200000>;
++	};
+ };
+ 
+ /* Camera control bus; the sensor devices land later. */
+-- 
+2.39.5
+

@@ -68,6 +68,14 @@ else
     echo "arvore sem QCOM_MPM: pulando exigencia do MPM"
 fi
 
+# BT WCN3990 (hci_uart serdev) no DT da placa (serie 6.18).
+if grep -q "^config BT_HCIUART_QCA" drivers/bluetooth/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED BT BT_HCIUART BT_HCIUART_SERDEV BT_HCIUART_QCA BT_QCA SERIAL_DEV_BUS"
+    echo "arvore com BT_HCIUART_QCA: exigindo BT WCN3990 built-in"
+else
+    echo "arvore sem BT_HCIUART_QCA: pulando exigencia do BT"
+fi
+
 # SDHCI-MSM do SDHCI2 (microSD, DT do SoC na serie 6.18).
 if grep -q "^config MMC_SDHCI_MSM" drivers/mmc/host/Kconfig 2>/dev/null; then
     REQUIRED="$REQUIRED MMC MMC_SDHCI MMC_SDHCI_PLTFM MMC_SDHCI_MSM"
