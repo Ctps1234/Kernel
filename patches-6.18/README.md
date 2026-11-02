@@ -167,12 +167,18 @@ GPIO88 ativo-alto (camada Xiaomi) e SDR104. Serie com
 **70 patches** (0001-0071 sem o 0029). O **0072** adiciona
 o **MPM** (agregador de wakeup, mapa Khaje do driver
 downstream) e cabeca SPMI/USB nele. Serie com **71
-patches** (0001-0072 sem o 0029). Vereditos: runs
-`41226732607`, `41228370915`, `41231928129`,
+patches** (0001-0072 sem o 0029). Os **0073-0074** trazem
+o **Bluetooth WCN3990** no HS UART da SE3 (hsuart0 do
+FDT vivo), com L16/L17/L23 e o GPIO87 SW_CTRL; a SE3
+sai de console (o console downstream e a SE4, que na
+topaz vira o I2C do NFC — debug fica no ramoops). Serie
+com **73 patches** (0001-0074 sem o 0029). Vereditos:
+runs `41226732607`, `41228370915`, `41231928129`,
 `41233199069`, `41243173565`, `41250221213`,
 `41322986183`, `41328560854`, `41337536375`,
-`41346999641`, `41349310964` e **`41351366980`** (serie
-inteira, 71 patches) verdes no workflow 6.18 — `dtbs_check` sem
+`41346999641`, `41349310964`, `41351366980` e
+**`41514847959`** (serie inteira, 73 patches) verdes no
+workflow 6.18 — `dtbs_check` sem
 reportes. Correcao de registro: os runs `41247264596`,
 `41258294792` e `41296845168`, citados como verdes dos
 marcos 0054/0056/0057, eram na verdade do workflow 6.12
