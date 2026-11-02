@@ -1,0 +1,61 @@
+From 5a9aef9e8e76ae062db5be05b5cf9ce07cbaf58c Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 20:44:48 +0000
+Subject: [PATCH 77/77] arm64: dts: qcom: sm6225: add crypto engine and BAM
+
+Describe the crypto BAM (0x1b04000, IRQ 247) and the QCE
+core (0x1b3a000) from the downstream khaje DT, including
+the downstream SMMU SIDs 0x84/0x94 and the crypto-to-EBI
+interconnect path.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ arch/arm64/boot/dts/qcom/sm6225.dtsi | 32 ++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 501673c38565..316da93fcffc 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -1149,6 +1149,38 @@ config_noc: interconnect@1900000 {
+ 			#interconnect-cells = <1>;
+ 		};
+ 
++		cryptobam: dma-controller@1b04000 {
++			compatible = "qcom,bam-v1.7.0";
++			reg = <0x0 0x01b04000 0x0 0x24000>;
++			interrupts = <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&rpmcc RPM_SMD_CE1_CLK>;
++			clock-names = "bam_clk";
++			#dma-cells = <1>;
++			qcom,ee = <0>;
++			qcom,controlled-remotely;
++			iommus = <&apps_smmu 0x0084 0x11>,
++				 <&apps_smmu 0x0094 0x11>;
++		};
++
++		/*
++		 * The downstream config forces the generic
++		 * algorithms to software; the engine can still
++		 * serve inline/storage crypto users.
++		 */
++		crypto: crypto@1b3a000 {
++			compatible = "qcom,sm6225-qce", "qcom,ipq4019-qce", "qcom,qce";
++			reg = <0x0 0x01b3a000 0x0 0x6000>;
++			clocks = <&rpmcc RPM_SMD_CE1_CLK>;
++			clock-names = "core";
++			dmas = <&cryptobam 6>, <&cryptobam 7>;
++			dma-names = "rx", "tx";
++			iommus = <&apps_smmu 0x0084 0x11>,
++				 <&apps_smmu 0x0094 0x11>;
++			interconnects = <&system_noc MASTER_CRYPTO_CORE0
++					 &bimc SLAVE_EBI_CH0>;
++			interconnect-names = "memory";
++		};
++
+ 		qfprom@1b40000 {
+ 			compatible = "qcom,sm6225-qfprom", "qcom,qfprom";
+ 			reg = <0x0 0x01b40000 0x0 0x7000>;
+-- 
+2.39.5
+

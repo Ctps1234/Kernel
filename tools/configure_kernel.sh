@@ -84,6 +84,14 @@ else
     echo "arvore sem ATH10K_SNOC: pulando exigencia do Wi-Fi"
 fi
 
+# Crypto QCE + BAM no DT do SoC (serie 6.18).
+if grep -q "^config CRYPTO_DEV_QCE" drivers/crypto/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED DMADEVICES QCOM_BAM_DMA CRYPTO_DEV_QCE"
+    echo "arvore com CRYPTO_DEV_QCE: exigindo crypto built-in"
+else
+    echo "arvore sem CRYPTO_DEV_QCE: pulando exigencia do crypto"
+fi
+
 # SDHCI-MSM do SDHCI2 (microSD, DT do SoC na serie 6.18).
 if grep -q "^config MMC_SDHCI_MSM" drivers/mmc/host/Kconfig 2>/dev/null; then
     REQUIRED="$REQUIRED MMC MMC_SDHCI MMC_SDHCI_PLTFM MMC_SDHCI_MSM"

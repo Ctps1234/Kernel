@@ -1,0 +1,36 @@
+From 54056f8fc271ebc21853fffb60e80bc186c811e0 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 20:44:28 +0000
+Subject: [PATCH 76/77] dt-bindings: crypto: qcom-qce: add SM6225
+
+The SM6225 (bengal) crypto engine matches the QCM2290/
+SM6115 single-clock variant.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ Documentation/devicetree/bindings/crypto/qcom-qce.yaml | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/crypto/qcom-qce.yaml b/Documentation/devicetree/bindings/crypto/qcom-qce.yaml
+index e009cb712fb8..8db1006eb59d 100644
+--- a/Documentation/devicetree/bindings/crypto/qcom-qce.yaml
++++ b/Documentation/devicetree/bindings/crypto/qcom-qce.yaml
+@@ -40,6 +40,7 @@ properties:
+               - qcom,qcm2290-qce
+               - qcom,sdm845-qce
+               - qcom,sm6115-qce
++              - qcom,sm6225-qce
+           - const: qcom,ipq4019-qce
+           - const: qcom,qce
+ 
+@@ -128,6 +129,7 @@ allOf:
+             enum:
+               - qcom,qcm2290-qce
+               - qcom,sm6115-qce
++              - qcom,sm6225-qce
+     then:
+       properties:
+         clocks:
+-- 
+2.39.5
+
