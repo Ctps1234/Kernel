@@ -1,0 +1,28 @@
+From db70649f9ea00232129a674a7e5f645e63ce240a Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 22:10:15 +0000
+Subject: [PATCH 84/85] dt-bindings: sram: qcom,imem: add SM6225
+
+The khaje IMEM page matches the generic syscon/simple-mfd
+shape used by the other bengal-family SoCs.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ Documentation/devicetree/bindings/sram/qcom,imem.yaml | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Documentation/devicetree/bindings/sram/qcom,imem.yaml b/Documentation/devicetree/bindings/sram/qcom,imem.yaml
+index 6a627c57ae2f..fe948e5ebfb4 100644
+--- a/Documentation/devicetree/bindings/sram/qcom,imem.yaml
++++ b/Documentation/devicetree/bindings/sram/qcom,imem.yaml
+@@ -38,6 +38,7 @@ properties:
+           - qcom,sdx75-imem
+           - qcom,sm6115-imem
+           - qcom,sm6125-imem
++          - qcom,sm6225-imem
+           - qcom,sm6350-imem
+           - qcom,sm6375-imem
+           - qcom,sm7150-imem
+-- 
+2.39.5
+
