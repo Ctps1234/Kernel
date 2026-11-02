@@ -372,9 +372,15 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   stdout-path removido; debug via ramoops. Para o
   stack embutir foi preciso RFKILL=y e
   POWER_SEQUENCING=y (teto =m do GKI via
-  "depends on X || !X"). **Divida**: Wi-Fi ath10k
-  SNOC do mesmo WCN3990; firmware/PD (tqftpserv)
-  fora do kernel.
+  "depends on X || !X").
+- **Wi-Fi WCN3990 (0075)**, run **`41518607602`**
+  (serie inteira, 74 patches, 0 reportes): no
+  ath10k SNOC @0xc800000 (12 IRQs 358-369, SID 0x1a0,
+  msa-fixed-perm) do ICNSS do FDT vivo, regiao MSA
+  0x51900000 rotulada `pil_wlan_mem`, cfg80211/
+  mac80211/ath10k built-in. **Dividas**: PAS do
+  modem (hospeda o PD de WLAN), tqftpserv/userspace,
+  e a segunda janela reg (IPA) fora.
 
 ## Gate de CI a adicionar (junto da S1)
 
