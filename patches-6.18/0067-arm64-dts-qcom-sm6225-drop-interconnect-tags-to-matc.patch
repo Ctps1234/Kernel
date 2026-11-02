@@ -15,6 +15,7 @@ neutral.
 
 Found while wiring the USB interconnects in the same
 one-cell form.
+Signed-off-by: Arena Agent <agent@arena.local>
 ---
  .../devicetree/bindings/media/qcom,sm6225-camss.yaml |  3 ++-
  arch/arm64/boot/dts/qcom/sm6225.dtsi                 | 12 ++++++------

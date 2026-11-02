@@ -13,6 +13,7 @@ The board file labels the reserved WLAN MSA region and
 enables the node. At runtime ath10k still needs the modem
 remoteproc hosting the WLAN protection domain, which is
 not described yet.
+Signed-off-by: Arena Agent <agent@arena.local>
 ---
  .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 12 ++++++-
  arch/arm64/boot/dts/qcom/sm6225.dtsi          | 33 +++++++++++++++++++
