@@ -176,14 +176,16 @@ com **73 patches** (0001-0074 sem o 0029). O **0075**
 descreve o **Wi-Fi WCN3990** (ath10k SNOC @0xc800000,
 IRQ 358-369, SID 0x1a0): a regiao MSA ja existente na
 placa ganha rotulo e o no fica habilitado; runtime
-ainda depende do PAS do modem (PD de WLAN). Os **0076-0077** descrevem o **crypto** (QCE + BAM).
-Serie com **76 patches** (0001-0077 sem o 0029). Vereditos: runs
+ainda depende do PAS do modem (PD de WLAN). Os **0076-0077** descrevem o **crypto** (QCE + BAM) e
+os **0078-0080** trazem o **modem PAS**
+(remoteproc@6080000; hospeda o PD de WLAN do ath10k).
+Serie com **79 patches** (0001-0080 sem o 0029). Vereditos: runs
 `41226732607`, `41228370915`, `41231928129`,
 `41233199069`, `41243173565`, `41250221213`,
 `41322986183`, `41328560854`, `41337536375`,
 `41346999641`, `41349310964`, `41351366980`,
-`41514847959`, `41518607602` e **`41522071688`**
-(serie inteira, 76 patches) verdes no workflow 6.18 — `dtbs_check` sem
+`41514847959`, `41518607602`, `41522071688` e
+**`41526973371`** (serie inteira, 79 patches) verdes no workflow 6.18 — `dtbs_check` sem
 reportes. Correcao de registro: os runs `41247264596`,
 `41258294792` e `41296845168`, citados como verdes dos
 marcos 0054/0056/0057, eram na verdade do workflow 6.12

@@ -386,6 +386,14 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   reportes): binding `qcom,sm6225-qce` (variante de
   1 clock), cryptobam@1b04000 e crypto@1b3a000 do
   khaje downstream (SIDs 0x84/0x94).
+- **Modem PAS (0078-0080)**, run **`41526973371`**
+  (serie inteira, 79 patches, 0 reportes): binding
+  `qcom,sm6225-mpss-pas`, recurso no driver (PAS 4,
+  smem 421, proxy cx), smp2p-modem (SMEM 435/428,
+  mbox 14) e remoteproc@6080000 (wdog 307, glink
+  mbox 12) do FDT vivo; firmware split modem.mdt.
+  **Dividas**: IPA (dados moveis), servicos de PD
+  em userspace (tqftpserv) p/ o Wi-Fi.
 
 ## Gate de CI a adicionar (junto da S1)
 
