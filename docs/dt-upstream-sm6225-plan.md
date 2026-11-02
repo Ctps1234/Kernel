@@ -381,6 +381,11 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   mac80211/ath10k built-in. **Dividas**: PAS do
   modem (hospeda o PD de WLAN), tqftpserv/userspace,
   e a segunda janela reg (IPA) fora.
+- **Crypto QCE+BAM (0076-0077)**, run
+  **`41522071688`** (serie inteira, 76 patches, 0
+  reportes): binding `qcom,sm6225-qce` (variante de
+  1 clock), cryptobam@1b04000 e crypto@1b3a000 do
+  khaje downstream (SIDs 0x84/0x94).
 
 ## Gate de CI a adicionar (junto da S1)
 
