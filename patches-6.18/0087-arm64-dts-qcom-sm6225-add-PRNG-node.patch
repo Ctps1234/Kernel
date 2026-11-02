@@ -1,0 +1,35 @@
+From b9b13fdc299e3eff9b7cc37c4aae1ee103bf7687 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 23:17:34 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225: add PRNG node
+
+Describe the pseudo-random number generator at
+0x1b53000 from the downstream khaje DT. The GCC driver
+already exposes GCC_PRNG_AHB_CLK for it.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ arch/arm64/boot/dts/qcom/sm6225.dtsi | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 266a0bad71cb..215b5699a7cb 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -1227,6 +1227,13 @@ crypto: crypto@1b3a000 {
+ 			interconnect-names = "memory";
+ 		};
+ 
++		rng: rng@1b53000 {
++			compatible = "qcom,prng-ee";
++			reg = <0x0 0x01b53000 0x0 0x1000>;
++			clocks = <&gcc GCC_PRNG_AHB_CLK>;
++			clock-names = "core";
++		};
++
+ 		qfprom@1b40000 {
+ 			compatible = "qcom,sm6225-qfprom", "qcom,qfprom";
+ 			reg = <0x0 0x01b40000 0x0 0x7000>;
+-- 
+2.39.5
+

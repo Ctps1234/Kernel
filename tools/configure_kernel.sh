@@ -92,6 +92,14 @@ else
     echo "arvore sem CRYPTO_DEV_QCE: pulando exigencia do crypto"
 fi
 
+# PRNG qcom,prng-ee no DT do SoC (serie 6.18).
+if grep -q "^config CRYPTO_DEV_QCOM_RNG" drivers/crypto/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED CRYPTO_DEV_QCOM_RNG"
+    echo "arvore com CRYPTO_DEV_QCOM_RNG: exigindo PRNG built-in"
+else
+    echo "arvore sem CRYPTO_DEV_QCOM_RNG: pulando exigencia do PRNG"
+fi
+
 # SDHCI-MSM do SDHCI2 (microSD, DT do SoC na serie 6.18).
 if grep -q "^config MMC_SDHCI_MSM" drivers/mmc/host/Kconfig 2>/dev/null; then
     REQUIRED="$REQUIRED MMC MMC_SDHCI MMC_SDHCI_PLTFM MMC_SDHCI_MSM"
