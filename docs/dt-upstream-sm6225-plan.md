@@ -400,6 +400,12 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   smp2p-cdsp (SMEM 94/432, mbox 30) e
   remoteproc@b300000 (wdog 265, glink 28). Trio
   ADSP/CDSP/MPSS completo.
+- **IMEM (0084-0085)**, run **`41535011077`** (serie
+  inteira, 84 patches): binding `qcom,sm6225-imem` +
+  sram@c125000. Auditoria checkpatch da serie:
+  apenas 2 ERRORs (Signed-off-by ausente em 0067 e
+  0075) e SPDX faltando em headers do 0013 —
+  corrigidos na re-publicacao higienizada.
 
 ## Gate de CI a adicionar (junto da S1)
 
