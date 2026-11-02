@@ -76,6 +76,14 @@ else
     echo "arvore sem BT_HCIUART_QCA: pulando exigencia do BT"
 fi
 
+# Wi-Fi ath10k SNOC (WCN3990) no DT do SoC/placa (serie 6.18).
+if grep -q "^config ATH10K_SNOC" drivers/net/wireless/ath/ath10k/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED CFG80211 MAC80211 WLAN WLAN_VENDOR_ATH ATH10K ATH10K_SNOC"
+    echo "arvore com ATH10K_SNOC: exigindo Wi-Fi built-in"
+else
+    echo "arvore sem ATH10K_SNOC: pulando exigencia do Wi-Fi"
+fi
+
 # SDHCI-MSM do SDHCI2 (microSD, DT do SoC na serie 6.18).
 if grep -q "^config MMC_SDHCI_MSM" drivers/mmc/host/Kconfig 2>/dev/null; then
     REQUIRED="$REQUIRED MMC MMC_SDHCI MMC_SDHCI_PLTFM MMC_SDHCI_MSM"

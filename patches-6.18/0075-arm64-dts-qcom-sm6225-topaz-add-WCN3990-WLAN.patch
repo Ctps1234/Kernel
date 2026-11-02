@@ -1,0 +1,97 @@
+From 49c7d49c0fc2aab39b8eeb85c7d8d77d7e3ce098 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 20:21:22 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225/topaz: add WCN3990 WLAN
+
+Describe the ath10k SNOC target at 0xc800000 from the
+stock firmware ICNSS node: twelve CE/host interrupts
+(GIC SPI 358-369), SMMU SID 0x1a0 and the fixed-permission
+MSA flag. The second downstream reg entry (IPA SMMU
+window) has no upstream consumer and is dropped.
+
+The board file labels the reserved WLAN MSA region and
+enables the node. At runtime ath10k still needs the modem
+remoteproc hosting the WLAN protection domain, which is
+not described yet.
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 12 ++++++-
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 33 +++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 1949ccaeec31..a49c2211497a 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -115,7 +115,7 @@ modem_region@4ab00000 {
+ 			reg = <0x0 0x4ab00000 0x0 0x6900000>;
+ 		};
+ 
+-		wlan_msa_region@51900000 {
++		pil_wlan_mem: wlan_msa_region@51900000 {
+ 			no-map;
+ 			reg = <0x0 0x51900000 0x0 0x100000>;
+ 		};
+@@ -820,6 +820,16 @@ &usb_1_hsphy {
+ 	status = "okay";
+ };
+ 
++/*
++ * WCN3990 WLAN. The firmware protection domain is hosted
++ * by the modem remoteproc (not described yet), so ath10k
++ * can only come up once that slice lands; the node can be
++ * described completely already.
++ */
++&wifi {
++	status = "okay";
++};
++
+ &gpu {
+ 	status = "okay";
+ 
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 2064c051f19c..501673c38565 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -2454,6 +2454,39 @@ apps_smmu: iommu@c600000 {
+ 				     <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+ 		};
+ 
++		/*
++		 * WCN3990 WLAN (ath10k SNOC target). The
++		 * downstream ICNSS node also has a second reg
++		 * entry for the IPA SMMU window, which upstream
++		 * ath10k does not use. At runtime this depends on
++		 * the modem remoteproc hosting the WLAN PD,
++		 * which is not described yet.
++		 */
++		wifi: wifi@c800000 {
++			compatible = "qcom,wcn3990-wifi";
++			reg = <0x0 0x0c800000 0x0 0x800000>;
++			reg-names = "membase";
++			memory-region = <&pil_wlan_mem>;
++
++			interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 362 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 363 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 364 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 365 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 366 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 367 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>;
++
++			iommus = <&apps_smmu 0x1a0 0x1>;
++			qcom,msa-fixed-perm;
++
++			status = "disabled";
++		};
++
+ 		apcs_glb: mailbox@f111000 {
+ 			compatible = "qcom,sm6225-apcs-hmss-global",
+ 				     "qcom,msm8994-apcs-kpss-global";
+-- 
+2.39.5
+
