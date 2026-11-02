@@ -1,0 +1,127 @@
+From 14dd59185bbce0022c1a449771a4d7020cdecc21 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 21:38:51 +0000
+Subject: [PATCH 81/83] dt-bindings: remoteproc: add SM6225 CDSP PAS
+
+Mirror the SM6225 MPSS PAS binding for the compute DSP,
+which also uses a single CX proxy power domain.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../remoteproc/qcom,sm6225-cdsp-pas.yaml      | 104 ++++++++++++++++++
+ 1 file changed, 104 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/remoteproc/qcom,sm6225-cdsp-pas.yaml
+
+diff --git a/Documentation/devicetree/bindings/remoteproc/qcom,sm6225-cdsp-pas.yaml b/Documentation/devicetree/bindings/remoteproc/qcom,sm6225-cdsp-pas.yaml
+new file mode 100644
+index 000000000000..da08a2a51046
+--- /dev/null
++++ b/Documentation/devicetree/bindings/remoteproc/qcom,sm6225-cdsp-pas.yaml
+@@ -0,0 +1,104 @@
++# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/remoteproc/qcom,sm6225-cdsp-pas.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Qualcomm SM6225 Compute DSP Peripheral Authentication Service
++
++maintainers:
++  - Bjorn Andersson <andersson@kernel.org>
++  - Mathieu Poirier <mathieu.poirier@linaro.org>
++
++description:
++  Qualcomm SM6225 (Khaje) Peripheral Authentication Service loads and
++  boots firmware on the compute Hexagon DSP.
++
++properties:
++  compatible:
++    const: qcom,sm6225-cdsp-pas
++
++  reg:
++    maxItems: 1
++
++  clocks:
++    items:
++      - description: XO clock
++
++  clock-names:
++    items:
++      - const: xo
++
++  power-domains:
++    items:
++      - description: CX power domain
++
++  power-domain-names:
++    items:
++      - const: cx
++
++  interrupts:
++    maxItems: 5
++
++  interrupt-names:
++    maxItems: 5
++
++  memory-region:
++    maxItems: 1
++    description: Reference to the reserved-memory for the Hexagon core
++
++  smd-edge: false
++
++  firmware-name:
++    maxItems: 1
++    description: Firmware name for the Hexagon core
++
++required:
++  - compatible
++  - reg
++  - memory-region
++
++allOf:
++  - $ref: /schemas/remoteproc/qcom,pas-common.yaml#
++
++unevaluatedProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/clock/qcom,rpmcc.h>
++    #include <dt-bindings/interrupt-controller/arm-gic.h>
++    #include <dt-bindings/interrupt-controller/irq.h>
++    #include <dt-bindings/power/qcom-rpmpd.h>
++
++    remoteproc@b300000 {
++        compatible = "qcom,sm6225-cdsp-pas";
++        reg = <0x0b300000 0x100000>;
++
++        clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>;
++        clock-names = "xo";
++
++        power-domains = <&rpmpd SM6225_VDDCX>;
++        power-domain-names = "cx";
++
++        firmware-name = "qcom/sm6225/cdsp.mdt";
++
++        interrupts-extended = <&intc GIC_SPI 265 IRQ_TYPE_EDGE_RISING>,
++                              <&cdsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
++                              <&cdsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
++                              <&cdsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
++                              <&cdsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
++        interrupt-names = "wdog", "fatal", "ready",
++                          "handover", "stop-ack";
++
++        memory-region = <&cdsp_mem>;
++
++        qcom,smem-states = <&cdsp_smp2p_out 0>;
++        qcom,smem-state-names = "stop";
++
++        glink-edge {
++            interrupts = <GIC_SPI 261 IRQ_TYPE_EDGE_RISING>;
++            label = "cdsp";
++            qcom,remote-pid = <5>;
++            mboxes = <&apcs_glb 28>;
++        };
++    };
+-- 
+2.39.5
+

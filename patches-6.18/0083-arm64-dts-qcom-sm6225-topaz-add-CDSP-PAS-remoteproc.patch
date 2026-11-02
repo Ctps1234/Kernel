@@ -1,0 +1,121 @@
+From b5551dbe2c4086ac6006d9439319946ba267ab95 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 21:39:15 +0000
+Subject: [PATCH 83/83] arm64: dts: qcom: sm6225/topaz: add CDSP PAS remoteproc
+
+Describe the cdsp_smp2p endpoints and the CDSP PAS
+remoteproc at 0xb300000 from the stock firmware DT:
+wdog SPI 265, SMP2P SMEM 94/432 mailbox 30, glink
+mailbox 28 and the CX proxy domain. The board labels
+the CDSP reserved region and supplies the firmware
+name, completing the ADSP/CDSP/MPSS trio.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  8 ++-
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 56 +++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 206979658ee2..0c4132d05b1f 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -120,7 +120,7 @@ pil_wlan_mem: wlan_msa_region@51900000 {
+ 			reg = <0x0 0x51900000 0x0 0x100000>;
+ 		};
+ 
+-		cdsp_regions@51a00000 {
++		cdsp_mem: cdsp_regions@51a00000 {
+ 			no-map;
+ 			reg = <0x0 0x51a00000 0x0 0x1a00000>;
+ 		};
+@@ -491,6 +491,12 @@ &remoteproc_mpss {
+ 	status = "okay";
+ };
+ 
++/* Compute DSP (stock split cdsp.mdt firmware). */
++&remoteproc_cdsp {
++	firmware-name = "qcom/sm6225/xiaomi/topaz/cdsp.mdt";
++	status = "okay";
++};
++
+ &lpass_rx_macro {
+ 	status = "okay";
+ };
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 304bd4cb938e..c3cd11f8b4ce 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -941,6 +941,29 @@ modem_smp2p_in: slave-kernel {
+ 		};
+ 	};
+ 
++	smp2p-cdsp {
++		compatible = "qcom,smp2p";
++		qcom,smem = <94>, <432>;
++
++		interrupts = <GIC_SPI 263 IRQ_TYPE_EDGE_RISING>;
++
++		mboxes = <&apcs_glb 30>;
++
++		qcom,local-pid = <0>;
++		qcom,remote-pid = <5>;
++
++		cdsp_smp2p_out: master-kernel {
++			qcom,entry-name = "master-kernel";
++			#qcom,smem-state-cells = <1>;
++		};
++
++		cdsp_smp2p_in: slave-kernel {
++			qcom,entry-name = "slave-kernel";
++			interrupt-controller;
++			#interrupt-cells = <2>;
++		};
++	};
++
+ 	smp2p-adsp {
+ 		compatible = "qcom,smp2p";
+ 		qcom,smem = <443>, <429>;
+@@ -2357,6 +2380,39 @@ glink-edge {
+ 			};
+ 		};
+ 
++		remoteproc_cdsp: remoteproc@b300000 {
++			compatible = "qcom,sm6225-cdsp-pas";
++			reg = <0x0 0x0b300000 0x0 0x100000>;
++
++			interrupts-extended = <&intc GIC_SPI 265 IRQ_TYPE_EDGE_RISING>,
++					      <&cdsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
++					      <&cdsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
++					      <&cdsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
++					      <&cdsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
++			interrupt-names = "wdog", "fatal", "ready",
++					  "handover", "stop-ack";
++
++			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>;
++			clock-names = "xo";
++
++			power-domains = <&rpmpd SM6225_VDDCX>;
++			power-domain-names = "cx";
++
++			memory-region = <&cdsp_mem>;
++
++			qcom,smem-states = <&cdsp_smp2p_out 0>;
++			qcom,smem-state-names = "stop";
++
++			status = "disabled";
++
++			glink-edge {
++				interrupts = <GIC_SPI 261 IRQ_TYPE_EDGE_RISING>;
++				label = "cdsp";
++				qcom,remote-pid = <5>;
++				mboxes = <&apcs_glb 28>;
++			};
++		};
++
+ 		remoteproc_adsp: remoteproc@ab00000 {
+ 			compatible = "qcom,sm6225-adsp-pas";
+ 			reg = <0x0 0x0ab00000 0x0 0x100>;
+-- 
+2.39.5
+
