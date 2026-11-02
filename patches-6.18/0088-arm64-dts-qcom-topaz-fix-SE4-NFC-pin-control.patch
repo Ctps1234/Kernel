@@ -1,0 +1,59 @@
+From 40767bc71824a8af6d6e3eceffc9b03e00e66464 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 23:36:34 +0000
+Subject: [PATCH] arm64: dts: qcom: topaz: fix SE4/NFC pin control
+
+The inherited board description enabled the NFC
+controller on i2c4, but the SoC default pin state
+targets GPIO12/13. The stock firmware routes SE4 to
+GPIO96/97 with board pull-ups, and the NFC interrupt/
+enable/clk-req pins are pulled up as well. Override
+the pin states accordingly so the already described
+ST21NFCC can actually be reached.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 0c4132d05b1f..ed3cdfb6e1ce 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -449,7 +449,18 @@ touchscreen@38 {
+ 	};
+ };
+ 
+-/* NFC (ST ST21NFC) on SE4. */
++/*
++ * The SE4 pins routed on this board are GPIO96/97 with
++ * external pull-ups (live firmware FDT), not the
++ * GPIO12/13 default state from the SoC file.
++ */
++&qup_i2c4_default {
++	pins = "gpio96", "gpio97";
++	/delete-property/ bias-pull-up;
++	bias-disable;
++};
++
++/* NFC (ST ST21NFCC) on SE4. */
+ &i2c4 {
+ 	assigned-clocks = <&gcc GCC_QUPV3_WRAP0_S4_CLK>;
+ 	assigned-clock-rates = <19200000>;
+@@ -957,11 +968,12 @@ ts_reset_active: ts-reset-active-state {
+ 	};
+ 
+ 
++	/* int/enable/clk-req pull-ups match the stock FDT. */
+ 	nfc_default: nfc-default-state {
+ 		pins = "gpio69", "gpio70", "gpio71";
+ 		function = "gpio";
+ 		drive-strength = <2>;
+-		bias-disable;
++		bias-pull-up;
+ 	};
+ 
+ 	lcd_reset_active: lcd-reset-active-state {
+-- 
+2.39.5
+

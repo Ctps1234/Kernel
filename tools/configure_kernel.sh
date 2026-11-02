@@ -100,6 +100,14 @@ else
     echo "arvore sem CRYPTO_DEV_QCOM_RNG: pulando exigencia do PRNG"
 fi
 
+# NFC ST21NFCC no DT da placa (serie 6.18).
+if grep -q "^config NFC_ST_NCI_I2C" drivers/nfc/st-nci/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED NFC NFC_NCI NFC_ST_NCI_I2C"
+    echo "arvore com NFC_ST_NCI_I2C: exigindo NFC built-in"
+else
+    echo "arvore sem NFC_ST_NCI_I2C: pulando exigencia do NFC"
+fi
+
 # SDHCI-MSM do SDHCI2 (microSD, DT do SoC na serie 6.18).
 if grep -q "^config MMC_SDHCI_MSM" drivers/mmc/host/Kconfig 2>/dev/null; then
     REQUIRED="$REQUIRED MMC MMC_SDHCI MMC_SDHCI_PLTFM MMC_SDHCI_MSM"
