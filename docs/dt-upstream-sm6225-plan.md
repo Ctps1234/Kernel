@@ -362,6 +362,19 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   lpass 5->296, lpi 24->79, pino 2->190 sem rotulo).
   SPMI e DWC3 migrados p/ interrupts-extended via MPM.
   Fecha a divida "wakeups DP/DM via MPM" do USB.
+- **Bluetooth WCN3990 (0073-0074)**, run
+  **`41514847959`** (serie inteira, 73 patches, 0
+  reportes): no `qcom,wcn3990-bt` sob o HS UART SE3
+  com L9/L16/L17/L23 e GPIO87 (SW_CTRL). **Correcao
+  de rumo**: a SE3 era nosso console desde o 0050,
+  mas no hardware ela e o canal do radio; o console
+  downstream (SE4 2-fios) e o I2C do NFC nesta placa.
+  stdout-path removido; debug via ramoops. Para o
+  stack embutir foi preciso RFKILL=y e
+  POWER_SEQUENCING=y (teto =m do GKI via
+  "depends on X || !X"). **Divida**: Wi-Fi ath10k
+  SNOC do mesmo WCN3990; firmware/PD (tqftpserv)
+  fora do kernel.
 
 ## Gate de CI a adicionar (junto da S1)
 
