@@ -164,12 +164,15 @@ DWC3<->RT1711H. Os **0069-0071** trazem o **microSD
 (SDHCI2)**: binding `qcom,sm6225-sdhci`, host 0x4784000
 com DLL/DDR e OPP downstream + LDOs L5/L22, CD no
 GPIO88 ativo-alto (camada Xiaomi) e SDR104. Serie com
-**70 patches** (0001-0071 sem o 0029). Vereditos: runs
+**70 patches** (0001-0071 sem o 0029). O **0072** adiciona
+o **MPM** (agregador de wakeup, mapa Khaje do driver
+downstream) e cabeca SPMI/USB nele. Serie com **71
+patches** (0001-0072 sem o 0029). Vereditos: runs
 `41226732607`, `41228370915`, `41231928129`,
 `41233199069`, `41243173565`, `41250221213`,
 `41322986183`, `41328560854`, `41337536375`,
-`41346999641` e **`41349310964`** (serie inteira, 70
-patches) verdes no workflow 6.18 — `dtbs_check` sem
+`41346999641`, `41349310964` e **`41351366980`** (serie
+inteira, 71 patches) verdes no workflow 6.18 — `dtbs_check` sem
 reportes. Correcao de registro: os runs `41247264596`,
 `41258294792` e `41296845168`, citados como verdes dos
 marcos 0054/0056/0057, eram na verdade do workflow 6.12

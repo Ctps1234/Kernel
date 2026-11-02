@@ -353,6 +353,15 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   io-bias L7 ficou fora de proposito (sem consumidor
   upstream). **Dividas**: taxas/polaridades nao
   verificadas em hardware; io-bias e DLL fino.
+- **MPM (0072)**, run **`41351366980`** (serie inteira,
+  71 patches, 0 reportes): agregador de wakeup como
+  filho do remoteproc RPM, apss_mpm na rpm_msg_ram
+  (mmio-sram), mailbox apcs_glb canal 1, GIC 197.
+  Mapa khaje do `qcom-mpm.c` downstream
+  (SPMI 86->183, USB dp 91->184/dm 90->188/ss 12->422,
+  lpass 5->296, lpi 24->79, pino 2->190 sem rotulo).
+  SPMI e DWC3 migrados p/ interrupts-extended via MPM.
+  Fecha a divida "wakeups DP/DM via MPM" do USB.
 
 ## Gate de CI a adicionar (junto da S1)
 
