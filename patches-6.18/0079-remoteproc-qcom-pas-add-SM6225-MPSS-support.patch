@@ -1,0 +1,53 @@
+From a8d62b613734f777f6c66ae2dd0fea6c0188376f Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 21:16:25 +0000
+Subject: [PATCH 79/80] remoteproc: qcom: pas: add SM6225 MPSS support
+
+Add the resource data for the khaje modem PAS: PAS ID 4,
+crash-reason SMEM 421 and the CX proxy power domain,
+matching the downstream modem_pas description. The
+modem also hosts the WLAN protection domain needed by
+ath10k.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ drivers/remoteproc/qcom_q6v5_pas.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/drivers/remoteproc/qcom_q6v5_pas.c b/drivers/remoteproc/qcom_q6v5_pas.c
+index 24648c82fe38..d35fcb70daba 100644
+--- a/drivers/remoteproc/qcom_q6v5_pas.c
++++ b/drivers/remoteproc/qcom_q6v5_pas.c
+@@ -891,6 +891,21 @@ static const struct qcom_pas_data sdm845_adsp_resource_init = {
+ 	.ssctl_id = 0x14,
+ };
+ 
++static const struct qcom_pas_data sm6225_mpss_resource = {
++	.crash_reason_smem = 421,
++	.firmware_name = "modem.mdt",
++	.pas_id = 4,
++	.minidump_id = 3,
++	.auto_boot = false,
++	.proxy_pd_names = (char*[]){
++		"cx",
++		NULL
++	},
++	.ssr_name = "mpss",
++	.sysmon_name = "modem",
++	.ssctl_id = 0x12,
++};
++
+ static const struct qcom_pas_data sm6225_adsp_resource = {
+ 	.crash_reason_smem = 423,
+ 	.firmware_name = "adsp.mdt",
+@@ -1543,6 +1558,7 @@ static const struct of_device_id qcom_pas_of_match[] = {
+ 	{ .compatible = "qcom,sm6115-cdsp-pas", .data = &cdsp_resource_init},
+ 	{ .compatible = "qcom,sm6115-mpss-pas", .data = &sc8180x_mpss_resource},
+ 	{ .compatible = "qcom,sm6225-adsp-pas", .data = &sm6225_adsp_resource},
++	{ .compatible = "qcom,sm6225-mpss-pas", .data = &sm6225_mpss_resource},
+ 	{ .compatible = "qcom,sm6350-adsp-pas", .data = &sm6350_adsp_resource},
+ 	{ .compatible = "qcom,sm6350-cdsp-pas", .data = &sm6350_cdsp_resource},
+ 	{ .compatible = "qcom,sm6350-mpss-pas", .data = &mpss_resource_init},
+-- 
+2.39.5
+

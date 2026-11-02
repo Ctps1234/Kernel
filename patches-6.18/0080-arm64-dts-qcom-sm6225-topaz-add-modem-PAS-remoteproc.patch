@@ -1,0 +1,146 @@
+From 6aa879da51d55c843758fdc4994fa96521e253f2 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Mon, 2 Nov 2026 21:16:50 +0000
+Subject: [PATCH 80/80] arm64: dts: qcom: sm6225/topaz: add modem PAS
+ remoteproc
+
+Describe the modem_smp2p endpoints and the MPSS PAS
+remoteproc at 0x6080000 from the stock firmware DT:
+wdog SPI 307, SMP2P bits 0/1/2/3/7, glink mailbox 12 and
+the CX proxy domain. The board labels the modem reserved
+region and supplies the stock split firmware name.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 18 ++++--
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 64 +++++++++++++++++++
+ 2 files changed, 78 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index a49c2211497a..206979658ee2 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -110,7 +110,7 @@ cdsp_sec_regions@46200000 {
+ 			reg = <0x0 0x46200000 0x0 0x1e00000>;
+ 		};
+ 
+-		modem_region@4ab00000 {
++		mpss_mem: modem_region@4ab00000 {
+ 			no-map;
+ 			reg = <0x0 0x4ab00000 0x0 0x6900000>;
+ 		};
+@@ -480,6 +480,17 @@ &remoteproc_adsp {
+ 	status = "okay";
+ };
+ 
++/*
++ * Modem (also hosts the WLAN protection domain). The
++ * stock firmware is a split MDT image from the modem
++ * partition; userspace PD services (tqftpserv etc.) are
++ * out of scope for the kernel description.
++ */
++&remoteproc_mpss {
++	firmware-name = "qcom/sm6225/xiaomi/topaz/modem.mdt";
++	status = "okay";
++};
++
+ &lpass_rx_macro {
+ 	status = "okay";
+ };
+@@ -822,9 +833,8 @@ &usb_1_hsphy {
+ 
+ /*
+  * WCN3990 WLAN. The firmware protection domain is hosted
+- * by the modem remoteproc (not described yet), so ath10k
+- * can only come up once that slice lands; the node can be
+- * described completely already.
++ * by the modem remoteproc; ath10k additionally needs the
++ * userspace PD services (tqftpserv) to come up.
+  */
+ &wifi {
+ 	status = "okay";
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 316da93fcffc..304bd4cb938e 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -918,6 +918,29 @@ pm6125_l24: regulator-l24 {
+ 		};
+ 	};
+ 
++	smp2p-modem {
++		compatible = "qcom,smp2p";
++		qcom,smem = <435>, <428>;
++
++		interrupts = <GIC_SPI 70 IRQ_TYPE_EDGE_RISING>;
++
++		mboxes = <&apcs_glb 14>;
++
++		qcom,local-pid = <0>;
++		qcom,remote-pid = <1>;
++
++		modem_smp2p_out: master-kernel {
++			qcom,entry-name = "master-kernel";
++			#qcom,smem-state-cells = <1>;
++		};
++
++		modem_smp2p_in: slave-kernel {
++			qcom,entry-name = "slave-kernel";
++			interrupt-controller;
++			#interrupt-cells = <2>;
++		};
++	};
++
+ 	smp2p-adsp {
+ 		compatible = "qcom,smp2p";
+ 		qcom,smem = <443>, <429>;
+@@ -2293,6 +2316,47 @@ lpass_tlmm: pinctrl@a7c0000 {
+ 		 * hardware blocks (macros, lpasscc, soundwire,
+ 		 * sound card) land in the next slices.
+ 		 */
++		/*
++		 * Modem PAS remoteproc. Also hosts the WLAN
++		 * protection domain that the WCN3990 Wi-Fi
++		 * node relies on (PDR/QMI), besides QMI modem
++		 * services and (later) IPA.
++		 */
++		remoteproc_mpss: remoteproc@6080000 {
++			compatible = "qcom,sm6225-mpss-pas";
++			reg = <0x0 0x06080000 0x0 0x100>;
++
++			interrupts-extended = <&intc GIC_SPI 307 IRQ_TYPE_EDGE_RISING>,
++					      <&modem_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
++					      <&modem_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
++					      <&modem_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
++					      <&modem_smp2p_in 3 IRQ_TYPE_EDGE_RISING>,
++					      <&modem_smp2p_in 7 IRQ_TYPE_EDGE_RISING>;
++			interrupt-names = "wdog", "fatal", "ready",
++					  "handover", "stop-ack",
++					  "shutdown-ack";
++
++			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>;
++			clock-names = "xo";
++
++			power-domains = <&rpmpd SM6225_VDDCX>;
++			power-domain-names = "cx";
++
++			memory-region = <&mpss_mem>;
++
++			qcom,smem-states = <&modem_smp2p_out 0>;
++			qcom,smem-state-names = "stop";
++
++			status = "disabled";
++
++			glink-edge {
++				interrupts = <GIC_SPI 68 IRQ_TYPE_EDGE_RISING>;
++				label = "modem";
++				qcom,remote-pid = <1>;
++				mboxes = <&apcs_glb 12>;
++			};
++		};
++
+ 		remoteproc_adsp: remoteproc@ab00000 {
+ 			compatible = "qcom,sm6225-adsp-pas";
+ 			reg = <0x0 0x0ab00000 0x0 0x100>;
+-- 
+2.39.5
+
