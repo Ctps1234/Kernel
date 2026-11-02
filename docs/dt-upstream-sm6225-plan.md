@@ -405,7 +405,11 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   sram@c125000. Auditoria checkpatch da serie:
   apenas 2 ERRORs (Signed-off-by ausente em 0067 e
   0075) e SPDX faltando em headers do 0013 —
-  corrigidos na re-publicacao higienizada.
+  corrigidos cirurgicamente (run `41538846766`).
+- **PRNG (0087)**, run **`41544358036`** (serie
+  inteira, 86 patches, 0 reportes): rng@1b53000
+  (qcom,prng-ee), clock GCC_PRNG_AHB_CLK ja exposto
+  pelo gcc-khaje.
 
 ## Gate de CI a adicionar (junto da S1)
 
