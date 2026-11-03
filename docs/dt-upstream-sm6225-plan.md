@@ -422,6 +422,15 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   (downstream "lc,ir-spi", 1 MHz, CPOL); binding
   ir-spi-led estendido p/ spi-cpha/cpol e pilha
   RC_CORE/LIRC/RC_DEVICES forcada (teto de menu).
+- **GPI DMA (0091-0092)**, run **`41560857037`**
+  (serie inteira, 91 patches, 0 reportes): binding
+  `qcom,sm6225-gpi-dma`, controlador @4a00000
+  (IRQ 335-344, SID 0xf6) e canais tx/rx nos GENIs
+  I2C/SPI (SE0/1/2/4); a UART3 fica de fora (o driver
+  geni-serial usa o DMA interno do SE). Restam como
+  frentes maiores: USB3/DP QMP combo, IPA, Venus e
+  bwmon — todas dependem de dados/tabelas ainda nao
+  verificados nesta arvore.
 
 ## Gate de CI a adicionar (junto da S1)
 
