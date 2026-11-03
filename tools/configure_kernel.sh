@@ -108,6 +108,14 @@ else
     echo "arvore sem NFC_ST_NCI_I2C: pulando exigencia do NFC"
 fi
 
+# IR blaster ir-spi-led no SPI SE0 (serie 6.18).
+if grep -q "^config IR_SPI" drivers/media/rc/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED SPI_QCOM_GENI IR_SPI"
+    echo "arvore com IR_SPI: exigindo IR blaster built-in"
+else
+    echo "arvore sem IR_SPI: pulando exigencia do IR blaster"
+fi
+
 # SDHCI-MSM do SDHCI2 (microSD, DT do SoC na serie 6.18).
 if grep -q "^config MMC_SDHCI_MSM" drivers/mmc/host/Kconfig 2>/dev/null; then
     REQUIRED="$REQUIRED MMC MMC_SDHCI MMC_SDHCI_PLTFM MMC_SDHCI_MSM"

@@ -1,0 +1,95 @@
+From c07891af4905192bfa6162392f7a627af3ce916e Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Tue, 3 Nov 2026 00:06:45 +0000
+Subject: [PATCH] arm64: dts: qcom: sm6225/topaz: add SPI SE0 and IR blaster
+
+Downstream drives the top-mounted IR LED from the SE0
+GENI SPI controller (GPIO0-3, 1 MHz, CPOL) as an
+"lc,ir-spi" device. Describe the controller in the SoC
+file and model the LED upstream-style as ir-spi-led.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     | 17 +++++++++++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 30 +++++++++++++++++++
+ 2 files changed, 47 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index ed3cdfb6e1ce..8958d7e592d2 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -486,6 +486,23 @@ nfc@8 {
+ 	};
+ };
+ 
++/*
++ * IR blaster: downstream "lc,ir-spi" on SPI SE0, which
++ * upstream models as an SPI IR LED. Clocking (1 MHz,
++ * CPOL) is taken from the stock firmware description;
++ * duty cycle defaults apply.
++ */
++&spi0 {
++	status = "okay";
++
++	irled@1 {
++		compatible = "ir-spi-led";
++		reg = <1>;
++		spi-max-frequency = <1000000>;
++		spi-cpol;
++	};
++};
++
+ &remoteproc_adsp {
+ 	firmware-name = "qcom/sm6225/xiaomi/topaz/adsp.mbn";
+ 	status = "okay";
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 215b5699a7cb..c139ef29fbe0 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -1085,6 +1085,13 @@ data-pins {
+ 				};
+ 			};
+ 
++			qup_spi0_default: qup-spi0-default-state {
++				pins = "gpio0", "gpio1", "gpio2", "gpio3";
++				function = "qup0";
++				drive-strength = <6>;
++				bias-disable;
++			};
++
+ 			qup_i2c2_default: qup-i2c2-default-state {
+ 				pins = "gpio6", "gpio7";
+ 				function = "qup2";
+@@ -1478,6 +1485,29 @@ qupv3_id_0: geniqup@4ac0000 {
+ 			 * (GPI DMA not described yet; GENI falls back
+ 			 * to FIFO mode without dmas).
+ 			 */
++			spi0: spi@4a80000 {
++				compatible = "qcom,geni-spi";
++				reg = <0x0 0x04a80000 0x0 0x4000>;
++				clock-names = "se";
++				clocks = <&gcc GCC_QUPV3_WRAP0_S0_CLK>;
++				pinctrl-names = "default";
++				pinctrl-0 = <&qup_spi0_default>;
++				interrupts = <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
++				spi-max-frequency = <50000000>;
++				interconnects = <&clk_virt MASTER_QUP_CORE_0
++						 &clk_virt SLAVE_QUP_CORE_0>,
++						<&bimc MASTER_AMPSS_M0
++						 &config_noc SLAVE_QUP_0>,
++						<&system_noc MASTER_QUP_0
++						 &bimc SLAVE_EBI_CH0>;
++				interconnect-names = "qup-core",
++						     "qup-config",
++						     "qup-memory";
++				#address-cells = <1>;
++				#size-cells = <0>;
++				status = "disabled";
++			};
++
+ 			i2c1: i2c@4a84000 {
+ 				compatible = "qcom,geni-i2c";
+ 				reg = <0x0 0x04a84000 0x0 0x4000>;
+-- 
+2.39.5
+
