@@ -1,0 +1,138 @@
+From 3794bb0fc4a5742333f15e25b1df12db6f8670b2 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Tue, 3 Nov 2026 01:05:43 +0000
+Subject: [PATCH 92/92] arm64: dts: qcom: sm6225/topaz: add GPI DMA for QUP
+
+Describe the GPI DMA controller at 0x4a00000 from the
+stock firmware DT (IRQs 335-344, ten channels, SMMU
+SID 0xf6) and wire the tx/rx channels of every GENI
+instance described so far (SPI0, I2C1, I2C2, UART3,
+I2C4) instead of leaving them in FIFO mode. This also
+matters for the Bluetooth HS UART at 3.2 Mbaud.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  4 ++
+ arch/arm64/boot/dts/qcom/sm6225.dtsi          | 42 ++++++++++++++++---
+ 2 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 8958d7e592d2..d2d5cb97a2be 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -294,6 +294,10 @@ &qupv3_id_0 {
+ 	status = "okay";
+ };
+ 
++&gpi_dma0 {
++	status = "okay";
++};
++
+ /*
+  * QUP SE1 carries the camera PMIC and USB-C port controller
+  * downstream (the same bus also carries the PM8008, FSA4480
+diff --git a/arch/arm64/boot/dts/qcom/sm6225.dtsi b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+index 8a4348a3e710..f4b14184ff6f 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6225.dtsi
+@@ -16,6 +16,7 @@
+ #include <dt-bindings/clock/qcom,gcc-khaje.h>
+ #include <dt-bindings/clock/qcom,gpucc-khaje.h>
+ #include <dt-bindings/clock/qcom,rpmcc.h>
++#include <dt-bindings/dma/qcom-gpi.h>
+ #include <dt-bindings/interconnect/qcom,bengal.h>
+ #include <dt-bindings/interconnect/qcom,rpm-icc.h>
+ #include <dt-bindings/interrupt-controller/arm-gic.h>
+@@ -1469,6 +1470,26 @@ ufs_mem_phy: phy@4807000 {
+ 			status = "disabled";
+ 		};
+ 
++		gpi_dma0: dma-controller@4a00000 {
++			compatible = "qcom,sm6225-gpi-dma", "qcom,sm6350-gpi-dma";
++			reg = <0x0 0x04a00000 0x0 0x60000>;
++			interrupts = <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 338 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 339 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 340 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
++			dma-channels = <10>;
++			dma-channel-mask = <0xf>;
++			iommus = <&apps_smmu 0xf6 0x0>;
++			#dma-cells = <3>;
++			status = "disabled";
++		};
++
+ 		qupv3_id_0: geniqup@4ac0000 {
+ 			compatible = "qcom,geni-se-qup";
+ 			reg = <0x0 0x04ac0000 0x0 0x2000>;
+@@ -1480,11 +1501,7 @@ qupv3_id_0: geniqup@4ac0000 {
+ 			ranges;
+ 			status = "disabled";
+ 
+-			/*
+-			 * QUP instances used on khaje per downstream
+-			 * (GPI DMA not described yet; GENI falls back
+-			 * to FIFO mode without dmas).
+-			 */
++			/* QUP instances used on khaje per downstream. */
+ 			spi0: spi@4a80000 {
+ 				compatible = "qcom,geni-spi";
+ 				reg = <0x0 0x04a80000 0x0 0x4000>;
+@@ -1493,6 +1510,9 @@ spi0: spi@4a80000 {
+ 				pinctrl-names = "default";
+ 				pinctrl-0 = <&qup_spi0_default>;
+ 				interrupts = <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
++				dmas = <&gpi_dma0 0 0 QCOM_GPI_SPI>,
++				       <&gpi_dma0 1 0 QCOM_GPI_SPI>;
++				dma-names = "tx", "rx";
+ 				interconnects = <&clk_virt MASTER_QUP_CORE_0
+ 						 &clk_virt SLAVE_QUP_CORE_0>,
+ 						<&bimc MASTER_AMPSS_M0
+@@ -1515,6 +1535,9 @@ i2c1: i2c@4a84000 {
+ 				pinctrl-names = "default";
+ 				pinctrl-0 = <&qup_i2c1_default>;
+ 				interrupts = <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>;
++				dmas = <&gpi_dma0 0 1 QCOM_GPI_I2C>,
++				       <&gpi_dma0 1 1 QCOM_GPI_I2C>;
++				dma-names = "tx", "rx";
+ 				interconnects = <&clk_virt MASTER_QUP_CORE_0
+ 						 &clk_virt SLAVE_QUP_CORE_0>,
+ 						<&bimc MASTER_AMPSS_M0
+@@ -1537,6 +1560,9 @@ i2c2: i2c@4a88000 {
+ 				pinctrl-names = "default";
+ 				pinctrl-0 = <&qup_i2c2_default>;
+ 				interrupts = <GIC_SPI 329 IRQ_TYPE_LEVEL_HIGH>;
++				dmas = <&gpi_dma0 0 2 QCOM_GPI_I2C>,
++				       <&gpi_dma0 1 2 QCOM_GPI_I2C>;
++				dma-names = "tx", "rx";
+ 				interconnects = <&clk_virt MASTER_QUP_CORE_0
+ 						 &clk_virt SLAVE_QUP_CORE_0>,
+ 						<&bimc MASTER_AMPSS_M0
+@@ -1556,6 +1582,9 @@ uart3: serial@4a8c000 {
+ 				compatible = "qcom,geni-uart";
+ 				reg = <0x0 0x04a8c000 0x0 0x4000>;
+ 				interrupts = <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>;
++				dmas = <&gpi_dma0 0 3 QCOM_GPI_UART>,
++				       <&gpi_dma0 1 3 QCOM_GPI_UART>;
++				dma-names = "tx", "rx";
+ 				clocks = <&gcc GCC_QUPV3_WRAP0_S3_CLK>;
+ 				clock-names = "se";
+ 				pinctrl-names = "default";
+@@ -1576,6 +1605,9 @@ i2c4: i2c@4a90000 {
+ 				pinctrl-names = "default";
+ 				pinctrl-0 = <&qup_i2c4_default>;
+ 				interrupts = <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH>;
++				dmas = <&gpi_dma0 0 4 QCOM_GPI_I2C>,
++				       <&gpi_dma0 1 4 QCOM_GPI_I2C>;
++				dma-names = "tx", "rx";
+ 				interconnects = <&clk_virt MASTER_QUP_CORE_0
+ 						 &clk_virt SLAVE_QUP_CORE_0>,
+ 						<&bimc MASTER_AMPSS_M0
+-- 
+2.39.5
+

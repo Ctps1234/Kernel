@@ -116,6 +116,14 @@ else
     echo "arvore sem IR_SPI: pulando exigencia do IR blaster"
 fi
 
+# GPI DMA dos QUP no DT do SoC (serie 6.18).
+if grep -q "^config QCOM_GPI_DMA" drivers/dma/qcom/Kconfig 2>/dev/null; then
+    REQUIRED="$REQUIRED QCOM_GPI_DMA"
+    echo "arvore com QCOM_GPI_DMA: exigindo GPI DMA built-in"
+else
+    echo "arvore sem QCOM_GPI_DMA: pulando exigencia do GPI DMA"
+fi
+
 # SDHCI-MSM do SDHCI2 (microSD, DT do SoC na serie 6.18).
 if grep -q "^config MMC_SDHCI_MSM" drivers/mmc/host/Kconfig 2>/dev/null; then
     REQUIRED="$REQUIRED MMC MMC_SDHCI MMC_SDHCI_PLTFM MMC_SDHCI_MSM"
