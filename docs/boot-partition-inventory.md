@@ -2,6 +2,13 @@
 
 ## Captura recebida
 
+> **Atualização (2026-11-03):** o usuário reportou ter migrado a ROM
+> para **AOSP Android 16**. As capturas abaixo são do estado anterior
+> e continuam válidas para o layout de partições e os formatos das
+> imagens; o sistema em execução atual não é mais o descrito aqui. O
+> vendor permanece o stock da Xiaomi (base Android 15), que é a
+> camada relevante para as HALs.
+
 - Slot reportado por `ro.boot.slot_suffix`: `_b` (slot ativo durante a captura).
 - Sistema/ROM em execução: Android 17, API 37; vendor/base Android 15, conforme esclarecimento do usuário.
 - Fingerprint recebido: `Redmi/topaz_global/topaz:15/AQ3A.240829.003/OS2.0.204.0.VMGMIXM:user/release-keys`. O usuário esclareceu que o `:15` corresponde ao vendor Android 15, não ao sistema Android 17.
