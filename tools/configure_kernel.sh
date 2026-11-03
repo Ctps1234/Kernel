@@ -110,7 +110,7 @@ fi
 
 # IR blaster ir-spi-led no SPI SE0 (serie 6.18).
 if grep -q "^config IR_SPI" drivers/media/rc/Kconfig 2>/dev/null; then
-    REQUIRED="$REQUIRED SPI_QCOM_GENI IR_SPI"
+    REQUIRED="$REQUIRED SPI_QCOM_GENI RC_DEVICES IR_SPI"
     echo "arvore com IR_SPI: exigindo IR blaster built-in"
 else
     echo "arvore sem IR_SPI: pulando exigencia do IR blaster"
