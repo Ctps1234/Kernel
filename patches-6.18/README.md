@@ -37,8 +37,9 @@ erro do dt-validate; o passo agora grepa o log e falha. Correcao
 do binding no **0035** (molde do `qcom,sm6115-tlmm` upstream).
 Serie agora com **34 patches** (0001-0035 sem o 0029). O **0088** torna o **NFC** (ST21NFCC no
 I2C SE4) alcancavel: pinctrl corrigido p/ GPIO96/97 e
-driver ST_NCI_I2C built-in. Serie com **87 patches**
-(0001-0088 sem o 0029). Escopo,
+driver ST_NCI_I2C built-in. Os **0089-0090** adicionam o **IR blaster**
+(ir-spi-led no SPI SE0). Serie com **89 patches**
+(0001-0090 sem o 0029). Escopo,
 fontes de cada dado e o que ficou para as fatias S2-S6:
 `docs/dt-upstream-sm6225-plan.md`. Veredito: run
 [`41056142520`](https://github.com/Ctps1234/Kernel/actions/runs/41056142520)
@@ -194,8 +195,8 @@ sem o 0029). Vereditos: runs
 `41346999641`, `41349310964`, `41351366980`,
 `41514847959`, `41518607602`, `41522071688`,
 `41526973371`, `41530367079`, `41535011077`,
-`41538846766`, `41544358036` e **`41546822966`**
-(serie inteira, 87 patches) verdes no workflow 6.18 — `dtbs_check` sem
+`41538846766`, `41544358036`, `41546822966` e
+**`41553988909`** (serie inteira, 89 patches) verdes no workflow 6.18 — `dtbs_check` sem
 reportes. Correcao de registro: os runs `41247264596`,
 `41258294792` e `41296845168`, citados como verdes dos
 marcos 0054/0056/0057, eram na verdade do workflow 6.12

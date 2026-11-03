@@ -416,6 +416,12 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   estado GPIO12/13 do SoC — o FDT vivo usa GPIO96/97
   com pull-ups da placa; driver NFC_ST_NCI_I2C
   built-in (GKI trazia NFC=m).
+- **IR blaster (0089-0090)**, run **`41553988909`**
+  (serie inteira, 89 patches, 0 reportes; v3):
+  spi0@4a80000 (GPIO0-3, IRQ 327) + ir-spi-led
+  (downstream "lc,ir-spi", 1 MHz, CPOL); binding
+  ir-spi-led estendido p/ spi-cpha/cpol e pilha
+  RC_CORE/LIRC/RC_DEVICES forcada (teto de menu).
 
 ## Gate de CI a adicionar (junto da S1)
 
