@@ -1,0 +1,36 @@
+From 46d388302f23c9d33c8de04b5222c1287a60a71f Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.local>
+Date: Tue, 3 Nov 2026 00:35:20 +0000
+Subject: [PATCH 89/90] dt-bindings: leds: ir-spi-led: allow spi-cpha and
+ spi-cpol
+
+The clock phase/polarity flags are generic SPI
+peripheral properties defined by the controller schema,
+but this binding completes with unevaluatedProperties:
+false, so they are rejected on the LED node itself.
+Some boards (e.g. the Xiaomi topaz IR blaster) wire the
+LED in a way that requires CPOL, so declare the flags.
+
+Signed-off-by: Arena Agent <agent@arena.local>
+---
+ Documentation/devicetree/bindings/leds/irled/ir-spi-led.yaml | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/leds/irled/ir-spi-led.yaml b/Documentation/devicetree/bindings/leds/irled/ir-spi-led.yaml
+index 72cadebf6e3e..cb7c60f62788 100644
+--- a/Documentation/devicetree/bindings/leds/irled/ir-spi-led.yaml
++++ b/Documentation/devicetree/bindings/leds/irled/ir-spi-led.yaml
+@@ -36,6 +36,10 @@ properties:
+ 
+   power-supply: true
+ 
++  spi-cpha: true
++
++  spi-cpol: true
++
+ required:
+   - compatible
+   - reg
+-- 
+2.39.5
+
