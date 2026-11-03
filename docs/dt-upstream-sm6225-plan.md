@@ -410,6 +410,12 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   inteira, 86 patches, 0 reportes): rng@1b53000
   (qcom,prng-ee), clock GCC_PRNG_AHB_CLK ja exposto
   pelo gcc-khaje.
+- **NFC utilizavel (0088)**, run **`41546822966`**
+  (serie inteira, 87 patches, 0 reportes): o no
+  st,st21nfcc-i2c ja existia, mas a SE4 usava o
+  estado GPIO12/13 do SoC — o FDT vivo usa GPIO96/97
+  com pull-ups da placa; driver NFC_ST_NCI_I2C
+  built-in (GKI trazia NFC=m).
 
 ## Gate de CI a adicionar (junto da S1)
 
