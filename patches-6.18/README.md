@@ -39,8 +39,10 @@ Serie agora com **34 patches** (0001-0035 sem o 0029). O **0088** torna o **NFC*
 I2C SE4) alcancavel: pinctrl corrigido p/ GPIO96/97 e
 driver ST_NCI_I2C built-in. Os **0089-0090** adicionam o **IR blaster**
 (ir-spi-led no SPI SE0). Os **0091-0092** descrevem o **GPI DMA** dos QUP
-(GENIs I2C/SPI saem do modo FIFO). Serie com
-**91 patches** (0001-0092 sem o 0029). Escopo,
+(GENIs I2C/SPI saem do modo FIFO). O **0093** alinha os `firmware-name` ao layout de
+firmware Android (nomes "pelados" resolvidos em
+/vendor/firmware_mnt/image/). Serie com **92 patches**
+(0001-0093 sem o 0029). Escopo,
 fontes de cada dado e o que ficou para as fatias S2-S6:
 `docs/dt-upstream-sm6225-plan.md`. Veredito: run
 [`41056142520`](https://github.com/Ctps1234/Kernel/actions/runs/41056142520)
@@ -197,8 +199,8 @@ sem o 0029). Vereditos: runs
 `41514847959`, `41518607602`, `41522071688`,
 `41526973371`, `41530367079`, `41535011077`,
 `41538846766`, `41544358036`, `41546822966`,
-`41553988909` e **`41560857037`** (serie inteira, 91
-patches) verdes no workflow 6.18 — `dtbs_check` sem
+`41553988909`, `41560857037` e **`41748589605`**
+(serie inteira, 92 patches) verdes no workflow 6.18 — `dtbs_check` sem
 reportes. Correcao de registro: os runs `41247264596`,
 `41258294792` e `41296845168`, citados como verdes dos
 marcos 0054/0056/0057, eram na verdade do workflow 6.12

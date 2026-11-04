@@ -431,6 +431,18 @@ Numeração continua a partir de 0034 em `patches-6.18/`.
   frentes maiores: USB3/DP QMP combo, IPA, Venus e
   bwmon — todas dependem de dados/tabelas ainda nao
   verificados nesta arvore.
+- **Alinhamento Android (0093)**, run
+  **`41748589605`** (serie inteira, 92 patches, 0
+  reportes): cruzamento com a device tree LineageOS
+  A16 da ROM atual do usuario
+  (`docs/aosp16-lineage-crossref.md`) gerou o
+  firmware-name "pelado" (modem/adsp/cdsp/
+  a610_zap.mdt) p/ o diretorio unico do ueventd. A
+  renomeacao do core DWC3 p/ `4e00000.dwc3` foi
+  tentada e descartada (schema exige ^usb); o
+  alinhamento vai no bootconfig do vendor_boot de
+  teste. Auditoria dos modulos 5.15 da ROM: nenhum
+  critico p/ o 1o estagio sem equivalente built-in.
 
 ## Gate de CI a adicionar (junto da S1)
 
