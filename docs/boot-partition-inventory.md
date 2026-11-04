@@ -3,7 +3,8 @@
 ## Captura recebida
 
 > **Atualização (2026-11-03):** o usuário reportou ter migrado a ROM
-> para **AOSP Android 16**. As capturas abaixo são do estado anterior
+> para **AOSP Android 16 compilada para o topaz (userdebug)**. As
+> capturas abaixo são do estado anterior
 > e continuam válidas para o layout de partições e os formatos das
 > imagens; o sistema em execução atual não é mais o descrito aqui. O
 > vendor permanece o stock da Xiaomi (base Android 15), que é a
