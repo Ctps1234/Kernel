@@ -57,9 +57,15 @@ echo "== boot: kernel 6.18 =="
 python3 tools/bootimg.py set-kernel --image "$BLOBS/boot_b.img" \
     --kernel "$IMAGE" --out "$OUT/boot_b-618.img"
 
+echo "== dtb: injeta qcom,msm-id/board-id (selecao de FDT do ABL) =="
+python3 tools/fdt_inject_ids.py --dtb "$DTB" \
+    --vendor-boot "$BLOBS/vendor_boot_b.img" --index 1 \
+    --out /tmp/topaz-618-ids.dtb
+
 echo "== vendor_boot: nosso DTB no FDT#1 (msm-id 0x206) =="
 python3 tools/bootimg.py set-dtb --image "$BLOBS/vendor_boot_b.img" --index 1 \
-    --dtb "$DTB" --out /tmp/vendor_boot_b-618-dtb.img
+    --dtb /tmp/topaz-618-ids.dtb --out /tmp/vendor_boot_b-618-dtb.img
+rm -f /tmp/topaz-618-ids.dtb
 
 echo "== vendor_boot: bootconfig usbcontroller=4e00000.usb =="
 python3 tools/bootimg.py set-bootconfig --image /tmp/vendor_boot_b-618-dtb.img \

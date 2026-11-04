@@ -134,8 +134,43 @@ Checklist do Nível 0 após esta rodada:
 - ☑ Ferramenta de repack validada nas imagens reais (roundtrip
   byte-idêntico) + `set-bootconfig` e overlay vazio prontos.
 - ☑ Pipeline `tools/build_flash_images_618.sh` escrito.
-- ☐ Gerar as imagens 6.18 — falta trazer `Image`+DTB do CI (o
-  sandbox não alcança o storage de artifacts do Actions; relay via
-  Drive pelo usuário, como os dumps).
+- ☑ Imagens de teste 6.18 geradas e validadas estaticamente
+  (2026-11-04) a partir dos dumps + artifact `google-kernel-build`
+  do run `41748589605` (relay via Drive). Pacote
+  `topaz-618-test-images-2026-11-04.tar.gz` no Drive do usuário.
 - ☐ Decisão do `/data` (wrappedkey), SELinux permissivo no teste e
   autorização explícita — **nada de flash antes disso**.
+
+
+### Imagens de teste geradas (2026-11-04)
+
+Pipeline `tools/build_flash_images_618.sh` sobre os dumps da Lunaris
++ `Image` (49.338.880 B, `6.18.0-rc6-g1afe39edbe66-dirty`) e
+`sm6225-xiaomi-topaz.dtb` (57.116 B) do CI `41748589605`. Saídas
+(tamanhos idênticos às partições; SHA-256):
+
+| Imagem | SHA-256 |
+|---|---|
+| `boot_b-618.img` | `f3e8700d2f82a157d8a49c7ff8287a4fe1d9b44674d30d7dfbe202dd1ed972ee` |
+| `vendor_boot_b-618.img` | `1e43bfc76bc2418fe1cf66939a0d79f9397a46eb637033d3a0baa5b165a29f2b` |
+| `dtbo_b-618.img` | `8fedd90d3cc2fb294113a79bed55275ac7f0fb63e816cbdcae773d90fdc9e694` |
+| `init_boot_b-618.img` | `223e2115512398819fb336b0d7ad6ceb76f5beec9d2cefd8f8cf200f36278e5d` (cópia) |
+
+Verificações feitas: roundtrip byte-idêntico dos originais antes de
+qualquer troca; banner 6.18 extraído do `boot` gerado; FDT#1 do
+`vendor_boot` gerado idêntico ao DTB do CI (a menos do `totalsize`
+ajustado ao slot) e já com os IDs injetados; bootconfig lido de
+volta com `usbcontroller=4e00000.usb`; no dtbo, **só a entrada 51**
+difere do original.
+
+Descoberta desta rodada: o DTB mainline **não tem
+`qcom,msm-id`/`qcom,board-id` na raiz**, e é por essas props que o
+ABL seleciona o FDT base dentro da região multi-FDT do
+`vendor_boot`. Sem elas, o bootloader poderia não escolher o nosso
+DTB. A correção vive no repack (`tools/fdt_inject_ids.py`, valores
+copiados do FDT stock: `msm-id = <0x206 0x10000>`,
+`board-id = <0 0>`), não na série — são convenção do empacotamento
+vendor, não do DT upstream.
+
+Nada foi gravado no aparelho; segue faltando decisão do `/data`,
+SELinux permissivo no teste e autorização explícita.
