@@ -30,8 +30,8 @@ testado em hardware; é análise estática das fontes públicas da ROM.
 |---|---|---|---|
 | Partições no 1º estágio | `fstab.qcom` usa `/dev/block/by-name/*`, `/dev/block/bootdevice/by-name/*` e dinâmicas via liblp/dm-linear | UFS+FS+dm embutidos | Provavelmente **dispensa o `msm_partition`** (by-name vem de PARTNAME + bootdevice do bootconfig). Validar no boot; o bloqueador da análise 6.12 pode estar superado |
 | `/data` | F2FS + `fileencryption=...+wrappedkey_v0`, `metadata_encryption=...wrappedkey_v0`, inlinecrypt | Sem `qseecom`/KeyMint TEE | ❌ `/data` atual não monta. Nível 0 realista: formatar sem wrappedkey (mexe no fstab do vendor **da ROM**) ou portar qseecom |
-| Firmware de DSPs/modem | **Um** diretório: `firmware_directories /vendor/firmware_mnt/image/` (ueventd) | DT pede `qcom/sm6225/xiaomi/topaz/modem.mdt` etc. | Ajustar `firmware-name` na DT p/ os nomes "pelados" do layout FAT (`modem.mdt`, …) |
-| USB gadget | bootconfig `androidboot.usbcontroller=4e00000.dwc3` | Core nomeado `usb@4e00000` → device `4e00000.usb` | Renomear o nó do core p/ `dwc3@4e00000` **ou** corrigir o bootconfig no vendor_boot reempacotado |
+| Firmware de DSPs/modem | **Um** diretório: `firmware_directories /vendor/firmware_mnt/image/` (ueventd); zap stock é `a610_zap.mdt` (+`.bXX`) | DT pede `qcom/sm6225/xiaomi/topaz/...`; ADSP como `.mbn` | Ajustar `firmware-name` p/ nomes "pelados": `modem.mdt`, `adsp.mdt`, `cdsp.mdt`, `a610_zap.mdt` (**patch 0093**) |
+| USB gadget | bootconfig `androidboot.usbcontroller=4e00000.dwc3` | Core nomeado `usb@4e00000` → device `4e00000.usb` | Padrão do glue é `^usb@…$` (snps não restringe nome): estender p/ `^(usb|dwc3)@…$` e renomear o core (**patch 0094**) |
 | microSD (vold) | caminho `soc/4784000.sdhci/mmc_host*` | Nó `mmc@4784000` → `4784000.mmc` | Renomear p/ `sdhci@4784000` ou ajustar fstab no repack (não bloqueia boot) |
 | Display/GPU | SDM composer + mapper QTI + blobs Adreno (KGSL `/dev/kgsl-3d0`) | DRM/MSM + DPU upstream | ❌ incompatível; Nível 1 exige drm_hwcomposer + Mesa no lugar (vendor da ROM trocado) |
 | Câmera | Provider CamX 2.4 + ~370 blobs | CAMSS upstream | ❌ caminho é libcamera |
@@ -53,9 +53,20 @@ testado em hardware; é análise estática das fontes públicas da ROM.
    imagens **desta ROM** (não mais das stock): `boot` (Image),
    `vendor_boot` (FDT 0x206 + bootconfig corrigido se preciso),
    `dtbo` neutro, `vbmeta` como está.
-3. Auditar `modules.load` do vendor ramdisk **desta ROM** (veio do
-   repo `tapas-kernel` prebuilt): confirmar que nenhum módulo 5.15
-   é crítico para montar `/system`/`/vendor` no 1º estágio.
+3. ~~Auditar `modules.load` do vendor ramdisk **desta ROM**~~ —
+   **feito (2026-11-03)**, fontes em
+   `SM6225-Android-Playground/android_device_xiaomi_tapas-kernel`.
+   O `modules/vendor_ramdisk/modules.load` (1º estágio) lista
+   ~85 módulos; todos os que estão no caminho de montagem têm
+   equivalente **built-in** na nossa série: `ufs_qcom` +
+   `phy-qcom-ufs*`, `pinctrl-khaje`, `gcc-khaje`/`clk-smd-rpm`,
+   `qnoc-bengal`, `rpm-smd(-regulator)`, `spmi-pmic-arb` +
+   `qcom-spmi-pmic`, `arm_smmu`, `qcom-mpm`, `qcom-scm`, `qrtr`.
+   O restante é logging/minidump/memshare — falha de `insmod`
+   vira só ruído de log. **Conclusão: nenhum módulo 5.15 é
+   crítico para montar `/system`/`/vendor`** (o `ufshcd-crypto-qti`
+   só importa para o `/data`, item 6). No 2º estágio
+   (`vendor_dlkm`) morrem como esperado display/camera/bateria etc.
 4. Ajustes de DT derivados da tabela (firmware-name, nome do DWC3)
    como patches próprios da série, antes do teste.
 5. SELinux permissivo no cmdline/bootconfig do teste; userdebug já
