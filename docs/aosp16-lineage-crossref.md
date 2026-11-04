@@ -8,6 +8,15 @@ kernel↔userspace dessa árvore com a nossa série `patches-6.18/` e
 atualiza o checklist do primeiro boot Android (Nível 0). Nada aqui foi
 testado em hardware; é análise estática das fontes públicas da ROM.
 
+> **Correção (2026-11-04):** a ROM instalada no aparelho do usuário é
+> **Lunaris OS** (derivada AOSP), não LineageOS. O cruzamento abaixo foi
+> construído sobre a device tree LineageOS pública do tapas/topaz, que
+> segue como referência estrutural (as árvores AOSP destes aparelhos
+> derivam dela), mas os fatos da instância real — kernel prebuilt,
+> bootconfig, cmdline, flags do vbmeta, ramdisk do vendor_boot — serão
+> confirmados a partir dos dumps das partições de boot da Lunaris
+> extraídos do aparelho, e as linhas afetadas serão atualizadas.
+
 ## O que a ROM é (fatos da árvore)
 
 - LineageOS (Android 16), `lineage_tapas`, unificada tapas/topaz.

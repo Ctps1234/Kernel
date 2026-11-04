@@ -9,6 +9,11 @@
 > imagens; o sistema em execução atual não é mais o descrito aqui. O
 > vendor permanece o stock da Xiaomi (base Android 15), que é a
 > camada relevante para as HALs.
+>
+> **Correção (2026-11-04):** a ROM AOSP atual é **Lunaris OS** (não
+> LineageOS). Foram solicitados dumps novos de `boot`/`vendor_boot`/
+> `dtbo`/`init_boot`/`vbmeta`/`recovery` do slot ativo da Lunaris,
+> para análise e repack das imagens de teste 6.18.
 
 - Slot reportado por `ro.boot.slot_suffix`: `_b` (slot ativo durante a captura).
 - Sistema/ROM em execução: Android 17, API 37; vendor/base Android 15, conforme esclarecimento do usuário.
