@@ -189,6 +189,61 @@ class VendorBootImage:
         self.dtb_entry_count = struct.unpack_from("<I", data, 0x844)[0]
         self.bootconfig_size = struct.unpack_from("<I", data, 0x84C)[0]
         self.fdts = self._scan_fdts()
+        self.bootconfig_offset = self._find_bootconfig()
+
+    def _find_bootconfig(self):
+        # O bootconfig e a ultima secao: fica depois da regiao DTB e da
+        # tabela de ramdisks, num grid de offsets especifico do layout
+        # Qualcomm que nao deduzimos por formula. Localizamos pelo
+        # conteudo ("androidboot.") e conferimos com o tamanho do
+        # cabecalho; no aparelho medido: regiao DTB termina em
+        # 16.329.367, tabela (108 B) em 16.330.752, bootconfig (85 B)
+        # em 16.334.848.
+        if not self.bootconfig_size:
+            return None
+        dtb_end = self.fdts[-1][0] + self.fdts[-1][1] if self.fdts else self.page_size
+        off = self.data.find(b"androidboot.", dtb_end)
+        if off < 0:
+            raise ValueError("bootconfig nao localizado apos a regiao DTB")
+        return off
+
+    def bootconfig(self):
+        if self.bootconfig_offset is None:
+            return b""
+        return self.data[self.bootconfig_offset:
+                         self.bootconfig_offset + self.bootconfig_size]
+
+    def replace_bootconfig_key(self, key, value):
+        """Reescreve uma chave do bootconfig no lugar (mesmo offset).
+
+        Mantem o tamanho total do arquivo; ajusta o campo
+        bootconfig_size do cabecalho. Se o novo texto for menor, o
+        restante do espaco antigo e zerado; se for maior, exige zeros
+        logo apos o bootconfig original (e a ultima secao, seguida so
+        de padding ate o fim da particao).
+        """
+        old = self.bootconfig()
+        lines = old.decode("utf-8").splitlines()
+        prefixo = key + "="
+        for i, line in enumerate(lines):
+            if line.startswith(prefixo):
+                lines[i] = prefixo + value
+                break
+        else:
+            raise ValueError("chave %s nao encontrada no bootconfig" % key)
+        new = ("\n".join(lines) + "\n").encode("utf-8")
+        off = self.bootconfig_offset
+        if len(new) > len(old):
+            extra = self.data[off + len(old):off + len(new)]
+            if any(extra):
+                raise ValueError("sem espaco (zeros) apos o bootconfig")
+        out = bytearray(self.data)
+        out[off:off + len(new)] = new
+        if len(new) < len(old):
+            out[off + len(new):off + len(old)] = b"\0" * (len(old) - len(new))
+        struct.pack_into("<I", out, 0x84C, len(new))
+        return bytes(out), {"old_size": len(old), "new_size": len(new),
+                            "offset": off}
 
     def _scan_fdts(self):
         out = []
@@ -213,11 +268,14 @@ class VendorBootImage:
             "regiao DTB: offset %d, tamanho %d, %d FDT(s), entradas na tabela: %d"
             % (self.fdts[0][0] if self.fdts else -1, self.dtb_size,
                len(self.fdts), self.dtb_entry_count),
-            "bootconfig: %d bytes" % self.bootconfig_size,
+            "bootconfig: %d bytes (offset %s)"
+            % (self.bootconfig_size, self.bootconfig_offset),
             "tamanho do arquivo: %d" % len(self.data),
         ]
         for i, (off, size) in enumerate(self.fdts):
             lines.append("  FDT#%d offset %d tamanho %d" % (i, off, size))
+        for line in self.bootconfig().decode("utf-8", "replace").splitlines():
+            lines.append("  bootconfig: %s" % line)
         return lines
 
     def replace_fdt(self, index, new_dtb):
@@ -334,6 +392,13 @@ def main(argv=None):
     p.add_argument("--dtb", required=True)
     p.add_argument("--out", required=True)
 
+    p = sub.add_parser("set-bootconfig",
+                       help="reescreve uma chave do bootconfig do vendor_boot")
+    p.add_argument("--image", required=True)
+    p.add_argument("--key", required=True)
+    p.add_argument("--value", required=True)
+    p.add_argument("--out", required=True)
+
     p = sub.add_parser("set-overlay", help="troca um overlay de uma imagem dtbo")
     p.add_argument("--image", required=True)
     p.add_argument("--index", type=int, required=True)
@@ -410,6 +475,17 @@ def main(argv=None):
         write(args.out, out)
         print("FDT#%d substituido em %d: %d -> %d bytes" % (args.index, info["offset"],
                                                             info["old_size"], len(new)))
+        print("imagem: %s (%d bytes, sha256 %s)" % (args.out, len(out), sha256(out)))
+        return 0
+
+    if args.cmd == "set-bootconfig":
+        data = read(args.image)
+        img = VendorBootImage(data)
+        out, info = img.replace_bootconfig_key(args.key, args.value)
+        write(args.out, out)
+        print("bootconfig em %d: %d -> %d bytes (%s=%s)"
+              % (info["offset"], info["old_size"], info["new_size"],
+                 args.key, args.value))
         print("imagem: %s (%d bytes, sha256 %s)" % (args.out, len(out), sha256(out)))
         return 0
 

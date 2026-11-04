@@ -202,3 +202,22 @@ original permanece em `google_drive/init_boot_b.img` (fora do Git).
 As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
 `tools/build_flash_images.sh` só gera arquivos locais; ele **não** escreve em
 `/dev/block` nem executa `fastboot`.
+
+
+## Atualização 2026-11-04 — trilha 6.18 (Lunaris)
+
+- `bootimg.py` ganhou o subcomando `set-bootconfig --key --value`
+  (reescreve uma chave do bootconfig do `vendor_boot` no lugar,
+  ajustando o tamanho no cabeçalho). No repack 6.18 ele alinha
+  `androidboot.usbcontroller` para `4e00000.usb` (o core DWC3
+  mainline chama-se `usb@4e00000` por imposição do schema
+  `snps,dwc3.yaml`).
+- `tools/empty_overlay.py` neutraliza uma entrada do dtbo com um FDT
+  mínimo que preserva só as props da raiz (model/compatible/
+  `qcom,msm-id`/`qcom,board-id`/`qcom,pmic-id`) e nenhum fragmento:
+  aplicar o overlay downstream sobre o DTB mainline não é possível.
+- `tools/build_flash_images_618.sh` é o pipeline atual: parte dos
+  dumps da Lunaris (`google_drive/dump-lineage/`) e dos artefatos do
+  CI 6.18, gera `google_drive/out-618/*-618.img` com roundtrip dos
+  originais antes. O `init_boot` é mantido idêntico (Nível 0 Android
+  usa a ramdisk genérica da ROM). Nada grava em partições.

@@ -78,3 +78,48 @@ SHA-256 do `init_boot_b.img` original: `b2f2704ab3ddf53d71aa87e19ad74c279bb3e619
 O artefato mínimo derivado e o resultado final de empacotamento estão registrados
 em `docs/boot-image-tooling.md` após o build do CI. Nada foi gravado ou testado no
 aparelho.
+
+
+## Captura 2026-11-04 (Lunaris OS)
+
+Nova extração feita pelo usuário com `dd` **somente-leitura** a partir
+de `/dev/block/by-name` (Termux com root), slot ativo `_b`
+(`ro.boot.slot_suffix`), já com a Lunaris OS instalada. Arquivos em
+`google_drive/dump-lineage/` (gitignored), integridade conferida por
+`SHA256SUMS` (7/7 OK). Com isto, **o backup de `recovery_b` que
+faltava está obtido**.
+
+| Imagem | Bytes | Notas |
+|---|---:|---|
+| `boot_b.img` | 134.217.728 | v4, só kernel (43.379.200), ramdisk 0, cmdline vazio |
+| `vendor_boot_b.img` | 100.663.296 | v4, ramdisk vendor 15.019.748 + região DTB 1.305.239 |
+| `dtbo_b.img` | 25.165.824 | 52 entradas, total útil 3.529.713 |
+| `init_boot_b.img` | 8.388.608 | v4, ramdisk genérica 3.214.821 |
+| `vbmeta_b.img` | 65.536 | **flags = 3** (verificação e hashtree desligadas) |
+| `vbmeta_system_b.img` | 65.536 | flags = 0 (irrelevante com o topo desligado) |
+| `recovery_b.img` | 104.857.600 | backup de segurança, sem dissecação |
+
+Achados que mudam/confirmam o quadro:
+
+- **Kernel da ROM**: `Linux version 5.15.211dexter1-g42deba085a84
+  (DexterMorgan@GitHub) ... clang` — downstream customizado, do
+  **mesmo tamanho** (43.379.200) do kernel da captura de 2026-10:
+  o aparelho já rodava este kernel na época da HyperOS.
+- **Pacote DT idêntico ao stock**: SHA-256 do FDT#1
+  (`71cd1e4a…`) e da entrada 51 do dtbo (`8a490755…`) **iguais** aos
+  da captura anterior — a Lunaris não toca em DTB/DTBO. A estratégia
+  de repack (nosso DTB no FDT#1, overlay 51 neutralizado) se aplica
+  sem ajustes.
+- **vendor_boot**: ramdisk vendor LZ4 legado (cpio de 41.203.200 B,
+  271 entradas, 258 `.ko`, `modules.load` com 86 módulos de 1º
+  estágio); região DTB em 15.024.128 com os mesmos 6 FDTs; tabela de
+  ramdisks (108 B) em 16.330.752; **bootconfig de 85 bytes em
+  16.334.848** com apenas 3 linhas (`androidboot.hardware=qcom`,
+  `androidboot.memcg=1`, `androidboot.usbcontroller=4e00000.dwc3`),
+  sem trailer `#BOOTCONFIG` na imagem (quem monta o blob final é o
+  bootloader, como mostra o `/proc/bootconfig` vivo com
+  `bootdevice=4804000.ufshc`, `dtb_idx=1`, `dtbo_idx=51`).
+- **Validação da ferramenta**: `tools/bootimg.py roundtrip` reproduz
+  as 4 imagens desta captura **byte a byte**.
+
+Nada foi gravado de volta; nenhuma autorização de flash existe.

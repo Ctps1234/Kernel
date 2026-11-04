@@ -95,3 +95,47 @@ aberto, contrato documentado em código aberto. A fronteira do
 trabalho continua sendo o vendor (blobs downstream), exatamente
 como no plano “vendor novo” — mas agora com o mapa completo das
 expectativas, itemizável HAL a HAL.
+
+
+## Confirmações da instância real (Lunaris, dumps de 2026-11-04)
+
+Com os dumps das partições de boot da Lunaris em mãos (ver
+`docs/boot-partition-inventory.md`, captura 2026-11-04), os fatos da
+árvore LineageOS acima foram confrontados com a ROM de verdade:
+
+- **Kernel**: a instância usa um prebuilt downstream
+  **5.15.211 "dexter1"** (não o 5.15.94 da árvore de referência).
+  Para nós é indiferente — substituímos `Image`+DTB de qualquer forma.
+- **DT**: FDT#1 e overlay #51 **byte-idênticos ao pacote stock** da
+  Xiaomi. Repack confirmado: nosso DTB entra no índice 1 e a entrada
+  51 é neutralizada com FDT vazio (`tools/empty_overlay.py`).
+- **1º estágio**: o `modules.load` real tem 86 entradas e o `fstab`
+  é o mesmo da árvore (lógicas by-name/liblp; `/data` f2fs com
+  `wrappedkey_v0`; `modem` FAT → `/vendor/firmware_mnt`, confirmando
+  os nomes pelados do patch 0093). Vale a conclusão da auditoria:
+  nenhum módulo é crítico para montar `system`/`vendor`; extras da
+  ROM (sched-walt, zram, mi_memory) são só ruído de `insmod`.
+- **AVB**: `vbmeta_b` com **flags = 3** confirmado no binário.
+- **Bootconfig**: o `usbcontroller=4e00000.dwc3` vive nos 85 bytes de
+  bootconfig do `vendor_boot`; a reescrita para `4e00000.usb` está
+  implementada (`bootimg.py set-bootconfig`). Já `bootdevice` e
+  `boot_devices` são gerados pelo bootloader — atenção no 1º boot:
+  o valor medido (`soc/4804000.ufshc`) usa o nome downstream do nó
+  SoC; o nosso DTB usa `soc@0`. Se o ABL derivar o caminho do DTB
+  carregado, vem certo automaticamente; conferir em
+  `/proc/bootconfig` no primeiro teste.
+- **cmdline viva** é a downstream (console `ttyMSM0`, painel
+  `msm_drm`, props de fingerprint/touch) — no nosso boot vale o
+  `chosen` do nosso DTB; sem conversor UART no setup, sem impacto.
+
+Checklist do Nível 0 após esta rodada:
+
+- ☑ Backups completos e verificados por hash (incl. `recovery`).
+- ☑ Ferramenta de repack validada nas imagens reais (roundtrip
+  byte-idêntico) + `set-bootconfig` e overlay vazio prontos.
+- ☑ Pipeline `tools/build_flash_images_618.sh` escrito.
+- ☐ Gerar as imagens 6.18 — falta trazer `Image`+DTB do CI (o
+  sandbox não alcança o storage de artifacts do Actions; relay via
+  Drive pelo usuário, como os dumps).
+- ☐ Decisão do `/data` (wrappedkey), SELinux permissivo no teste e
+  autorização explícita — **nada de flash antes disso**.
