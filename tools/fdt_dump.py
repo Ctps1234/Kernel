@@ -101,8 +101,17 @@ def _e_texto(valor):
     return None
 
 
+def _ambiguo_como_texto(valor):
+    """Valor alinhado a 4 bytes com <= 2 caracteres e' mais util como
+    celulas (`qcom,pmic-id = <0x2d 0x0 0x0 0x0>`, nao `"-"`)."""
+    if len(valor) % 4 != 0:
+        return False
+    corpo = valor.rstrip(b"\0")
+    return len(corpo) <= 2
+
+
 def fmt_valor(valor):
-    texto = _e_texto(valor)
+    texto = None if _ambiguo_como_texto(valor) else _e_texto(valor)
     if texto is not None:
         # dtc imprime listas de strings como "a", "b"
         partes = [t for t in texto.split("\0") if t]

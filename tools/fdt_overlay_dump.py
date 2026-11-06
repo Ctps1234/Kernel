@@ -90,8 +90,8 @@ def mapa_phandles(overlay):
 
 def fmt_prop(nome, valor, caminho_no, fixups, phandles, simbolos):
     """Como fdt_dump.fmt_valor, mas resolvendo phandles por nome."""
-    from fdt_dump import _e_texto
-    texto = _e_texto(valor)
+    from fdt_dump import _ambiguo_como_texto, _e_texto
+    texto = None if _ambiguo_como_texto(valor) else _e_texto(valor)
     if texto is not None:
         partes = [t for t in texto.split("\0") if t]
         return ", ".join('"%s"' % t for t in partes) if partes else '""'
