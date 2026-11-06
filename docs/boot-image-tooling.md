@@ -212,6 +212,11 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   `androidboot.usbcontroller` para `4e00000.usb` (o core DWC3
   mainline chama-se `usb@4e00000` por imposição do schema
   `snps,dwc3.yaml`).
+- `tools/fdt_dump.py` decompila um dtb para DTS (substitui o `dtc`,
+  que o sandbox não tem) e `tools/fdt_overlay_dump.py` faz o mesmo com
+  um dtbo **resolvendo os phandles por nome** via `__fixups__` +
+  `__symbols__` do DT base. Foi com eles que o DT stock do topaz
+  virou texto legível.
 - `tools/fdt_inject_ids.py` injeta `qcom,msm-id`/`qcom,board-id`
   (copiados do FDT stock) na raiz do DTB compilado — é por essas
   props que o ABL seleciona o FDT base na região multi-FDT; o DTB
