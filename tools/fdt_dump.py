@@ -106,8 +106,10 @@ def _ambiguo_como_texto(valor):
     celulas (`qcom,pmic-id = <0x2d 0x0 0x0 0x0>`, nao `"-"`)."""
     if len(valor) % 4 != 0:
         return False
-    corpo = valor.rstrip(b"\0")
-    return len(corpo) <= 2
+    # celula big-endian de valor baixo vira 3 NULs + 1 char ("0x2d");
+    # isso e' celula, nao string de 1 caractere
+    imprimiveis = sum(1 for b in valor if 32 <= b < 127)
+    return imprimiveis <= 2
 
 
 def fmt_valor(valor):
