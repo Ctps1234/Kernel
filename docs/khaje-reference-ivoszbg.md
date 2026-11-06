@@ -34,6 +34,14 @@ várias escolhas nossas que até então não tinham segunda opinião.
 | ICC | compatibles `qcom,bengal-*` | patch `0007`: idem | ✔ confirma |
 | PHY UFS | `lanes = 2`, `max_supported_gear = UFS_HS_G4`, `ufsphy_v4_regs_layout` | patch `0006`: mesmo esqueleto | ✔ compatível |
 | Alimentação da PHY | `vdda-phy` / `vdda-pll` | `0036`: `pm6125_l4` / `pm6125_l18` | ✔ compatível |
+| Nó UFS | `reg` `0x4804000`+`0x4810000`, `lanes-per-direction = <2>`, `freq-table-hz = <50000000 200000000>` / `<37500000 150000000>` | idêntico | ✔ confirma |
+
+O nó UFS deles é praticamente o nosso, incluindo a tabela de
+frequências — inclusive lá o host não precisa de 200/50 MHz de
+*unipro* (esses só aparecem se a placa pedir G4 em 300 MHz de core).
+Reforça que o nosso recorte 50–200 MHz core / 37.5–150 MHz unipro está
+certo e que o bind cai no genérico `qcom,ufshc` (a base 6.18 não tem
+entrada por SoC para `sm6115`/`sm6225`, então nenhum quirk se perde).
 
 Detalhe que checamos por causa do repo deles: o `reg` da PHY UFS.
 Nós usamos `0xe00`, eles `0x1000` (igual ao `sm6115.dtsi` da base). O
