@@ -222,6 +222,29 @@ pendentes; RT1711H sem DWC3/PHY, FSA4480 ou VBUS
 modelados, e PM8008/carregadores da SE1 pendentes;
 boot sem evidencia.
 
+## Estado atual (2026-11-06)
+
+- **93 patches** (0001-0094, sem o 0029), todos aplicando limpo na base
+  fixada (`1afe39edbe66`), ponta `sm6225-xiaomi-topaz.dts` com o
+  `adsp-loader` do 0094.
+- Os gates locais couberam num comando: `tools/check_all.sh` roda
+  `patch_lint` (contagens de hunk), `verify_series` (aplicação),
+  `audit_dts_pairs` (pares `*-names`/lista e `pins`→`function`),
+  `audit_compatibles` (driver sem nó e tabela de máquina) e
+  `audit_regulators` (13 rails contra o FDT do aparelho). Build e
+  `dtbs_check` continuam só no CI.
+- **Primeira falha real do `dtbs_check`** (run `42326525686`): o
+  `cd-pins` do `0070` tinha `pins = "gpio88"` sem `function`, e o
+  `qcom,tlmm-common` exige `function` sempre que `pins` casa `^gpio`.
+  Corrigido nos dois estados; a regra virou checagem em
+  `tools/audit_dts_pairs.py` (com exceção para overrides `&label`,
+  que herdam a função).
+- O job de build publica `Image`, `sm6225-xiaomi-topaz.dtb`, `.config`
+  e logs no branch **`ci-artifacts-6.18`**, porque o zip de artefato
+  do Actions não baixa no sandbox. `tools/fetch_ci_artifacts.sh` traz
+  de volta e `tools/build_flash_images_618.sh` refaz `out-618/`.
+- Boot continua sem nenhuma evidência: nada foi gravado no aparelho.
+
 ## Estado (2026-10-29)
 
 Rebaseados e verificados aplicando limpos, em ordem, sobre o commit
