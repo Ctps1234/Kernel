@@ -142,22 +142,45 @@ O que bate (segunda opinião em cima de valores que já tínhamos):
 | NFC | `@08` SE4 | idêntico |
 | Touch (controlador) | `focaltech,fts` @0x38 | nosso `0022` estende `edt-ft5x06` com `focaltech,ft3519` |
 
-Duas divergências e uma pendência:
+Varredura completa em 2026-11-06 (todos os nós de placa da série
+contra o overlay): **um** divergência real, já corrigida, e uma
+propriedade downstream que não se porta.
 
-1. **`cd-gpios` do microSD**: stock diz `<&tlmm 0x58 0x1>`, ou seja
-   **ACTIVE_LOW**; o nosso `0071` diz `GPIO_ACTIVE_HIGH` com a
-   justificativa "a camada da Xiaomi inverte o IDP". O overlay do
-   topaz é a camada da Xiaomi e diz o contrário. **Não mexer sem
-   confirmar no aparelho** (cartão SD não é caminho de boot; o risco
-   de inverter às cegas é maior que o de deixar como está).
+1. **`cd-gpios` do microSD — corrigido.** O stock diz
+   `<&tlmm 0x58 0x1>` (**ACTIVE_LOW**); o nosso `0071` dizia
+   `GPIO_ACTIVE_HIGH` com a justificativa "a camada da Xiaomi inverte
+   o IDP". O overlay do topaz *é* a camada da Xiaomi e diz o
+   contrário. A prova independente está no pinctrl do próprio DT base:
+   `sdc2_on/sd-cd` configura `gpio88` com **`bias-pull-up`** — o
+   switch do slot aterra o pino quando há cartão, logo cartão presente
+   = nível baixo. Corrigido em dois pontos: `0071` passa a
+   `GPIO_ACTIVE_LOW` e `0070` ganha o estado de pino `cd-pins`
+   (gpio88, `bias-pull-up` no on, `bias-disable` no off) que estava
+   faltando nos estados `sdc2-on`/`sdc2-off`.
 2. **`qcom,vddp-ref-clk-supply`** existe no stock (`L18A`, 100 µA) mas
    **não existe no mainline 6.18**: nem o driver (nenhum `vddp` em
    `ufs-qcom.c`) nem o binding `qcom,ufs.yaml`. É propriedade
    downstream; não portar.
-3. **Nó de touch ausente**: a série importou o binding e o suporte a
-   FT3519, mas o `sm6225-xiaomi-topaz.dts` **não tem** nó de
-   touchscreen. Agora dá para escrever com dados do stock: SE2,
-   `reg = 0x38`, IRQ 80, reset 86, `avdd` 36.
+
+O que a varredura confirmou (nada a mudar):
+
+| Bloco | Stock | Série |
+|---|---|---|
+| Touch | `focaltech@38` SE2, IRQ 80, reset 86, avdd 36 | `0053`: idêntico |
+| Câmera frontal | MCLK1 = TLMM 21, reset 24, CCI1, CSIPHY2 | `0057`: idêntico |
+| Câmera traseira | MCLK0 = TLMM 20, reset 18, CCI0, CSIPHY0 | `0058`: idêntico |
+| NFC | `@08` SE4, IRQ 70, reset 69 | `0050`/`0088`: idêntico |
+| Botão volume+ | PM6125 GPIO 5, active-low | `0048`: idêntico |
+| Vibrador | PM6125 GPIO 8, active-low | `0052`: idêntico |
+| WL2866D | `@28` SE1, en GPIO 26 | `0063`: idêntico |
+| RT1711H | `@4e` SE1, IRQ 93 | `0063`: idêntico |
+| Painel padrão | `m7 38 0c 0a`, 120 Hz, h 28/120/120, v 2/10/20 | `0021`: idêntico |
+
+Sobre o painel: o `qcom,dsi-default-panel` do overlay aponta para a
+entrada `m7 38 0c 0a fhdp video`, que é exatamente o painel do `0021`.
+Cuidado ao reler o dump: o painel tem mais de um bloco de timing (o
+`td4330` logo acima usa 10/68/76), e comparar com o bloco errado dá
+uma falsa divergência de porches.
 
 ## Próximos usos
 
