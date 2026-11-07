@@ -212,6 +212,12 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   `androidboot.usbcontroller` para `4e00000.usb` (o core DWC3
   mainline chama-se `usb@4e00000` por imposição do schema
   `snps,dwc3.yaml`).
+- `tools/verify_series.sh` aplica a série inteira sobre a base fixada
+  num clone esparso (`--depth 1 --filter=blob:none`, só os 139
+  arquivos tocados) com `git am --keep-cr`. É o gate `rebase-cost` do
+  CI rodando local, em ~80 s — necessário porque o token do agente
+  não tem `workflow_dispatch` e o build completo não cabe no sandbox
+  (2 núcleos).
 - `tools/fdt_dump.py` decompila um dtb para DTS (substitui o `dtc`,
   que o sandbox não tem) e `tools/fdt_overlay_dump.py` faz o mesmo com
   um dtbo **resolvendo os phandles por nome** via `__fixups__` +

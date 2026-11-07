@@ -188,3 +188,19 @@ HEAD 6.18, continua nosso), 0024 (speed-bins A610),
   FDT vivo já versionado (85700/18300 µA, `pm6125_l4`/`pm6125_l18`);
   o que falta do aparelho está listado em
   `docs/hardware-info-needed.md`.
+
+
+## Validação local da série (2026-11-06)
+
+O workflow passa a depender só do push: o token do agente não tem
+permissão de `workflow_dispatch` (HTTP 403) e um push feito daqui não
+abriu run nenhuma das duas vezes. Para não ficar refém disso,
+`tools/verify_series.sh` reproduz o gate `rebase-cost` localmente:
+baixa a base ACK esparsa (139 arquivos, `--depth 1`,
+`--filter=blob:none`) e aplica os 92 patches com `git am --keep-cr`.
+Rodada de referência: **92/92 limpos em 77 s**.
+
+O que continua só no CI: `make dtbs_check` (schema) e o build do
+`Image` com o fragmento — ambos exigem o build de ferramentas de host
+que o sandbox não tem (`dtc` precisa de flex/bison) ou tempo de CPU
+que 2 núcleos não entregam.
