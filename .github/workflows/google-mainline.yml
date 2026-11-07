@@ -180,3 +180,18 @@ jobs:
             "CI: relatorio de build do kernel 6.18 (port Khaje)" ci-report \
             basegoogle/falhas.txt basegoogle/configure.log \
             basegoogle/kernel-build-618.log basegoogle/dtbs-check-618.log || true
+
+      # Os artefatos vao para o blob storage do Actions, que nao e'
+      # alcancavel de todo ambiente (do sandbox do projeto o zip morre
+      # com EOF, so' api.github.com responde). O DTB do topaz tem
+      # dezenas de KB: publica-lo em base64 na mesma issue custa dois ou
+      # tres comentarios e destrava conferir/montar imagem sem o zip.
+      # tools/fetch_dtb.py junta as partes de volta.
+      - name: Publish DTB as base64 in the report issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash tools/ci_publish_dtb.sh \
+            "CI: relatorio de build do kernel 6.18 (port Khaje)" ci-report \
+            basegoogle/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dtb || true

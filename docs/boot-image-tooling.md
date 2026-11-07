@@ -275,9 +275,10 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   usa a ramdisk genérica da ROM). Nada grava em partições.
 - **Estado das imagens prontas (2026-11-06).** O `out-618/` que foi
   para o Drive saiu do `Image`/`sm6225-xiaomi-topaz.dtb` da última run
-  de CI verde. Depois disso a série mudou em **duas linhas de DTS**
-  (card-detect do microSD no `0071`/`0070`, e `orientation` da câmera
-  frontal no `0057`), então o DTB dessas imagens está um pouco atrás do
+  de CI verde. Depois disso a série mudou em **poucas linhas de DTS**
+  (card-detect do microSD no `0070`/`0071`, `orientation` da câmera
+  frontal no `0057` e `output-high` no estado do AVDD do touch no
+  `0053`), então o DTB dessas imagens está um pouco atrás do
   `patches-6.18/` atual. Nenhuma das duas muda o caminho de boot:
   card-detect só importa com cartão inserido, e `orientation` não é
   lida por driver nenhum (é descritor para userspace). O sandbox não
@@ -285,5 +286,17 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   numa run de CI verde — as imagens atuais continuam válidas para o
   teste de Nível 0, e o `dtb` precisa ser regenerado antes de qualquer
   teste de câmera ou de slot de cartão.
+- **Canal do DTB sem o zip do artefato (2026-11-06).** O zip dos
+  artefatos do Actions mora em
+  `productionresultssa*.blob.core.windows.net`, que este sandbox não
+  alcança: a API responde `302` e o download morre com `EOF`. O
+  `api.github.com`, esse responde — então o job de build passou a
+  publicar o `sm6225-xiaomi-topaz.dtb` em base64 na própria issue de
+  relatório (`tools/ci_publish_dtb.sh`, dois ou três comentários) e
+  `tools/fetch_dtb.py` junta as partes de volta conferindo o sha256.
+  Isso não substitui o artefato: serve para inspecionar o DTB com os
+  `fdt_*.py` e para repor o DTB no `vendor_boot` daqui, sem depender
+  do zip. Ainda **não exercitado** — o primeiro uso real é a próxima
+  run que chegar ao build.
 - Artefatos de build ficam fora do Git: `google_drive/` (dumps e
   `out-618/`) e `out-618/` na raiz já estão no ignore.
