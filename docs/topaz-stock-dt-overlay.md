@@ -35,12 +35,25 @@ pmic-id   = <0x2d 0x0 0x0 0x0>
 tamanho   = 121.465 B
 ```
 
-Contra o dtbo do aparelho (dump de 2026-11-04, entrada 51): mesmo
-`model`, mesmo `board-id`, mesmo `pmic-id`, 121.458 B. A diferença de
-**7 bytes** é consistente com outro build do mesmo overlay (não é
-outra placa). Vale dizer o que se sabe e o que não se sabe: o conteúdo
-é a mesma camada de placa, mas **não foi confirmado byte a byte**
-contra a entrada do aparelho — isso exige rebaixar o dump e comparar.
+Contra o dtbo do aparelho (`dtbo_b.img` do `dump-lineage.tar.gz`,
+entrada 51): mesmo `model`, mesmo `board-id`, mesmo `pmic-id`,
+121.458 B contra 121.465 B.
+
+**Essa diferença de 7 bytes foi investigada e não é diferença de
+conteúdo.** Rodando `tools/fdt_compare.py` nos dois overlays (com o DT
+base do Khaje para resolver símbolos), o resultado é
+`IGUAIS: 23 alvo(s) de fragmento, nenhuma diferenca real`:
+
+- os 50 fragmentos são os mesmos 50, com os mesmos alvos;
+- o `dtc` da ROM numerou os fragmentos e alocou os phandles em outra
+  ordem (na Lunaris o display vem antes das câmeras, no repo é o
+  contrário), e é isso que muda o tamanho do blob;
+- toda diferença numérica restante é um phandle apontando para o mesmo
+  nó nos dois arquivos — o comparador reconcilia cada célula pelo
+  **nome do nó** que ela referencia, não pelo número.
+
+Ou seja: a auditoria abaixo, feita sobre o overlay do repo, vale para
+o dtbo do aparelho. Nada ali é aproximação de uma build diferente.
 
 ## Ferramentas novas
 
@@ -53,6 +66,11 @@ Nenhuma das duas existia no sandbox (`dtc` nunca esteve disponível):
   resolvidos por nome**. Um `.dtbo` cru é ilegível (`target =
   <0xffffffff>`); o script lê `__fixups__`, casa cada posição com o
   `__symbols__` do DT base e imprime `&tlmm`, `&L24A`, etc.
+- `tools/fdt_compare.py` — dois FDTs/overlays lado a lado **por
+  significado**, não por bytes. Compara por alvo de fragmento (não por
+  número), ignora `phandle`/`linux,phandle` e, para as células que
+  ainda diferem, resolve cada lado para o nome do nó apontado. É o que
+  permite afirmar "este dtbo é aquele outro" entre builds diferentes.
 
 Reprodução:
 
@@ -71,6 +89,9 @@ sz,off,_,_ = struct.unpack('>IIII', d[eoff+48*esz:eoff+48*esz+16])
 open('topaz.dtbo','wb').write(d[off:off+sz])
 PY
 tools/fdt_overlay_dump.py topaz.dtbo --base khaje.dtb > topaz-board.dts
+
+# contra o dtbo do aparelho (entrada 51 do dtbo_b.img do dump)
+tools/fdt_compare.py topaz.dtbo dev51.dtbo --base khaje.dtb --verboso
 ```
 
 ## Inventário de hardware que o overlay revela
@@ -88,12 +109,18 @@ O mesmo fragmento declara `goodix-sunrise@5d` como alternativa
 
 **Câmeras** (`fragment@33`, `cci0`; e os 4 `qcom,cam-sensor`):
 
-| Sensor | MCLK | Reset | CCI | CSIPHY | Flash/E²PROM |
-|---|---:|---:|---:|---:|---|
-| `cam-sensor0` | 20 | 18 | 0 | 0 | sim / sim |
-| `cam-sensor1` | 21 | 24 | 1 | 2 | não / sim |
-| `cam-sensor2` | 27 | 19 (+100) | 1 | 1 | sim / sim |
-| `cam-sensor3` | 28 | 99 (+68) | 0 | 1 | sim / sim |
+| Sensor | MCLK | Reset | CCI | CSIPHY | Flash/E²PROM | roll / yaw |
+|---|---:|---:|---:|---:|---:|---|
+| `cam-sensor0` | 20 | 18 | 0 | 0 | sim / sim | 270 / 180 |
+| `cam-sensor1` | 21 | 24 | 1 | 2 | não / sim | 270 / 0 |
+| `cam-sensor2` | 27 | 19 (+100) | 1 | 1 | sim / sim | 90 / 180 |
+| `cam-sensor3` | 28 | 99 (+68) | 0 | 1 | sim / sim | 90 / 180 |
+
+`roll`/`yaw` são `sensor-position-roll`/`sensor-position-yaw` do
+vendor, em graus. O mainline não tem essas propriedades: usa
+`rotation` e `orientation` de `video-interface-devices.yaml`. A
+conversão não é automática e está discutida em
+[`camera-port-audit.md`](camera-port-audit.md#orientação-e-rotação).
 
 **Flash LED**: `qcom,camera-flash@0` tem `cci-master = <1>` e
 **nenhum `compatible` de driver nem endereço I²C** — o chip do flash
@@ -175,6 +202,16 @@ O que a varredura confirmou (nada a mudar):
 | WL2866D | `@28` SE1, en GPIO 26 | `0063`: idêntico |
 | RT1711H | `@4e` SE1, IRQ 93 | `0063`: idêntico |
 | Painel padrão | `m7 38 0c 0a`, 120 Hz, h 28/120/120, v 2/10/20 | `0021`: idêntico |
+| `sleep_clk` | `<0x7ffc>` = 32764 Hz | `0034`: 32764 Hz (não os "32000 por convenção") |
+
+O `sleep_clk` merece uma linha porque 32764 Hz parece erro de
+digitação de 32768 e não é. É o valor que o firmware declara, e o RPM
+usa esse clock para contagem de sono. Fechado com fonte melhor que o
+stock: o próprio mainline usa `clock-frequency = <32764>` para a
+família SM6115 — `sm6115-xiaomi-lemon.dts` e `sm6115-fxtec-pro1x.dts`.
+O `sm6115.dtsi` upstream só declara o nó (`fixed-clock`, sem
+frequência) e deixa a placa preencher. O nosso `0034` faz o mesmo e
+com o mesmo número, então **não há divergência a resolver** aqui.
 
 Sobre o painel: o `qcom,dsi-default-panel` do overlay aponta para a
 entrada `m7 38 0c 0a fhdp video`, que é exatamente o painel do `0021`.
@@ -189,6 +226,11 @@ uma falsa divergência de porches.
   substitui chute por dado na hora de portar `td4330`/`nt36672e`.
 - **Nível 2**: câmera (MCLK/reset por sensor), touch, carga e áudio
   agora têm pinagem exata.
-- Se for preciso **certeza byte a byte**, o caminho é rebaixar
-  `dump-lineage.tar.gz` do Drive, extrair a entrada 51 do `dtbo_b.img`
-  e rodar os dois dumps lado a lado.
+- **Confirmado contra o aparelho** em 2026-11-06: a entrada 51 do
+  `dtbo_b.img` do dump da ROM é o mesmo overlay deste repo
+  (`tools/fdt_compare.py` → `IGUAIS`). Os números acima valem para o
+  hardware, não só para a build do repo.
+- Toda vez que o overlay for comparado de novo (outra ROM, outro
+  dump), usar `tools/fdt_compare.py` e não `diff` de DTS: números de
+  phandle e ordem de fragmento mudam a cada build e geram centenas de
+  falsas diferenças.

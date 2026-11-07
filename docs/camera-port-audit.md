@@ -40,6 +40,47 @@ A FDT base [`khaje-base-reference.dts`](../device-tree/reference/khaje-base-refe
 | WL2866D | Sem a série local, não foi localizado driver `ovti,wl2866d-i2c` na lista de reguladores do alvo consultado; o patch 0033 adiciona esse driver à série. | O source vendor implementa I²C/power-control próprio para o nó WL2866D do Topaz, com interface misc customizada. | O port limpo do patch 0033 é apenas compile-only nesta etapa: preserva o contrato DT/misc/helper e deixa as saídas desligadas no probe, mas não confirma probe, saídas/consumidores nem interface userspace. Atualização: o patch 0064 passou a expor as quatro saídas como provider padrão do regulator framework (helper e misc preservados); ligar os sensores a essas saídas continua exigindo mapear e validar o mapeamento saída→sensor, que downstream ficava no userspace. |
 | Kbuild / UAPI / KMI | O common 6.12 não contém o módulo vendor `camera.ko` nem a UAPI Spectra correspondente nos caminhos consultados; fornece a infraestrutura V4L2. | O aparelho carrega um módulo vendor 5.15.41 com dependências Qualcomm/Android. | Forward-port seletivo ainda exige atualizar Kbuild, APIs de kernel, dependências GKI e preservar os headers/contratos esperados pelo Camera HAL. Binário 5.15 não serve no KMI 6.12. |
 
+## Orientação e rotação
+
+O mainline não usa as propriedades do vendor. Em
+`video-interface-devices.yaml`, `orientation` é um enum com semântica
+fixa e `rotation` é o giro em graus em relação à orientação natural do
+aparelho. O vendor declara `sensor-position-roll`/`-pitch`/`-yaw`, e a
+conversão entre os dois mundos não é identidade automática.
+
+No overlay stock, os quatro slots trazem (ver
+[`topaz-stock-dt-overlay.md`](topaz-stock-dt-overlay.md)):
+
+| Slot | CSIPHY | roll | yaw |
+|---|---:|---:|---:|
+| `cam-sensor0` (traseira principal) | 0 | 270 | 180 |
+| `cam-sensor1` (frontal) | 2 | 270 | 0 |
+| `cam-sensor2` | 1 | 90 | 180 |
+| `cam-sensor3` | 1 | 90 | 180 |
+
+`orientation` tem valor **documentado** no binding e o nosso estava
+errado:
+
+- `MEDIA_ORIENTATION_FRONT = 0` (lado do usuário),
+- `MEDIA_ORIENTATION_BACK = 1`,
+- `MEDIA_ORIENTATION_EXTERNAL = 2` (soltável, tipo câmera de ação).
+
+O `0057` declarava `orientation = <2>` para a **frontal** OV08D10 —
+isto é, uma câmera "não fixa ao aparelho". Passa no `dtbs_check`
+(o enum aceita 2), então schema nenhum pegaria: só a leitura do
+binding. Corrigido para `<0>` em 2026-11-06 (com o comentário no DTS
+apontando o motivo). O `0058` já usava `<1>` para a traseira e está
+certo.
+
+`rotation` é outra história: o `0057` usa `<270>` (igual ao roll da
+frontal) e o `0058` usa `<90>` para a traseira, cujo roll também é 270.
+Um dos dois não veio do roll. Como `rotation` **não é validada por
+schema nem usada pelo driver** — quem consome é o userspace (HAL,
+libcamera, `drm_hwcomposer`) — o custo de errar é imagem de cabeça para
+baixo, não falha de probe. Fica como item de validação no primeiro
+teste de câmera, não como bloqueio: ajustar com imagem na tela e não
+por inferência de fonte que não temos.
+
 ## Direção recomendada
 
 1. **Fechar identificação óptica e de runtime:** obter sensores, EEPROMs, actuator/OIS/flash efetivamente usados, versão do Camera HAL, configuração/tuning e logs de probe. Não inferir modelos a partir dos quatro slots genéricos.

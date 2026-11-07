@@ -3,6 +3,8 @@
 /google_drive/
 # artefatos do CI 6.18 (Image/DTB/logs):
 /ci-artifacts-618/
+# saida do tools/build_flash_images_618.sh
+/out-618/
 # saida local de tools/collect_topaz_info.sh (pode conter dmesg/MACs)
 /topaz-info/
 __pycache__/

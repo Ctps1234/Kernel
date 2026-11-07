@@ -223,6 +223,15 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   um dtbo **resolvendo os phandles por nome** via `__fixups__` +
   `__symbols__` do DT base. Foi com eles que o DT stock do topaz
   virou texto legível.
+- `tools/fdt_compare.py` compara dois FDTs/overlays **por significado**:
+  chaveia fragmentos pelo alvo (nunca pelo número), descarta
+  `phandle`/`linux,phandle` e reconcilia as células que ainda diferem
+  resolvendo cada lado para o nome do nó apontado. Existe porque
+  `diff` de DTS entre builds distintos acusa centenas de diferenças
+  que são só ordem de alocação. Exemplo real: o dtbo do aparelho e o
+  do repo `xiaomi-6225-AD` têm 50 fragmentos idênticos e 7 bytes de
+  diferença de tamanho — `fdt_compare.py` devolve `IGUAIS`;
+  `--verboso` mostra os phandles renumerados um por um.
 - `tools/fdt_inject_ids.py` injeta `qcom,msm-id`/`qcom,board-id`
   (copiados do FDT stock) na raiz do DTB compilado — é por essas
   props que o ABL seleciona o FDT base na região multi-FDT; o DTB
@@ -237,3 +246,17 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   CI 6.18, gera `google_drive/out-618/*-618.img` com roundtrip dos
   originais antes. O `init_boot` é mantido idêntico (Nível 0 Android
   usa a ramdisk genérica da ROM). Nada grava em partições.
+- **Estado das imagens prontas (2026-11-06).** O `out-618/` que foi
+  para o Drive saiu do `Image`/`sm6225-xiaomi-topaz.dtb` da última run
+  de CI verde. Depois disso a série mudou em **duas linhas de DTS**
+  (card-detect do microSD no `0071`/`0070`, e `orientation` da câmera
+  frontal no `0057`), então o DTB dessas imagens está um pouco atrás do
+  `patches-6.18/` atual. Nenhuma das duas muda o caminho de boot:
+  card-detect só importa com cartão inserido, e `orientation` não é
+  lida por driver nenhum (é descritor para userspace). O sandbox não
+  compila DTB (`dtc` indisponível, seção 3), então o DTB só é refeito
+  numa run de CI verde — as imagens atuais continuam válidas para o
+  teste de Nível 0, e o `dtb` precisa ser regenerado antes de qualquer
+  teste de câmera ou de slot de cartão.
+- Artefatos de build ficam fora do Git: `google_drive/` (dumps e
+  `out-618/`) e `out-618/` na raiz já estão no ignore.

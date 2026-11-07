@@ -153,6 +153,23 @@ O [`0018-dt-bindings-display-khaje-mdss-dpu.patch`](../patches/0018-dt-bindings-
 
 Duas lacunas que o binding expõe e que bloqueiam a ativação: (1) **GDSC do MDSS** — o `mdss-common.yaml` exige `power-domains`; o patch 0019 passou a registrar o GDSC no dispcc-khaje (`gdscr 0x1004`, o endereço real do FDT `0x5f01004` com `qcom,support-hw-trigger` → `HW_CTRL`; waits espelhados no SM6375, que usa o mesmo offset) e os exemplos/protótipo usam `<&dispcc MDSS_GDSC>`. Resta validar waits/comportamento em hardware e, na ativação, remover o nó vendor `mdss_core_gdsc` para não haver dois donos do mesmo GDSCR. (2) **Filhos DSI/PHY** — os `patternProperties` cobrem só o DPU; DSI controller/PHY e o painel M7 entram na etapa DSI, sem inventar compatibles agora. Nada disso ativa probe: o DTS de produção continua vendor (`qcom,sde-kms`/`qcom,dsi-display`). Validação registrada: runs de CI [`40159645421`](https://github.com/Ctps1234/Kernel/actions/runs/40159645421) (bindings 0018) e [`40161579585`](https://github.com/Ctps1234/Kernel/actions/runs/40161579585) (GDSC 0019) — *Kernel build* e job de DTs verdes. Na sequência, o patch 0020 mapeou DSI v2.4/PHY 7nm v4.1 por compatibles (`qcom,sm6225-dsi-ctrl`, `qcom,sm6225-dsi-phy-7nm` → `dsi_phy_7nm_6375_cfgs`; a config upstream já continha `0x5e94000`/`vdda`/`refgen`) e o 0021 trouxe o driver do painel M7 `_0a` com sequências transcritas programaticamente do vendor ([`tools/extract_m7_panel_seq.py`](../tools/extract_m7_panel_seq.py)), PPS regenerado de `drm_dsc_config` e modo fixo de 120 Hz; o protótipo de teste ganhou filhos `dsi@5e94000`, `phy@5e94400` e `panel@0`, compilando com DTC. DFPS/HBM/ESD e qualquer ativação seguem pendentes.
 
+## Clock do DSI com DSC
+
+O painel M7 é DSC obrigatório, e o host 6.18 tem uma conta própria para
+isso: com `msm_host->dsc` preenchido, o `pclk` deixa de ser
+`mode->clock * 1000` e passa a ser o ajustado pela razão de compressão,
+encurtando apenas a parte ativa da linha. Para o M7 isso dá
+183,276 MHz em vez de 393,400 MHz nominais, e `byte_clk` de 137,457 MHz
+em vez de 295,050 MHz (4 lanes, 24 bpp). Sem DSC a taxa por lane seria
+2,36 Gbps, fora do que essa PHY opera.
+
+A conta completa, os números por grandeza e as três coisas que só o
+hardware responde (PPS regenerado bit a bit, `slice_per_pkt` do host
+contra o do vendor, e o VCO que a PLL realmente entrega) estão em
+[`dsi-clock-dsc.md`](dsi-clock-dsc.md). O `0021` preenche `dsi->dsc`
+antes do `mipi_dsi_attach()`, então o caminho ajustado é o que vale; o
+modo sem DSC só apareceria num driver de painel que esquecesse isso.
+
 ## Escopo do código Creek
 
 O [`msm/Kbuild`](https://github.com/MiCode/vendor_opensource_display-drivers/blob/ee8aa3ac08e8beab3de282b0e3b5e77f55ebe5e2/msm/Kbuild) constrói um módulo downstream `msm_drm`, seleciona a configuração Bengal para `CONFIG_ARCH_KHAJE` e agrega SDE/DSI/DP. Na árvore fixada há 102 arquivos sob `msm/sde/` e 200 sob `msm/{sde,dsi,dp}/` em conjunto. Isso é uma implementação de stack, não uma tabela de hardware isolada ou um módulo complementar pequeno. No alvo, [`drivers/gpu/drm/msm/Makefile`](https://github.com/EdMory/android_kernel_common_sm8850/blob/0efd3abd3c356d644ea49f6ed37e9830b78d34e3/drivers/gpu/drm/msm/Makefile) produz `msm.o` (com Adreno, DPU e DSI) quando `CONFIG_DRM_MSM` está ativo; o Kbuild Creek produz `msm_drm.o`, portanto não substitui esse artefato pelo nome. A configuração Creek de Khaje ([`gki_bengaldisp.conf`](https://github.com/MiCode/vendor_opensource_display-drivers/blob/ee8aa3ac08e8beab3de282b0e3b5e77f55ebe5e2/config/gki_bengaldisp.conf)) habilita `CONFIG_DRM_MSM=y`, `CONFIG_DRM_MSM_SDE=y` e `CONFIG_DRM_MSM_DSI=y`, mas os dois stacks ainda precisariam ser analisados quanto a módulos DRM registrados, compatíveis OF, símbolos/exports e seleção userspace. Não desabilitar o upstream às cegas, pois ele também contém o driver GPU. O KMI/API do kernel 5.15 não pode ser presumido compatível com 6.12.

@@ -25,12 +25,16 @@ enabled. I2C address is the datasheet default
 available to confirm; sensor power rails (WL2866D outputs)
 are not regulator-modeled yet, so power-on defaults to
 the rails' power-on state until WL2866D grows regulators.
-Rotation/orientation from the downstream sensor node.
+Orientation/rotation from the downstream sensor node:
+sensor-position-roll 270 maps to rotation 270, and the
+sensor is the user-facing one, so orientation is
+MEDIA_ORIENTATION_FRONT (0) - not 2, which means
+"external/movable" in video-interface-devices.yaml.
 ---
  .../bindings/media/i2c/ovti,ov08d10.yaml      | 101 +++++++++++++++++
- .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  67 +++++++++++
+ .../boot/dts/qcom/sm6225-xiaomi-topaz.dts     |  68 ++++++++++++
  drivers/media/i2c/ov08d10.c                   | 107 ++++++++++++++++++
- 3 files changed, 275 insertions(+)
+ 3 files changed, 276 insertions(+)
  create mode 100644 Documentation/devicetree/bindings/media/i2c/ovti,ov08d10.yaml
 
 diff --git a/Documentation/devicetree/bindings/media/i2c/ovti,ov08d10.yaml b/Documentation/devicetree/bindings/media/i2c/ovti,ov08d10.yaml
@@ -144,7 +148,7 @@ diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/
 index 135a7ee5e07e..8bf8c6454836 100644
 --- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
 +++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
-@@ -516,6 +516,59 @@ &cci {
+@@ -516,6 +516,60 @@ &cci {
  	status = "okay";
  };
  
@@ -173,7 +177,8 @@ index 135a7ee5e07e..8bf8c6454836 100644
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&cam_mclk1_default &cam_front_reset_default>;
 +
-+		orientation = <2>;
++		/* MEDIA_ORIENTATION_FRONT: this is the user-facing camera */
++		orientation = <0>;
 +		rotation = <270>;
 +
 +		port {
