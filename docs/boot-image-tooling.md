@@ -232,6 +232,14 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   do repo `xiaomi-6225-AD` têm 50 fragmentos idênticos e 7 bytes de
   diferença de tamanho — `fdt_compare.py` devolve `IGUAIS`;
   `--verboso` mostra os phandles renumerados um por um.
+- `tools/audit_regulators.py` confere `min/init/max` de cada rail
+  RPM-SMD da série contra o FDT do aparelho. Não é cosmético: o PHY
+  USB (`phy-qcom-snps-femto-v2`), o codec e o BT só fazem
+  enable/disable de regulador, então o `qcom,init-voltage` é a tensão
+  que o hardware recebe de fato. A primeira rodada achou cinco rails
+  com valores vindos do `bengal-regulator`, não do Khaje (inclusive
+  `vdda18` do PHY USB em 1,62 V e `vdda33` em 2,92 V). Ver
+  [`regulator-audit.md`](regulator-audit.md).
 - `tools/fdt_inject_ids.py` injeta `qcom,msm-id`/`qcom,board-id`
   (copiados do FDT stock) na raiz do DTB compilado — é por essas
   props que o ABL seleciona o FDT base na região multi-FDT; o DTB

@@ -37,9 +37,9 @@ index 1cdb7c5b0f30..2064c051f19c 100644
 +						compatible = "qcom,rpm-smd-regulator";
 +						regulator-name = "pm6125_l16";
 +						qcom,set = <3>;
-+						regulator-min-microvolt = <1704000>;
-+						regulator-max-microvolt = <1904000>;
-+						qcom,init-voltage = <1704000>;
++						regulator-min-microvolt = <1700000>;
++						regulator-max-microvolt = <1900000>;
++						qcom,init-voltage = <1700000>;
 +					};
 +				};
 +
@@ -55,9 +55,9 @@ index 1cdb7c5b0f30..2064c051f19c 100644
 +						compatible = "qcom,rpm-smd-regulator";
 +						regulator-name = "pm6125_l17";
 +						qcom,set = <3>;
-+						regulator-min-microvolt = <1152000>;
-+						regulator-max-microvolt = <1384000>;
-+						qcom,init-voltage = <1152000>;
++						regulator-min-microvolt = <1220000>;
++						regulator-max-microvolt = <1304000>;
++						qcom,init-voltage = <1220000>;
 +					};
 +				};
 +
