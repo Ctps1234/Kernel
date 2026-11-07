@@ -16,11 +16,12 @@ The stock FDT has the node and it is small:
           status = "ok";
   };
 
-Add the same contract under &remoteproc_adsp, which is the node
-the software phandle resolves to and the one the loader needs
-to see registered before it binds (it returns -EPROBE_DEFER
-until then). Place it as a child of the PAS node so the phandle
-is local and the load order falls out of the device tree.
+Add the same contract under &soc, as a sibling of the PAS node -
+the same place the vendor DT puts it. The PAS binding accepts no
+extra child nodes (dtbs_check rejected the nested version), and
+the driver resolves the remoteproc through qcom,rproc-handle, so
+where the node lives does not matter: it binds as soon as the
+rproc is registered and returns -EPROBE_DEFER until then.
 
 auto_boot stays off on the PAS node: booting is now the
 loader's job, exactly like downstream. Nothing here boots the
@@ -32,34 +33,40 @@ contract are hardware-verification items.
 
 Signed-off-by: Kernel <noreply@localhost>
 ---
- arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
 index aad834584..046bcf82b 100644
 --- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
 +++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
-@@ -510,6 +510,21 @@ irled@1 {
+@@ -510,6 +510,27 @@ irled@1 {
  &remoteproc_adsp {
  	firmware-name = "adsp.mdt";
  	status = "okay";
-+
-+	/*
-+	 * Android userspace on this ROM boots the ADSP through
-+	 * /sys/kernel/boot_adsp/boot, not through the generic
-+	 * remoteproc state file (the vendor PAS resource ships
-+	 * with auto_boot off). The driver is in this series
-+	 * (qcom,adsp-loader); this node is what makes it exist.
-+	 * qcom,adsp-state is the vendor hint for the initial
-+	 * state and matches the live FDT.
-+	 */
+ };
+ 
++/*
++ * Android userspace on this ROM boots the ADSP through
++ * /sys/kernel/boot_adsp/boot, not through the generic
++ * remoteproc state file (the vendor PAS resource ships
++ * with auto_boot off). The driver is in this series
++ * (qcom,adsp-loader); this node is what makes it exist.
++ * qcom,adsp-state is the vendor hint for the initial
++ * state and matches the live FDT.
++ *
++ * Sibling of the remoteproc, like the vendor DT: the
++ * PAS binding allows no extra children, and the driver
++ * resolves the rproc by phandle, so location is moot.
++ */
++&soc {
 +	adsp_loader: adsp-loader {
 +		compatible = "qcom,adsp-loader";
 +		qcom,rproc-handle = <&remoteproc_adsp>;
 +		qcom,adsp-state = <0>;
 +	};
- };
- 
++};
++
  /*
 -- 
 2.39.5
