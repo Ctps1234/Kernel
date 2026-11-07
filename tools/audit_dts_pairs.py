@@ -120,6 +120,21 @@ def audita(caminho):
 
 def _checa(caminho, no, problemas):
     props = no["props"]
+
+    # qcom,tlmm-common.yaml: quando `pins` lista qualquer "gpioN", o
+    # estado tem de declarar `function` (o `if/then` do binding). Foi
+    # exatamente isto que reprovou o dtbs_check do topaz em 2026-11-06
+    # num cd-pins sem function.
+    # nos "&label { ... }" sao overrides: valem so' as propriedades
+    # listadas, o resto vem do no' original (que declara function).
+    if "pins" in props and not no["nome"].startswith("&"):
+        pinos = re.findall(r'"([^"]+)"', props["pins"])
+        if any(p.startswith("gpio") for p in pinos) and "function" not in props:
+            problemas.append((caminho, no["linha"],
+                              "%s [pins]: estado com pinos gpioN exige "
+                              "`function` (qcom,tlmm-common.yaml)"
+                              % no["nome"]))
+
     for prop, prop_nomes in PARES:
         if prop not in props or prop_nomes not in props:
             continue

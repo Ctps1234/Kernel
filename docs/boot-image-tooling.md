@@ -246,6 +246,11 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   checagem nasceu de um quase-erro: a tabela de UBWC é consultada pelo
   compatible da raiz (`qcom,sm6225`), não pelo do bloco
   (`qcom,khaje-dpu`).
+- `tools/patch_lint.py` recomputa as contagens de cada `@@` e compara
+  com o corpo do hunk. Editar patch à mão (somar uma linha `+` e
+  esquecer o `+N`) é a falha mais fácil de cometer e a mais chata de
+  diagnosticar, porque o `git am` só reclama no meio da série, longe
+  do patch culpado. Roda em ~0,2 s, sem rede e sem árvore de kernel.
 - `tools/audit_regulators.py` confere `min/init/max` de cada rail
   RPM-SMD da série contra o FDT do aparelho. Não é cosmético: o PHY
   USB (`phy-qcom-snps-femto-v2`), o codec e o BT só fazem
