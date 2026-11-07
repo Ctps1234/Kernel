@@ -8,6 +8,22 @@ Estado: imagens prontas e validadas
 (`out-618/`, tar `topaz-618-test-images-2026-11-04.tar.gz` no Drive).
 **Nada foi gravado no aparelho.** Nenhum passo abaixo roda sem você.
 
+O DTB dentro dessas imagens é anterior a três ajustes de DTS
+(card-detect do microSD, `orientation` da câmera e o `output-high` do
+AVDD do touch) — nenhum deles muda o caminho de boot, então o tar
+continua servindo para o teste de Nível 0. Para refazer as imagens com
+o DTB atual, antes de gravar:
+
+```sh
+tools/fetch_ci_artifacts.sh     # Image + DTB da última run (branch ci-artifacts-6.18)
+tools/build_flash_images_618.sh # refaz out-618/ com roundtrip dos originais
+```
+
+O `fetch_ci_artifacts.sh` existe porque o zip de artefato do Actions não
+baixa deste ambiente (blob storage bloqueado); o branch do próprio
+repositório baixa. Sem ele, `build_flash_images_618.sh` precisa de um
+diretório de artefatos passado à mão.
+
 ---
 
 ## O que o teste NÃO faz (e por que é menos arriscado do que parece)

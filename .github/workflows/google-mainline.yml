@@ -210,8 +210,13 @@ jobs:
           ls -l Image sm6225-xiaomi-topaz.dtb 2>/dev/null || true
           git add -A
           git commit -q -m "6.18: artefatos da run ${GITHUB_RUN_ID}" || true
-          git push -f origin HEAD:refs/heads/ci-artifacts-6.18
-          echo "artefatos 6.18 publicados no branch ci-artifacts-6.18"
+          # Publicar artefato e' conveniencia: sem contents:write o
+          # push falha e o job nao pode ficar vermelho por isso.
+          if git push -f origin HEAD:refs/heads/ci-artifacts-6.18; then
+            echo "artefatos 6.18 publicados no branch ci-artifacts-6.18"
+          else
+            echo "aviso: sem permissao para publicar em ci-artifacts-6.18" >&2
+          fi
 
       # Os artefatos vao para o blob storage do Actions, que nao e'
       # alcancavel de todo ambiente (do sandbox do projeto o zip morre
