@@ -32,15 +32,16 @@ diretório de artefatos passado à mão.
 |---|---|
 | `vbmeta_b` tem **flags = 3** (verification + hashtree desligados) | não é preciso reassinar nem apagar `vbmeta`; hash "errado" é aceito |
 | `init_boot` é **cópia idêntica** da ROM | o `adbd`/init de primeiro estágio é o da Lunaris, não inventamos nada |
-| `vendor_boot` mantém **a ramdisk vendor stock** (258 módulos) | só trocamos o FDT #1 e o bootconfig |
+| `vendor_boot` mantém **a ramdisk vendor original da Lunaris OS** (258 módulos) | só trocamos o FDT #1 e o bootconfig |
 | Só o slot `_b` é tocado | `_a` fica intacto como estava (não há imagens válidas lá, mas nada é sobrescrito) |
 | `dtbo` entra com **uma** entrada alterada (51) | as outras 51 continuam byte-idênticas |
 | Bootloader desbloqueado | `fastboot` volta mesmo com boot quebrado (ABL roda antes do kernel) |
 
 O risco real não é "brick": é **o teste não passar** e o aparelho ficar
-em loop de reboot até você reflashar o stock. Os 4 arquivos originais
-estão no dump (`dump-lineage.tar.gz`, 7/7 hashes conferidos) e podem
-ser re-extraídos das partições a qualquer momento.
+em loop de reboot até você restaurar as imagens originais da Lunaris OS.
+Os arquivos originais estão no dump (`dump-lineage.tar.gz`, hashes
+conferidos) e podem ser re-extraídos das partições a qualquer momento.
+Não se trata da ROM Xiaomi de fábrica.
 
 ## Riscos conhecidos que só o hardware resolve
 
@@ -65,9 +66,9 @@ ser re-extraídos das partições a qualquer momento.
 - Bateria **> 50 %** (não dá para carregar com kernel de teste).
 - Cabo USB bom + `fastboot` funcionando no PC (`fastboot --version`).
 - Termux com root no aparelho, para o dump de segurança (passo 0).
-- Espaço para guardar ~130 MB de backup.
+- Espaço para guardar ~260 MB de backup das partições da Lunaris OS.
 
-### Passo 0 — dump de segurança das 4 partições (slot `_b`)
+### Passo 0 — dump de segurança das 5 partições (slot `_b`)
 
 No aparelho, com root (os caminhos `by-name` são os medidos):
 
@@ -77,9 +78,9 @@ su -c 'mkdir -p /sdcard/bk && for p in boot_b vendor_boot_b dtbo_b init_boot_b v
 sha256sum /sdcard/bk/*.img
 ```
 
-Conferir contra os hashes stock já registrados em
-`docs/boot-partition-inventory.md`. Se baterem, o rollback é garantido
-mesmo se o dump do Drive sumir.
+Conferir contra os hashes dos dumps originais da Lunaris OS registrados
+em `docs/boot-partition-inventory.md`. Se baterem, o rollback para a
+Lunaris fica verificável mesmo se o dump do Drive sumir.
 
 ### Passo 1 — bootloader
 
@@ -134,15 +135,15 @@ tem a região e o config força `PSTORE_RAM=y`). Então, depois de o
 aparelho reiniciar sozinho:
 
 ```sh
-# voltar ao stock e ler o que ficou na RAM reservada
-fastboot flash boot_b boot_b.img          # do backup stock
+# restaurar o boot original da Lunaris e ler a RAM reservada
+fastboot flash boot_b boot_b.img          # do backup da Lunaris
 fastboot reboot
 adb shell su -c 'ls -l /sys/fs/pstore'
 adb pull /sys/fs/pstore/console-ramoops-0
 ```
 
 Se o aparelho ficar em loop sem reiniciar o suficiente, segurar
-**Vol- + Power** ~15 s e reflashar o stock pelo bootloader.
+**Vol- + Power** ~15 s e restaurar o boot da Lunaris pelo bootloader.
 
 ### Passo 5 — rollback completo
 
