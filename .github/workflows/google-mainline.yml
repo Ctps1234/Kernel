@@ -181,6 +181,38 @@ jobs:
             basegoogle/falhas.txt basegoogle/configure.log \
             basegoogle/kernel-build-618.log basegoogle/dtbs-check-618.log || true
 
+      # Os artefatos do Actions ficam no blob storage do GitHub, que nao
+      # e' alcancavel do sandbox do projeto (o zip morre com EOF depois
+      # do 302). Um branch publicado pelo CI, esse sim, sai por
+      # github.com e pode ser lido com `git fetch`. Mesmo padrao do
+      # workflow 6.12: publica Image, DTB, .config e logs em
+      # ci-artifacts-6.18. O push e' forcado - cada run substitui o
+      # conteudo, sem empilhar 30 MB de Image por rodada no historico.
+      # tools/fetch_ci_artifacts.sh traz de volta para o sandbox.
+      - name: Publish Image + DTB to ci-artifacts-6.18
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          rm -rf /tmp/artefatos
+          mkdir -p /tmp/artefatos/logs
+          cd /tmp/artefatos
+          git init -q
+          git config user.email "ci@local"
+          git config user.name "CI"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          cp "$GITHUB_WORKSPACE/basegoogle/arch/arm64/boot/Image" Image || true
+          cp "$GITHUB_WORKSPACE/basegoogle/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dtb" sm6225-xiaomi-topaz.dtb || true
+          cp "$GITHUB_WORKSPACE/basegoogle/.config" config-6.18.config || true
+          cp "$GITHUB_WORKSPACE/basegoogle/"*.log logs/ || true
+          echo "run ${GITHUB_RUN_ID} sha ${GITHUB_SHA}" > RUN
+          ls -l Image sm6225-xiaomi-topaz.dtb 2>/dev/null || true
+          git add -A
+          git commit -q -m "6.18: artefatos da run ${GITHUB_RUN_ID}" || true
+          git push -f origin HEAD:refs/heads/ci-artifacts-6.18
+          echo "artefatos 6.18 publicados no branch ci-artifacts-6.18"
+
       # Os artefatos vao para o blob storage do Actions, que nao e'
       # alcancavel de todo ambiente (do sandbox do projeto o zip morre
       # com EOF, so' api.github.com responde). O DTB do topaz tem

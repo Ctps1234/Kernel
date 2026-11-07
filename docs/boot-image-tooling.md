@@ -294,17 +294,24 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   numa run de CI verde — as imagens atuais continuam válidas para o
   teste de Nível 0, e o `dtb` precisa ser regenerado antes de qualquer
   teste de câmera ou de slot de cartão.
-- **Canal do DTB sem o zip do artefato (2026-11-06).** O zip dos
+- **Como pegar `Image`/DTB do CI sem o zip (2026-11-06).** O zip dos
   artefatos do Actions mora em
   `productionresultssa*.blob.core.windows.net`, que este sandbox não
   alcança: a API responde `302` e o download morre com `EOF`. O
-  `api.github.com`, esse responde — então o job de build passou a
-  publicar o `sm6225-xiaomi-topaz.dtb` em base64 na própria issue de
-  relatório (`tools/ci_publish_dtb.sh`, dois ou três comentários) e
-  `tools/fetch_dtb.py` junta as partes de volta conferindo o sha256.
-  Isso não substitui o artefato: serve para inspecionar o DTB com os
-  `fdt_*.py` e para repor o DTB no `vendor_boot` daqui, sem depender
-  do zip. Ainda **não exercitado** — o primeiro uso real é a próxima
-  run que chegar ao build.
+  `github.com`, esse responde — então o job de build publica `Image`,
+  `sm6225-xiaomi-topaz.dtb`, `.config`, os logs e um arquivo `RUN` no
+  branch **`ci-artifacts-6.18`** (push forçado, mesmo padrão do
+  workflow 6.12; cada run substitui o conteúdo para não empilhar 30 MB
+  de `Image` por rodada no histórico). Do sandbox:
+  `tools/fetch_ci_artifacts.sh` clona o branch para
+  `ci-artifacts-618/`, que é justamente o diretório default do
+  `build_flash_images_618.sh` — o pipeline de imagens volta a rodar
+  inteiro aqui.
+  Existe também um canal menor, de reserva, para quando só' o DTB
+  interessa: `tools/ci_publish_dtb.sh` publica o DTB em base64 na
+  issue de relatório e `tools/fetch_dtb.py` junta as partes conferindo
+  o sha256.
+  Nenhum dos dois foi exercitado de ponta a ponta ainda — o primeiro
+  teste real é a próxima run que chegar ao build.
 - Artefatos de build ficam fora do Git: `google_drive/` (dumps e
   `out-618/`) e `out-618/` na raiz já estão no ignore.
