@@ -80,7 +80,7 @@ jobs:
     name: Kernel build 6.18 (port Khaje)
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       issues: write
     steps:
       - name: Checkout Kernel project

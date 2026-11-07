@@ -247,10 +247,13 @@ boot sem evidencia.
   Corrigido nos dois estados; a regra virou checagem em
   `tools/audit_dts_pairs.py` (com exceção para overrides `&label`,
   que herdam a função).
-- O job de build publica `Image`, `sm6225-xiaomi-topaz.dtb`, `.config`
-  e logs no branch **`ci-artifacts-6.18`**, porque o zip de artefato
-  do Actions não baixa no sandbox. `tools/fetch_ci_artifacts.sh` traz
-  de volta e `tools/build_flash_images_618.sh` refaz `out-618/`.
+- O job pretende publicar `Image`, `sm6225-xiaomi-topaz.dtb`, `.config`
+  e logs no branch **`ci-artifacts-6.18`**, pois o zip do Actions não
+  baixa no sandbox. A run `42397797873` passou o step de publicação,
+  mas o branch continuou ausente: o job tinha `contents: read`, sem
+  permissão para push. Corrigido para `contents: write`; confirmar na
+  próxima run. Depois, `tools/fetch_ci_artifacts.sh` traz os artefatos
+  e `tools/build_flash_images_618.sh` reempacota as partições originais.
 - Boot continua sem nenhuma evidência: nada foi gravado no aparelho.
 
 ## Estado (2026-10-29)

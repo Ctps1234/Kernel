@@ -206,9 +206,16 @@ requerendo `ranges` pelo schema genérico `simple-bus`, apesar do binding
 remoteproc dedicado do patch 0027. O follow-up **0095** explicitou a
 seleção sem remover o erro (run `42395726332`, build verde, DTB falhou).
 O **0096** move o dispositivo software-only para a raiz mantendo o
-phandle ao PAS; aguarda nova validação de CI.
+phandle ao PAS. A run [`42397797873`](https://github.com/Ctps1234/Kernel/actions/runs/42397797873)
+passou os dois gates: aplicação da série e build/link da `Image` +
+`dtbs_check` do DTB. Ela não publicou os artefatos no branch
+`ci-artifacts-6.18`: o job tinha `contents: read`; o workflow agora foi
+corrigido para `contents: write` e precisa de nova run para validar a
+publicação. Não considerar compilação/link do kernel, isoladamente,
+evidência de boot ou de funcionamento do ADSP.
 
-O que continua só no CI: `make dtbs_check` e o build completo da
-`Image`. Não considerar o DTB válido nem gerar/usar imagens de teste
-até o gate de schema passar; compilação/link do kernel, por si só, não
-valida o DTB nem o boot do ADSP.
+Próximo passo operacional: disparar novamente o workflow, confirmar a
+publicação da `Image`/DTB em `ci-artifacts-6.18`, então buscar os
+artefatos. Para reempacotar imagens de teste, também são necessários os
+dumps originais no Drive; **não flashar** sem checklist de backup e
+autorização explícita.
