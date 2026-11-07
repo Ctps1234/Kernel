@@ -20,7 +20,7 @@ diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/
 index 0c4132d05b1f..ed3cdfb6e1ce 100644
 --- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
 +++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
-@@ -449,7 +449,18 @@ touchscreen@38 {
+@@ -454,7 +454,18 @@ touchscreen@38 {
  	};
  };
  
@@ -40,9 +40,8 @@ index 0c4132d05b1f..ed3cdfb6e1ce 100644
  &i2c4 {
  	assigned-clocks = <&gcc GCC_QUPV3_WRAP0_S4_CLK>;
  	assigned-clock-rates = <19200000>;
-@@ -957,11 +968,12 @@ ts_reset_active: ts-reset-active-state {
+@@ -963,10 +974,11 @@ ts_reset_active: ts-reset-active-state {
  	};
- 
  
 +	/* int/enable/clk-req pull-ups match the stock FDT. */
  	nfc_default: nfc-default-state {

@@ -145,7 +145,7 @@ index 72988d61c9fc..eb513cc680fa 100644
  	/*
  	 * ERM vibrator driven from PM6125 GPIO8 (downstream
  	 * qcom,qpnp-vibrator-ldo-tz with vib,en-gpio active
-@@ -298,26 +306,37 @@ &i2c2 {
+@@ -298,26 +306,42 @@ &i2c2 {
  	status = "okay";
  
  	/*
@@ -168,6 +168,11 @@ index 72988d61c9fc..eb513cc680fa 100644
 +	 * IOVCC rail: L9 is the panel 1.8 V I/O rail on this
 +	 * board; downstream treats touch IOVCC as always-on
 +	 * and the exact rail is unconfirmed.
++	 * The stock DTBO also describes a goodix-sunrise@5d
++	 * sibling (the _0b panel variant; GT9896 Berlin
++	 * protocol, no driver here) plus a synaptics/
++	 * novatek pair in another fragment. This unit is
++	 * the FocalTech; only that controller is described.
  	 */
  	touchscreen@38 {
 -		compatible = "focaltech,fts";
@@ -198,7 +203,7 @@ index 72988d61c9fc..eb513cc680fa 100644
  	};
  };
  
-@@ -562,20 +581,21 @@ &mdss_dsi0_phy {
+@@ -562,20 +586,21 @@ &mdss_dsi0_phy {
  };
  
  &tlmm {
@@ -209,6 +214,7 @@ index 72988d61c9fc..eb513cc680fa 100644
  		function = "gpio";
  		drive-strength = <8>;
  		bias-pull-up;
++		output-high;
  	};
  
 -	ts_int_suspend: ts-int-suspend-state {
@@ -221,11 +227,10 @@ index 72988d61c9fc..eb513cc680fa 100644
 +		bias-pull-up;
  	};
  
-+
  	ts_reset_active: ts-reset-active-state {
  		pins = "gpio86";
  		function = "gpio";
-@@ -583,12 +603,6 @@ ts_reset_active: ts-reset-active-state {
+@@ -583,12 +608,5 @@ ts_reset_active: ts-reset-active-state {
  		bias-pull-up;
  	};
  
@@ -235,7 +240,7 @@ index 72988d61c9fc..eb513cc680fa 100644
 -		drive-strength = <2>;
 -		bias-pull-down;
 -	};
- 
+-
  	nfc_default: nfc-default-state {
  		pins = "gpio69", "gpio70", "gpio71";
 -- 

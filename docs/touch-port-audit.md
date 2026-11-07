@@ -105,7 +105,12 @@ De `touchscreen_m7.dtsi` e do FDT ativo, sobre `&qupv3_se2_i2c`
   fragmento usa `&L9A` (rail 1.8V de IO do painel nesta placa) como
   placeholder **não confirmado**;
 - pinctrl vendor `pmx_ts_active` = gpio80/86/36, função gpio, DS8,
-  pull-up → estado achatado `ts-active-upstream-state` no fragmento;
+  pull-up; o sub-estado do AVDD (`pmx_ts_avdd`) traz ainda
+  `output-high`. Nossos `ts_int_active`/`ts_reset_active`/`ts_avdd_active`
+  (0053) replicam exatamente isso: sem o `output-high` o enable do load
+  switch ficaria flutuando até o `regulator-fixed` reivindicar o GPIO 36.
+  Os estados de suspend do vendor não são portados — o `edt-ft5x06` não
+  troca pinctrl em runtime, dorme pelo reset GPIO;
 - o nó vendor do barramento (`qcom,i2c-geni`) carrega `dmas` (GPI),
   `interconnects` e `qcom,wrapper-core`; o pai `qupv3_0` já usa o
   compatible upstream `qcom,geni-se-qup`. O fragmento só sobrepõe o
@@ -117,6 +122,14 @@ Config embutida para o driver compilar no `Image`:
 (`I2C`/`QCOM_GENI_SE`/`I2C_QCOM_GENI`, `INPUT_TOUCHSCREEN`) em
 [`config/topaz-khaje.config`](../config/topaz-khaje.config) e no `REQUIRED`
 de `tools/configure_kernel.sh`.
+
+O dtbo da ROM em uso (Lunaris) confirma o desenho: o `fragment@47`
+sobre `qupv3_se2_i2c` traz `focaltech@38` com
+`focaltech,display-coords = <0 0 0x2a2f 0x5dbf>` (0..10799 × 0..23999), o
+irmão `goodix-sunrise@5d` (variante `_0b`) e, noutro fragmento,
+`synaptics_tcm@20`/`novatek@62` — três famílias de painel para o mesmo
+slot. Só descrevemos a que este aparelho tem, e a faixa 10800×24000 do
+`touchscreen-size-x/y` é `max + 1`, como o vendor faz.
 
 ## O que fica de fora (deliberado)
 
