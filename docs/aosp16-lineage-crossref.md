@@ -138,6 +138,9 @@ Checklist do Nível 0 após esta rodada:
   (2026-11-04) a partir dos dumps + artifact `google-kernel-build`
   do run `41748589605` (relay via Drive). Pacote
   `topaz-618-test-images-2026-11-04.tar.gz` no Drive do usuário.
+- ☐ Roteiro de execução do primeiro teste: escrito em
+  `docs/level0-test-runbook.md` (flash do slot `_b`, captura por
+  ramoops, rollback em 4 comandos).
 - ☐ Decisão do `/data` (wrappedkey), SELinux permissivo no teste e
   autorização explícita — **nada de flash antes disso**.
 
