@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Thu, 6 Nov 2026 22:10:00 -0300
+Subject: [PATCH] arm64: dts: qcom: topaz: instantiate the ADSP loader
+
+The driver landed in 0027 but nothing instantiates it, so
+/sys/kernel/boot_adsp/ never appears and the ROM's userspace
+cannot start the ADSP the way it does on the stock kernel.
+
+The stock FDT has the node and it is small:
+
+  qcom,msm-adsp-loader {
+          compatible = "qcom,adsp-loader";
+          qcom,rproc-handle = <0x1bb>;   /* ADSP PAS */
+          qcom,adsp-state = <0x0>;
+          status = "ok";
+  };
+
+Add the same contract under &remoteproc_adsp, which is the node
+the software phandle resolves to and the one the loader needs
+to see registered before it binds (it returns -EPROBE_DEFER
+until then). Place it as a child of the PAS node so the phandle
+is local and the load order falls out of the device tree.
+
+auto_boot stays off on the PAS node: booting is now the
+loader's job, exactly like downstream. Nothing here boots the
+ADSP by itself - the write to boot_adsp/boot does, and that
+write comes from Android userspace, not from this kernel.
+
+Compile-only: firmware presence and the boot/ssr sysfs
+contract are hardware-verification items.
+
+Signed-off-by: Kernel <noreply@localhost>
+---
+ arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index aad834584..046bcf82b 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -510,6 +510,21 @@ irled@1 {
+ &remoteproc_adsp {
+ 	firmware-name = "adsp.mdt";
+ 	status = "okay";
++
++	/*
++	 * Android userspace on this ROM boots the ADSP through
++	 * /sys/kernel/boot_adsp/boot, not through the generic
++	 * remoteproc state file (the vendor PAS resource ships
++	 * with auto_boot off). The driver is in this series
++	 * (qcom,adsp-loader); this node is what makes it exist.
++	 * qcom,adsp-state is the vendor hint for the initial
++	 * state and matches the live FDT.
++	 */
++	adsp_loader: adsp-loader {
++		compatible = "qcom,adsp-loader";
++		qcom,rproc-handle = <&remoteproc_adsp>;
++		qcom,adsp-state = <0>;
++	};
+ };
+ 
+ /*
+-- 
+2.39.5

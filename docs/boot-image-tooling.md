@@ -232,6 +232,20 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   do repo `xiaomi-6225-AD` têm 50 fragmentos idênticos e 7 bytes de
   diferença de tamanho — `fdt_compare.py` devolve `IGUAIS`;
   `--verboso` mostra os phandles renumerados um por um.
+- `tools/audit_dts_pairs.py` checa os pares "*-names / lista" nos DTS
+  (`clocks`/`clock-names`, `interrupts`/`interrupt-names`,
+  `reg`/`reg-names`, `dmas`/`dma-names`, `power-domains`/nomes,
+  `pinctrl-N`). É uma classe de erro que `dtbs_check` não pega: cada
+  propriedade é válida sozinha, mas o driver pede um clock pelo nome e
+  recebe outro (ou nenhum) — `probe` falha com `-ENOENT` ou o hardware
+  roda com o clock errado.
+- `tools/audit_compatibles.py` cruza os `compatible` dos drivers da
+  série com os nós do DTS: driver que nenhum nó instancia, e entrada de
+  tabela indexada pela **raiz** da árvore (`of_machine_get_match_data`,
+  `soc_device_match`) que não casa com o `compatible` do DTS. A segunda
+  checagem nasceu de um quase-erro: a tabela de UBWC é consultada pelo
+  compatible da raiz (`qcom,sm6225`), não pelo do bloco
+  (`qcom,khaje-dpu`).
 - `tools/audit_regulators.py` confere `min/init/max` de cada rail
   RPM-SMD da série contra o FDT do aparelho. Não é cosmético: o PHY
   USB (`phy-qcom-snps-femto-v2`), o codec e o BT só fazem

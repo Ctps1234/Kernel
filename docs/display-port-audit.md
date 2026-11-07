@@ -170,6 +170,33 @@ contra o do vendor, e o VCO que a PLL realmente entrega) estão em
 antes do `mipi_dsi_attach()`, então o caminho ajustado é o que vale; o
 modo sem DSC só apareceria num driver de painel que esquecesse isso.
 
+## Tabela UBWC: casada pelo compatible da raiz, não pelo da DPU
+
+`drivers/soc/qcom/ubwc_config.c` resolve os dados de UBWC com
+`of_machine_get_match_data(qcom_ubwc_configs)` — contra o **compatible
+da raiz da árvore**, não contra o nó do MDSS/DPU. Isso é fácil de
+errar porque o resto do display casa por compatible de bloco
+(`qcom,khaje-mdss`, `qcom,khaje-dpu`).
+
+A cadeia da série, conferida em 2026-11-06:
+
+- `0017` registra `khaje_data` e a chave `qcom,khaje` (nome interno);
+- `0034` acrescenta a chave `qcom,sm6225` apontando para o mesmo dado;
+- a raiz do `sm6225-xiaomi-topaz.dts` diz
+  `compatible = "xiaomi,topaz", "qcom,sm6225"`.
+
+Resultado: casa por `qcom,sm6225`. Sem a entrada do `0034` o
+`msm_mdss_probe()` falharia com `Couldn't find UBWC config data for
+this platform!` (-EINVAL) no dia em que o nó `qcom,khaje-mdss` fosse
+ativado — e o erro apareceria só em runtime, porque nem `dtbs_check`
+nem o build olham para essa tabela.
+
+A lição generalizável, que virou checagem automática
+(`tools/audit_compatibles.py`): **tabela indexada por
+`of_machine_get_match_data()`/`soc_device_match()` precisa de uma
+string que esteja na raiz do DTS**, e essa string não é a mesma dos
+compatibles de bloco.
+
 ## Escopo do código Creek
 
 O [`msm/Kbuild`](https://github.com/MiCode/vendor_opensource_display-drivers/blob/ee8aa3ac08e8beab3de282b0e3b5e77f55ebe5e2/msm/Kbuild) constrói um módulo downstream `msm_drm`, seleciona a configuração Bengal para `CONFIG_ARCH_KHAJE` e agrega SDE/DSI/DP. Na árvore fixada há 102 arquivos sob `msm/sde/` e 200 sob `msm/{sde,dsi,dp}/` em conjunto. Isso é uma implementação de stack, não uma tabela de hardware isolada ou um módulo complementar pequeno. No alvo, [`drivers/gpu/drm/msm/Makefile`](https://github.com/EdMory/android_kernel_common_sm8850/blob/0efd3abd3c356d644ea49f6ed37e9830b78d34e3/drivers/gpu/drm/msm/Makefile) produz `msm.o` (com Adreno, DPU e DSI) quando `CONFIG_DRM_MSM` está ativo; o Kbuild Creek produz `msm_drm.o`, portanto não substitui esse artefato pelo nome. A configuração Creek de Khaje ([`gki_bengaldisp.conf`](https://github.com/MiCode/vendor_opensource_display-drivers/blob/ee8aa3ac08e8beab3de282b0e3b5e77f55ebe5e2/config/gki_bengaldisp.conf)) habilita `CONFIG_DRM_MSM=y`, `CONFIG_DRM_MSM_SDE=y` e `CONFIG_DRM_MSM_DSI=y`, mas os dois stacks ainda precisariam ser analisados quanto a módulos DRM registrados, compatíveis OF, símbolos/exports e seleção userspace. Não desabilitar o upstream às cegas, pois ele também contém o driver GPU. O KMI/API do kernel 5.15 não pode ser presumido compatível com 6.12.
