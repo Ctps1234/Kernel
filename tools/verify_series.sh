@@ -104,6 +104,9 @@ else
 	echo "serie quebrada no patch $N" >&2
 fi
 
+if [ "$MANTER" -eq 1 ]; then
+	echo "arvore: $WORK"
+fi
 if [ "$MANTER" -eq 0 ] && [ "$NOVO" -eq 1 ]; then
 	echo "(apagando $WORK; use --keep para preservar)"
 	rm -rf "$WORK"

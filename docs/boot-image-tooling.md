@@ -246,6 +246,14 @@ As imagens permanecem privadas em `google_drive/out/` (gitignored). O script
   checagem nasceu de um quase-erro: a tabela de UBWC é consultada pelo
   compatible da raiz (`qcom,sm6225`), não pelo do bloco
   (`qcom,khaje-dpu`).
+- `tools/check_all.sh` roda a bateria local inteira em sequencia:
+  `patch_lint` (0,2 s), `verify_series` (~80 s), `audit_dts_pairs`,
+  `audit_compatibles` na árvore recém-aplicada e `audit_regulators`
+  contra o FDT do aparelho. Sai 0 só' se os cinco passarem e imprime o
+  caminho da árvore preservada. É o que dá para checar sem CI: build e
+  `dtbs_check` continuam dependendo da run. `--sem-verify` pula a
+  aplicação (usa o `audit_regulators` isolado quando se mexeu só' em
+  valor de tensão).
 - `tools/patch_lint.py` recomputa as contagens de cada `@@` e compara
   com o corpo do hunk. Editar patch à mão (somar uma linha `+` e
   esquecer o `+N`) é a falha mais fácil de cometer e a mais chata de
