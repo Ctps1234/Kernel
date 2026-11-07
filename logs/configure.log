@@ -1,0 +1,271 @@
+arvore com PSTORE_RAM: exigindo ramoops built-in
+arvore com VIDEO_S5KJN1: exigindo sensor traseiro built-in
+arvore com TYPEC_RT1711H: exigindo pilha USB-C built-in
+arvore com DWC3/Femto: exigindo USB primario built-in
+arvore com QCOM_MPM: exigindo MPM built-in
+arvore com BT_HCIUART_QCA: exigindo BT WCN3990 built-in
+arvore com ATH10K_SNOC: exigindo Wi-Fi built-in
+arvore com CRYPTO_DEV_QCE: exigindo crypto built-in
+arvore com CRYPTO_DEV_QCOM_RNG: exigindo PRNG built-in
+arvore com NFC_ST_NCI_I2C: exigindo NFC built-in
+arvore com IR_SPI: exigindo IR blaster built-in
+arvore com QCOM_GPI_DMA: exigindo GPI DMA built-in
+arvore com MMC_SDHCI_MSM: exigindo SDHCI2 built-in
+usando compilador cruzado: aarch64-linux-gnu-gcc
+== defconfig GKI ==
+  HOSTCC  scripts/basic/fixdep
+  HOSTCC  scripts/kconfig/conf.o
+  HOSTCC  scripts/kconfig/confdata.o
+  HOSTCC  scripts/kconfig/expr.o
+  LEX     scripts/kconfig/lexer.lex.c
+  YACC    scripts/kconfig/parser.tab.[ch]
+  HOSTCC  scripts/kconfig/lexer.lex.o
+  HOSTCC  scripts/kconfig/menu.o
+  HOSTCC  scripts/kconfig/parser.tab.o
+  HOSTCC  scripts/kconfig/preprocess.o
+  HOSTCC  scripts/kconfig/symbol.o
+  HOSTCC  scripts/kconfig/util.o
+  HOSTLD  scripts/kconfig/conf
+*** Default configuration is based on 'defconfig'
+#
+# configuration written to .config
+#
+== mesclando /home/runner/work/Kernel/Kernel/config/topaz-khaje.config ==
+.merged-khaje.config:11829:warning: override: reassigning to symbol ARCH_QCOM
+.merged-khaje.config:11830:warning: override: reassigning to symbol QCOM_SMD_RPM
+.merged-khaje.config:11832:warning: override: reassigning to symbol COMMON_CLK_QCOM
+.merged-khaje.config:11833:warning: override: reassigning to symbol SM_GCC_6225
+.merged-khaje.config:11835:warning: override: reassigning to symbol SM_GPUCC_6225
+.merged-khaje.config:11838:warning: override: reassigning to symbol PINCTRL_MSM
+.merged-khaje.config:11839:warning: override: reassigning to symbol PINCTRL_KHAJE
+.merged-khaje.config:11841:warning: override: reassigning to symbol INTERCONNECT_QCOM
+.merged-khaje.config:11842:warning: override: reassigning to symbol INTERCONNECT_QCOM_BENGAL
+.merged-khaje.config:11844:warning: override: reassigning to symbol REGULATOR_QCOM_SMD_RPM
+.merged-khaje.config:11846:warning: override: reassigning to symbol PHY_QCOM_QMP
+.merged-khaje.config:11847:warning: override: reassigning to symbol PHY_QCOM_QMP_UFS
+.merged-khaje.config:11850:warning: override: reassigning to symbol QCOM_PANEL_EVENT_NOTIFIER
+.merged-khaje.config:11863:warning: override: reassigning to symbol DRM
+.merged-khaje.config:11864:warning: override: reassigning to symbol DRM_MSM
+.merged-khaje.config:11865:warning: override: reassigning to symbol DRM_MSM_DPU
+.merged-khaje.config:11870:warning: override: reassigning to symbol BACKLIGHT_CLASS_DEVICE
+.merged-khaje.config:11871:warning: override: reassigning to symbol DRM_PANEL_XIAOMI_M7
+.merged-khaje.config:11872:warning: override: reassigning to symbol QCOM_LLCC
+.merged-khaje.config:11873:warning: override: reassigning to symbol QCOM_OCMEM
+.merged-khaje.config:11881:warning: override: reassigning to symbol SCSI_UFS_QCOM
+.merged-khaje.config:11884:warning: override: reassigning to symbol QCOM_MPM
+.merged-khaje.config:11891:warning: override: reassigning to symbol RFKILL
+.merged-khaje.config:11892:warning: override: reassigning to symbol POWER_SEQUENCING
+.merged-khaje.config:11893:warning: override: reassigning to symbol BT
+.merged-khaje.config:11894:warning: override: reassigning to symbol BT_HCIUART
+.merged-khaje.config:11895:warning: override: reassigning to symbol BT_HCIUART_SERDEV
+.merged-khaje.config:11896:warning: override: reassigning to symbol BT_HCIUART_QCA
+.merged-khaje.config:11897:warning: override: reassigning to symbol BT_QCA
+.merged-khaje.config:11898:warning: override: reassigning to symbol SERIAL_DEV_BUS
+.merged-khaje.config:11902:warning: override: reassigning to symbol CFG80211
+.merged-khaje.config:11903:warning: override: reassigning to symbol MAC80211
+.merged-khaje.config:11904:warning: override: reassigning to symbol WLAN
+.merged-khaje.config:11905:warning: override: reassigning to symbol WLAN_VENDOR_ATH
+.merged-khaje.config:11906:warning: override: reassigning to symbol ATH10K
+.merged-khaje.config:11907:warning: override: reassigning to symbol ATH10K_SNOC
+.merged-khaje.config:11910:warning: override: reassigning to symbol DMADEVICES
+.merged-khaje.config:11911:warning: override: reassigning to symbol QCOM_BAM_DMA
+.merged-khaje.config:11912:warning: override: reassigning to symbol CRYPTO_DEV_QCE
+.merged-khaje.config:11915:warning: override: reassigning to symbol CRYPTO_DEV_QCOM_RNG
+.merged-khaje.config:11919:warning: override: reassigning to symbol NFC
+.merged-khaje.config:11920:warning: override: reassigning to symbol NFC_NCI
+.merged-khaje.config:11921:warning: override: reassigning to symbol NFC_ST_NCI_I2C
+.merged-khaje.config:11926:warning: override: reassigning to symbol SPI_QCOM_GENI
+.merged-khaje.config:11927:warning: override: reassigning to symbol RC_CORE
+.merged-khaje.config:11928:warning: override: reassigning to symbol LIRC
+.merged-khaje.config:11929:warning: override: reassigning to symbol RC_DEVICES
+.merged-khaje.config:11933:warning: override: reassigning to symbol QCOM_GPI_DMA
+.merged-khaje.config:11937:warning: override: reassigning to symbol MMC
+.merged-khaje.config:11938:warning: override: reassigning to symbol MMC_SDHCI
+.merged-khaje.config:11939:warning: override: reassigning to symbol MMC_SDHCI_PLTFM
+.merged-khaje.config:11940:warning: override: reassigning to symbol MMC_SDHCI_MSM
+.merged-khaje.config:11943:warning: override: reassigning to symbol BLK_DEV_DM
+.merged-khaje.config:11944:warning: override: reassigning to symbol DM_VERITY
+.merged-khaje.config:11947:warning: override: reassigning to symbol F2FS_FS
+.merged-khaje.config:11948:warning: override: reassigning to symbol EROFS_FS
+.merged-khaje.config:11952:warning: override: reassigning to symbol USB_CONFIGFS
+.merged-khaje.config:11953:warning: override: reassigning to symbol USB_CONFIGFS_F_FS
+.merged-khaje.config:11958:warning: override: reassigning to symbol TYPEC
+.merged-khaje.config:11959:warning: override: reassigning to symbol TYPEC_TCPM
+.merged-khaje.config:11960:warning: override: reassigning to symbol TYPEC_TCPCI
+.merged-khaje.config:11961:warning: override: reassigning to symbol TYPEC_RT1711H
+.merged-khaje.config:11966:warning: override: reassigning to symbol USB_DWC3
+.merged-khaje.config:11967:warning: override: reassigning to symbol USB_DWC3_QCOM
+.merged-khaje.config:11968:warning: override: reassigning to symbol USB_DWC3_DUAL_ROLE
+.merged-khaje.config:11969:warning: override: reassigning to symbol USB_XHCI_HCD
+.merged-khaje.config:11970:warning: override: reassigning to symbol USB_XHCI_PLATFORM
+.merged-khaje.config:11971:warning: override: reassigning to symbol PHY_QCOM_USB_SNPS_FEMTO_V2
+.merged-khaje.config:11976:warning: override: reassigning to symbol PSTORE_BLK
+.merged-khaje.config:11984:warning: override: reassigning to symbol PSTORE
+.merged-khaje.config:11985:warning: override: reassigning to symbol PSTORE_RAM
+.merged-khaje.config:11986:warning: override: reassigning to symbol PSTORE_CONSOLE
+.merged-khaje.config:11994:warning: override: reassigning to symbol I2C
+.merged-khaje.config:11995:warning: override: reassigning to symbol QCOM_GENI_SE
+.merged-khaje.config:11996:warning: override: reassigning to symbol I2C_QCOM_GENI
+.merged-khaje.config:11997:warning: override: reassigning to symbol INPUT_TOUCHSCREEN
+.merged-khaje.config:11998:warning: override: reassigning to symbol TOUCHSCREEN_EDT_FT5X06
+.merged-khaje.config:12011:warning: override: reassigning to symbol REMOTEPROC
+.merged-khaje.config:12012:warning: override: reassigning to symbol QCOM_SYSMON
+.merged-khaje.config:12013:warning: override: reassigning to symbol RPMSG_QCOM_GLINK_SMEM
+.merged-khaje.config:12014:warning: override: reassigning to symbol QCOM_Q6V5_PAS
+.merged-khaje.config:12015:warning: override: reassigning to symbol NVMEM_QCOM_QFPROM
+.merged-khaje.config:12016:warning: override: reassigning to symbol QCOM_ADSP_LOADER
+.merged-khaje.config:12022:warning: override: reassigning to symbol SM_LPASSCC_6115
+.merged-khaje.config:12031:warning: override: reassigning to symbol QRTR
+.merged-khaje.config:12032:warning: override: reassigning to symbol QRTR_SMD
+.merged-khaje.config:12033:warning: override: reassigning to symbol QCOM_APR
+.merged-khaje.config:12037:warning: override: reassigning to symbol SOUND
+.merged-khaje.config:12038:warning: override: reassigning to symbol SND
+.merged-khaje.config:12039:warning: override: reassigning to symbol SND_SOC
+.merged-khaje.config:12040:warning: override: reassigning to symbol SND_SOC_QCOM
+.merged-khaje.config:12041:warning: override: reassigning to symbol SND_SOC_QDSP6
+.merged-khaje.config:12049:warning: override: reassigning to symbol SOUNDWIRE
+.merged-khaje.config:12050:warning: override: reassigning to symbol SOUNDWIRE_QCOM
+.merged-khaje.config:12051:warning: override: reassigning to symbol SND_SOC_LPASS_RX_MACRO
+.merged-khaje.config:12052:warning: override: reassigning to symbol SND_SOC_LPASS_TX_MACRO
+.merged-khaje.config:12053:warning: override: reassigning to symbol SND_SOC_LPASS_VA_MACRO
+.merged-khaje.config:12059:warning: override: reassigning to symbol PINCTRL_LPASS_LPI
+.merged-khaje.config:12060:warning: override: reassigning to symbol PINCTRL_SM6115_LPASS_LPI
+.merged-khaje.config:12066:warning: override: reassigning to symbol SND_SOC_WCD937X_SDW
+.merged-khaje.config:12072:warning: override: reassigning to symbol SND_SOC_SC8280XP
+.merged-khaje.config:12079:warning: override: reassigning to symbol WL2866D
+.merged-khaje.config:12086:warning: override: reassigning to symbol CPU_FREQ
+.merged-khaje.config:12087:warning: override: reassigning to symbol ARM_QCOM_CPUFREQ_HW
+.merged-khaje.config:12088:warning: override: reassigning to symbol CPU_IDLE
+.merged-khaje.config:12089:warning: override: reassigning to symbol ARM_PSCI_CPUIDLE
+.merged-khaje.config:12093:warning: override: reassigning to symbol I2C_QCOM_CCI
+.merged-khaje.config:12099:warning: override: reassigning to symbol MEDIA_SUPPORT
+.merged-khaje.config:12100:warning: override: reassigning to symbol MEDIA_CAMERA_SUPPORT
+.merged-khaje.config:12101:warning: override: reassigning to symbol MEDIA_PLATFORM_SUPPORT
+.merged-khaje.config:12102:warning: override: reassigning to symbol VIDEO_DEV
+.merged-khaje.config:12103:warning: override: reassigning to symbol V4L_PLATFORM_DRIVERS
+.merged-khaje.config:12104:warning: override: reassigning to symbol VIDEO_QCOM_CAMSS
+.merged-khaje.config:12109:warning: override: reassigning to symbol VIDEO_OV08D10
+.merged-khaje.config:12110:warning: override: reassigning to symbol VIDEO_S5KJN1
+#
+# configuration written to .config
+#
+== conference dos símbolos do port Khaje ==
+  ok      CONFIG_ARCH_QCOM=y
+  ok      CONFIG_QCOM_SMD_RPM=y
+  ok      CONFIG_COMMON_CLK_QCOM=y
+  ok      CONFIG_SM_GCC_6225=y
+  ok      CONFIG_SM_DISPCC_6225=y
+  ok      CONFIG_SM_GPUCC_6225=y
+  ok      CONFIG_SM_DEBUGCC_6225=y
+  ok      CONFIG_SM_LPASSCC_6115=y
+  ok      CONFIG_PINCTRL_MSM=y
+  ok      CONFIG_PINCTRL_KHAJE=y
+  ok      CONFIG_INTERCONNECT_QCOM=y
+  ok      CONFIG_INTERCONNECT_QCOM_BENGAL=y
+  ok      CONFIG_REGULATOR_QCOM_SMD_RPM=y
+  ok      CONFIG_SCSI_UFS_QCOM=y
+  ok      CONFIG_BLK_DEV_DM=y
+  ok      CONFIG_DM_VERITY=y
+  ok      CONFIG_F2FS_FS=y
+  ok      CONFIG_EROFS_FS=y
+  ok      CONFIG_USB_CONFIGFS=y
+  ok      CONFIG_USB_CONFIGFS_F_FS=y
+  ok      CONFIG_PSTORE_BLK=y
+  ok      CONFIG_PSTORE=y
+  ok      CONFIG_PSTORE_CONSOLE=y
+  ok      CONFIG_QCOM_PANEL_EVENT_NOTIFIER=y
+  ok      CONFIG_DRM=y
+  ok      CONFIG_DRM_MSM=y
+  ok      CONFIG_DRM_MSM_DPU=y
+  ok      CONFIG_DRM_MSM_MDSS=y
+  ok      CONFIG_BACKLIGHT_CLASS_DEVICE=y
+  ok      CONFIG_DRM_PANEL_XIAOMI_M7=y
+  ok      CONFIG_I2C=y
+  ok      CONFIG_QCOM_GENI_SE=y
+  ok      CONFIG_I2C_QCOM_GENI=y
+  ok      CONFIG_INPUT_TOUCHSCREEN=y
+  ok      CONFIG_TOUCHSCREEN_EDT_FT5X06=y
+  ok      CONFIG_REMOTEPROC=y
+  ok      CONFIG_QCOM_Q6V5_PAS=y
+  ok      CONFIG_QCOM_ADSP_LOADER=y
+  ok      CONFIG_NVMEM_QCOM_QFPROM=y
+  ok      CONFIG_QCOM_SYSMON=y
+  ok      CONFIG_RPMSG_QCOM_GLINK_SMEM=y
+  ok      CONFIG_QRTR=y
+  ok      CONFIG_QRTR_SMD=y
+  ok      CONFIG_QCOM_APR=y
+  ok      CONFIG_QCOM_PDR_HELPERS=y
+  ok      CONFIG_QCOM_PDR_MSG=y
+  ok      CONFIG_QCOM_QMI_HELPERS=y
+  ok      CONFIG_SOUND=y
+  ok      CONFIG_SND=y
+  ok      CONFIG_SND_SOC=y
+  ok      CONFIG_SND_SOC_QCOM=y
+  ok      CONFIG_SND_SOC_QDSP6=y
+  ok      CONFIG_SND_SOC_QDSP6_APM=y
+  ok      CONFIG_SND_SOC_QDSP6_PRM=y
+  ok      CONFIG_SOUNDWIRE=y
+  ok      CONFIG_SOUNDWIRE_QCOM=y
+  ok      CONFIG_SND_SOC_LPASS_RX_MACRO=y
+  ok      CONFIG_SND_SOC_LPASS_TX_MACRO=y
+  ok      CONFIG_SND_SOC_LPASS_VA_MACRO=y
+  ok      CONFIG_PINCTRL_LPASS_LPI=y
+  ok      CONFIG_PINCTRL_SM6115_LPASS_LPI=y
+  ok      CONFIG_SND_SOC_WCD937X=y
+  ok      CONFIG_SND_SOC_WCD937X_SDW=y
+  ok      CONFIG_SND_SOC_SC8280XP=y
+  ok      CONFIG_WL2866D=y
+  ok      CONFIG_CPU_FREQ=y
+  ok      CONFIG_ARM_QCOM_CPUFREQ_HW=y
+  ok      CONFIG_CPU_IDLE=y
+  ok      CONFIG_ARM_PSCI_CPUIDLE=y
+  ok      CONFIG_I2C_QCOM_CCI=y
+  ok      CONFIG_MEDIA_SUPPORT=y
+  ok      CONFIG_VIDEO_DEV=y
+  ok      CONFIG_V4L_PLATFORM_DRIVERS=y
+  ok      CONFIG_VIDEO_QCOM_CAMSS=y
+  ok      CONFIG_VIDEO_OV08D10=y
+  ok      CONFIG_PSTORE_RAM=y
+  ok      CONFIG_VIDEO_S5KJN1=y
+  ok      CONFIG_TYPEC=y
+  ok      CONFIG_TYPEC_TCPM=y
+  ok      CONFIG_TYPEC_TCPCI=y
+  ok      CONFIG_TYPEC_RT1711H=y
+  ok      CONFIG_USB_DWC3=y
+  ok      CONFIG_USB_DWC3_QCOM=y
+  ok      CONFIG_USB_DWC3_DUAL_ROLE=y
+  ok      CONFIG_PHY_QCOM_USB_SNPS_FEMTO_V2=y
+  ok      CONFIG_QCOM_MPM=y
+  ok      CONFIG_RFKILL=y
+  ok      CONFIG_POWER_SEQUENCING=y
+  ok      CONFIG_BT=y
+  ok      CONFIG_BT_HCIUART=y
+  ok      CONFIG_BT_HCIUART_SERDEV=y
+  ok      CONFIG_BT_HCIUART_QCA=y
+  ok      CONFIG_BT_QCA=y
+  ok      CONFIG_SERIAL_DEV_BUS=y
+  ok      CONFIG_CFG80211=y
+  ok      CONFIG_MAC80211=y
+  ok      CONFIG_WLAN=y
+  ok      CONFIG_WLAN_VENDOR_ATH=y
+  ok      CONFIG_ATH10K=y
+  ok      CONFIG_ATH10K_SNOC=y
+  ok      CONFIG_DMADEVICES=y
+  ok      CONFIG_QCOM_BAM_DMA=y
+  ok      CONFIG_CRYPTO_DEV_QCE=y
+  ok      CONFIG_CRYPTO_DEV_QCOM_RNG=y
+  ok      CONFIG_NFC=y
+  ok      CONFIG_NFC_NCI=y
+  ok      CONFIG_NFC_ST_NCI_I2C=y
+  ok      CONFIG_SPI_QCOM_GENI=y
+  ok      CONFIG_RC_CORE=y
+  ok      CONFIG_LIRC=y
+  ok      CONFIG_RC_DEVICES=y
+  ok      CONFIG_IR_SPI=y
+  ok      CONFIG_QCOM_GPI_DMA=y
+  ok      CONFIG_MMC=y
+  ok      CONFIG_MMC_SDHCI=y
+  ok      CONFIG_MMC_SDHCI_PLTFM=y
+  ok      CONFIG_MMC_SDHCI_MSM=y
+  ok      CONFIG_PHY_QCOM_QMP_UFS=y
+configuração do port concluída
