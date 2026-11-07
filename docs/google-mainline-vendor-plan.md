@@ -207,15 +207,18 @@ remoteproc dedicado do patch 0027. O follow-up **0095** explicitou a
 seleção sem remover o erro (run `42395726332`, build verde, DTB falhou).
 O **0096** move o dispositivo software-only para a raiz mantendo o
 phandle ao PAS. A run [`42397797873`](https://github.com/Ctps1234/Kernel/actions/runs/42397797873)
-passou os dois gates: aplicação da série e build/link da `Image` +
-`dtbs_check` do DTB. Ela não publicou os artefatos no branch
-`ci-artifacts-6.18`: o job tinha `contents: read`; o workflow agora foi
-corrigido para `contents: write` e precisa de nova run para validar a
-publicação. Não considerar compilação/link do kernel, isoladamente,
-evidência de boot ou de funcionamento do ADSP.
+passou aplicação, build/link da `Image` e `dtbs_check`. A publicação no
+branch `ci-artifacts-6.18` inicialmente falhou silenciosamente porque
+o job tinha `contents: read`; ajustei para `contents: write`. A run
+[`42400420581`](https://github.com/Ctps1234/Kernel/actions/runs/42400420581)
+passou os dois gates e publicou os artefatos. `tools/fetch_ci_artifacts.sh`
+os trouxe para `ci-artifacts-618/` (ignorado pelo Git): `Image`
+(49.338.880 bytes) e `sm6225-xiaomi-topaz.dtb` (57.442 bytes). SHA-256
+da Image: `b560c090abbdbdada08ac48a998e8911558b4ee0428089078cda780ce44f2b4c`;
+do DTB: `c8ce08d7af25414818c6fd90d2be84541bbeae565ab5672cef809de038963767`.
+Isso valida aplicação, build e schema, não boot nem funcionamento do
+ADSP.
 
-Próximo passo operacional: disparar novamente o workflow, confirmar a
-publicação da `Image`/DTB em `ci-artifacts-6.18`, então buscar os
-artefatos. Para reempacotar imagens de teste, também são necessários os
-dumps originais no Drive; **não flashar** sem checklist de backup e
-autorização explícita.
+Próximo passo operacional: reempacotar imagens de teste com os dumps
+originais no Drive, quando estiverem disponíveis no workspace. **Não
+flashar** sem checklist de backup e autorização explícita.

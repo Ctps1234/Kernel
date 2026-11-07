@@ -239,8 +239,16 @@ boot sem evidencia.
   reportou no nó novo `adsp-loader` a exigência de `ranges` do schema
   genérico `simple-bus`, em vez de aplicar o binding remoto dedicado do
   0027. A seleção explícita pelo compatible no 0095 não eliminou o erro;
-  o 0096 move o dispositivo software-only para a raiz, preservando o
-  phandle ao PAS. A nova rodada de CI ainda está pendente.
+  o 0096 moveu o dispositivo software-only para a raiz, preservando o
+  phandle ao PAS. A run [`42397797873`](https://github.com/Ctps1234/Kernel/actions/runs/42397797873)
+  validou a série, a `Image` e o `dtbs_check`.
+- A permissão de publicação foi corrigida de `contents: read` para
+  `contents: write` no job de build. A run
+  [`42400420581`](https://github.com/Ctps1234/Kernel/actions/runs/42400420581)
+  passou também e publicou os artefatos; `tools/fetch_ci_artifacts.sh`
+  os trouxe para `ci-artifacts-618/` (ignorado pelo Git). SHA-256:
+  `Image` `b560c090abbdbdada08ac48a998e8911558b4ee0428089078cda780ce44f2b4c`;
+  DTB `c8ce08d7af25414818c6fd90d2be84541bbeae565ab5672cef809de038963767`.
 - **Primeira falha real do `dtbs_check`** (run `42326525686`): o
   `cd-pins` do `0070` tinha `pins = "gpio88"` sem `function`, e o
   `qcom,tlmm-common` exige `function` sempre que `pins` casa `^gpio`.
