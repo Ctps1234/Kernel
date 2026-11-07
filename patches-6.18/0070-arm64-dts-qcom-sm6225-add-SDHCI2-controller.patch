@@ -79,7 +79,7 @@ index 617ab94eed8b..9cfd09afbf8a 100644
  				rpm-regulator-ldoa24 {
  					compatible = "qcom,rpm-smd-regulator-resource";
  					qcom,resource-name = "ldoa";
-@@ -865,6 +911,46 @@ qup_i2c1_default: qup-i2c1-default-state {
+@@ -865,6 +911,58 @@ qup_i2c1_default: qup-i2c1-default-state {
  				bias-disable;
  			};
  
@@ -101,6 +101,12 @@ index 617ab94eed8b..9cfd09afbf8a 100644
 +					drive-strength = <10>;
 +					bias-pull-up;
 +				};
++
++				cd-pins {
++					pins = "gpio88";
++					drive-strength = <2>;
++					bias-pull-up;
++				};
 +			};
 +
 +			sdc2_state_off: sdc2-off-state {
@@ -120,6 +126,12 @@ index 617ab94eed8b..9cfd09afbf8a 100644
 +					pins = "sdc2_data";
 +					drive-strength = <2>;
 +					bias-pull-up;
++				};
++
++				cd-pins {
++					pins = "gpio88";
++					drive-strength = <2>;
++					bias-disable;
 +				};
 +			};
 +

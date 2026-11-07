@@ -5,10 +5,16 @@ Subject: [PATCH 71/71] arm64: dts: qcom: topaz: enable microSD on SDHCI2
 
 Enable the SDHC2 host with the PM6125 rails downstream
 assigns to the slot (L22 vmmc, L5 vqmmc), card-detect on
-TLMM GPIO88 as wired by the Xiaomi board layer
-(active-high, overriding the IDP setting) and UHS SDR104
-support matching the 202 MHz OPP. The downstream io-bias
-rail (L7) has no upstream consumer and is left unmodeled.
+TLMM GPIO88 and UHS SDR104 support matching the 202 MHz
+OPP. The downstream io-bias rail (L7) has no upstream
+consumer and is left unmodeled.
+
+The card-detect line is active-low: the pin keeps its
+pull-up in the sdc2-on state and the socket switch pulls
+it to ground when a card is inserted. This matches the
+vendor board overlay (cd-gpios = <&tlmm 88 GPIO_ACTIVE_LOW>)
+decoded from the shipping device tree; an earlier revision
+of this patch had the polarity inverted.
 
 Signed-off-by: Arena Agent <agent@arena.local>
 ---
@@ -28,14 +34,14 @@ index 6880fc219430..2206c010480c 100644
 + * downstream assigns (L22 vdd, L5 vdd-io); the downstream
 + * io-bias rail (L7, 1.256 V) has no upstream consumer and
 + * is deliberately left unmodeled so the regulator core
-+ * does not turn it off. Card detect is TLMM GPIO88; the
-+ * Xiaomi board layer drives it active-high, overriding
-+ * the Khaje IDP active-low setting.
++ * does not turn it off. Card detect is TLMM GPIO88,
++ * active-low: the pin is pulled up in the sdc2-on state
++ * and the socket switch grounds it when a card is in.
 + */
 +&sdhc_2 {
 +	vmmc-supply = <&pm6125_l22>;
 +	vqmmc-supply = <&pm6125_l5>;
-+	cd-gpios = <&tlmm 88 GPIO_ACTIVE_HIGH>;
++	cd-gpios = <&tlmm 88 GPIO_ACTIVE_LOW>;
 +
 +	sd-uhs-sdr104;
 +
