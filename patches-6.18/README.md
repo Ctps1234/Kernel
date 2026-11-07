@@ -224,9 +224,10 @@ boot sem evidencia.
 
 ## Estado atual (2026-11-07)
 
-- **94 patches** (0001-0095, sem o 0029), todos aplicando limpo na base
+- **95 patches** (0001-0096, sem o 0029), todos aplicando limpo na base
   fixada (`1afe39edbe66`), ponta `sm6225-xiaomi-topaz.dts` com o
-  `adsp-loader` do 0094 e o follow-up de seleção de schema 0095.
+  `adsp-loader` do 0094, seleção explícita de schema no 0095 e o nó
+  movido para fora do `simple-bus` no 0096.
 - Os gates locais couberam num comando: `tools/check_all.sh` roda
   `patch_lint` (contagens de hunk), `verify_series` (aplicação),
   `audit_dts_pairs` (pares `*-names`/lista e `pins`→`function`),
@@ -237,8 +238,9 @@ boot sem evidencia.
   apply-check (93/93) e build/link da `Image` passaram. O `dtbs_check`
   reportou no nó novo `adsp-loader` a exigência de `ranges` do schema
   genérico `simple-bus`, em vez de aplicar o binding remoto dedicado do
-  0027. O follow-up 0095 adiciona seleção explícita pelo compatible;
-  ainda precisa de uma nova rodada verde para confirmar a correção.
+  0027. A seleção explícita pelo compatible no 0095 não eliminou o erro;
+  o 0096 move o dispositivo software-only para a raiz, preservando o
+  phandle ao PAS. A nova rodada de CI ainda está pendente.
 - **Primeira falha real do `dtbs_check`** (run `42326525686`): o
   `cd-pins` do `0070` tinha `pins = "gpio88"` sem `function`, e o
   `qcom,tlmm-common` exige `function` sempre que `pins` casa `^gpio`.

@@ -195,7 +195,7 @@ HEAD 6.18, continua nosso), 0024 (speed-bins A610),
 `tools/check_all.sh` reproduz localmente os gates estáticos: contagens
 hunk, aplicação sequencial na base ACK, coerência dos pares DTS,
 compatibles driver↔DTS e auditoria dos reguladores contra o FDT. A
-rodada após os patches 0094–0095 passou **94/94 patches**; a árvore
+rodada após os patches 0094–0096 passou **95/95 patches**; a árvore
 final fica em `/tmp`, fora do repositório.
 
 A dispatch manual de `google-mainline.yml` funciona nesta branch. Na
@@ -203,8 +203,10 @@ run [`42393991206`](https://github.com/Ctps1234/Kernel/actions/runs/42393991206)
 apply-check **93/93** e build/link da `Image` passaram. O gate
 `dtbs_check` falhou apenas no nó novo `adsp-loader`, reportado como
 requerendo `ranges` pelo schema genérico `simple-bus`, apesar do binding
-remoteproc dedicado do patch 0027. O follow-up **0095** explicita a
-seleção do binding pelo compatible; aguarda nova validação de CI.
+remoteproc dedicado do patch 0027. O follow-up **0095** explicitou a
+seleção sem remover o erro (run `42395726332`, build verde, DTB falhou).
+O **0096** move o dispositivo software-only para a raiz mantendo o
+phandle ao PAS; aguarda nova validação de CI.
 
 O que continua só no CI: `make dtbs_check` e o build completo da
 `Image`. Não considerar o DTB válido nem gerar/usar imagens de teste

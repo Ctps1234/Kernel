@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kernel <noreply@localhost>
+Date: Sat, 7 Nov 2026 14:40:00 -0300
+Subject: [PATCH] arm64: dts: qcom: topaz: keep ADSP loader outside simple-bus
+
+The generic simple-bus schema still applies its child-node constraints
+to the loader under &soc, even with an explicit qcom,adsp-loader binding
+selection. The loader is a software-only platform device with no MMIO
+resources; it does not belong on the simple-bus. Place it at the root,
+while retaining its phandle to the ADSP PAS. The driver uses that
+phandle and is independent of the loader node's location.
+
+Signed-off-by: Kernel <noreply@localhost>
+---
+ arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+index 046bcf82b..000000000 100644
+--- a/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
++++ b/arch/arm64/boot/dts/qcom/sm6225-xiaomi-topaz.dts
+@@ -526,13 +526,11 @@
+  * with auto_boot off). The driver is in this series
+  * (qcom,adsp-loader); this node is what makes it exist.
+  * qcom,adsp-state is the vendor hint for the initial
+  * state and matches the live FDT.
+- *
+- * Sibling of the remoteproc, like the vendor DT: the
+- * PAS binding allows no extra children, and the driver
+- * resolves the rproc by phandle, so location is moot.
++ * It is software-only, so keep it outside the simple-bus;
++ * the phandle makes its location independent of the PAS.
+  */
+-&soc {
++/ {
+ 	adsp_loader: adsp-loader {
+ 		compatible = "qcom,adsp-loader";
+ 		qcom,rproc-handle = <&remoteproc_adsp>;
+-- 
+2.39.5
