@@ -190,17 +190,23 @@ HEAD 6.18, continua nosso), 0024 (speed-bins A610),
   `docs/hardware-info-needed.md`.
 
 
-## Validação local da série (2026-11-06)
+## Validação local e CI da série (2026-11-07)
 
-O workflow passa a depender só do push: o token do agente não tem
-permissão de `workflow_dispatch` (HTTP 403) e um push feito daqui não
-abriu run nenhuma das duas vezes. Para não ficar refém disso,
-`tools/verify_series.sh` reproduz o gate `rebase-cost` localmente:
-baixa a base ACK esparsa (139 arquivos, `--depth 1`,
-`--filter=blob:none`) e aplica os 92 patches com `git am --keep-cr`.
-Rodada de referência: **92/92 limpos em 77 s**.
+`tools/check_all.sh` reproduz localmente os gates estáticos: contagens
+hunk, aplicação sequencial na base ACK, coerência dos pares DTS,
+compatibles driver↔DTS e auditoria dos reguladores contra o FDT. A
+rodada após os patches 0094–0095 passou **94/94 patches**; a árvore
+final fica em `/tmp`, fora do repositório.
 
-O que continua só no CI: `make dtbs_check` (schema) e o build do
-`Image` com o fragmento — ambos exigem o build de ferramentas de host
-que o sandbox não tem (`dtc` precisa de flex/bison) ou tempo de CPU
-que 2 núcleos não entregam.
+A dispatch manual de `google-mainline.yml` funciona nesta branch. Na
+run [`42393991206`](https://github.com/Ctps1234/Kernel/actions/runs/42393991206),
+apply-check **93/93** e build/link da `Image` passaram. O gate
+`dtbs_check` falhou apenas no nó novo `adsp-loader`, reportado como
+requerendo `ranges` pelo schema genérico `simple-bus`, apesar do binding
+remoteproc dedicado do patch 0027. O follow-up **0095** explicita a
+seleção do binding pelo compatible; aguarda nova validação de CI.
+
+O que continua só no CI: `make dtbs_check` e o build completo da
+`Image`. Não considerar o DTB válido nem gerar/usar imagens de teste
+até o gate de schema passar; compilação/link do kernel, por si só, não
+valida o DTB nem o boot do ADSP.
